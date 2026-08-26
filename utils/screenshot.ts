@@ -116,6 +116,8 @@ export function getCapturedScreenshots(): string[] {
   return globalThis.__capturedScreenshots__ || [];
 }
 
+export const capturescreenshot = captureScreenshot;
+
 function getFallbackTimestamp(): string {
   const now = new Date();
   const pad = (n: number) => String(n).padStart(2, '0');

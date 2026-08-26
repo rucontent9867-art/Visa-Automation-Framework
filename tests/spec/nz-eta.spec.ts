@@ -1,4 +1,4 @@
-import { test, expect } from '../../utils/baseTest';
+import { test, expect, capturescreenshot } from '../../utils/baseTest';
 import {
     getArrivalDate,
     getDepartureDate,
@@ -83,8 +83,15 @@ test('New Zealand eTA Application', async ({ page, waitForCaptcha, getUploadFile
     // 6. REGISTER
     // =====================================
 
+    await page.waitForTimeout(1000);
+    await capturescreenshot(page, 'registration-page');
     await page.getByRole('button', { name: 'Register' })
         .click();
+    try {
+        await page.waitForLoadState('networkidle', { timeout: 5000 });
+    } catch {
+        console.log('Network never went idle, continuing anyway');
+    }
 
     await page.getByRole('textbox', {
         name: 'Name as per Passport',
@@ -140,8 +147,15 @@ test('New Zealand eTA Application', async ({ page, waitForCaptcha, getUploadFile
     // 8. SUBMIT & NAVIGATE TO UPLOAD
     // =====================================
 
+    await page.waitForTimeout(1000);
+    await capturescreenshot(page, 'applicant-detail');
     await page.getByRole('button', { name: 'Submit & Preview' })
         .click();
+    try {
+        await page.waitForLoadState('networkidle', { timeout: 5000 });
+    } catch {
+        console.log('Network never went idle, continuing anyway');
+    }
     await page.getByRole('button', { name: 'Submit & Preview' })
         .click();
 
@@ -174,8 +188,15 @@ test('New Zealand eTA Application', async ({ page, waitForCaptcha, getUploadFile
     // 10. SAVE & CONTINUE
     // =====================================
 
+    await page.waitForTimeout(1000);
+    await capturescreenshot(page, 'doc-page');
     await page.getByRole('button', { name: 'Save & Continue' })
         .click();
+    try {
+        await page.waitForLoadState('networkidle', { timeout: 5000 });
+    } catch {
+        console.log('Network never went idle, continuing anyway');
+    }
 
 
     // =====================================
@@ -185,6 +206,9 @@ test('New Zealand eTA Application', async ({ page, waitForCaptcha, getUploadFile
     await expect(
         page.getByRole('heading', { name: 'Pay Visa Processing Fee' })
     ).toBeVisible({ timeout: 30000 });
+
+    await page.waitForTimeout(1000);
+    await capturescreenshot(page, 'payment-page');
 
     await expect(
         page.getByText('dm443790@gmail.com')

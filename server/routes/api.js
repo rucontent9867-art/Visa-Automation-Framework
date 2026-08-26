@@ -58,6 +58,14 @@ router.get('/health-check', (req, res) => {
           if (matches.length > 0) return true;
         }
       } catch (e) {}
+      // Fallback check in default Playwright cache (~/.cache/ms-playwright)
+      try {
+        const cachePath = process.env.PLAYWRIGHT_BROWSERS_PATH || path.join(os.homedir(), '.cache', 'ms-playwright');
+        if (fs.existsSync(cachePath)) {
+          const matches = fs.readdirSync(cachePath).filter(d => d.startsWith(localName) || d.includes(localName));
+          if (matches.length > 0) return true;
+        }
+      } catch (e) {}
       return false;
     };
 

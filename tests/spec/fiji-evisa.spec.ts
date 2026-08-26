@@ -5,7 +5,7 @@
  * Starts directly from the application page URL.
  */
 
-import { test, expect } from '../../utils/baseTest';
+import { test, expect, capturescreenshot } from '../../utils/baseTest';
 import {
     getArrivalDate,
     getPassportExpiryDate,
@@ -74,8 +74,15 @@ test('Fiji Visa Application', async ({ page, waitForCaptcha }) => {
 
     // ── Register ──
 
+    await page.waitForTimeout(1000);
+    await capturescreenshot(page, 'registration-page');
     await page.getByRole('button', { name: 'Register' })
         .click();
+    try {
+        await page.waitForLoadState('networkidle', { timeout: 5000 });
+    } catch {
+        console.log('Network never went idle, continuing anyway');
+    }
 
     await page.getByRole('textbox', {
         name: 'Name as per Passport',
@@ -130,14 +137,28 @@ test('Fiji Visa Application', async ({ page, waitForCaptcha }) => {
 
     // ── Submit & Preview ──
 
+    await page.waitForTimeout(1000);
+    await capturescreenshot(page, 'applicant-detail');
     await page.getByRole('button', { name: 'Submit & Preview' })
         .click();
+    try {
+        await page.waitForLoadState('networkidle', { timeout: 5000 });
+    } catch {
+        console.log('Network never went idle, continuing anyway');
+    }
 
 
     // ── Confirm & Submit ──
 
+    await page.waitForTimeout(1000);
+    await capturescreenshot(page, 'preview');
     await page.getByRole('button', { name: 'Confirm & Submit' })
         .click();
+    try {
+        await page.waitForLoadState('networkidle', { timeout: 5000 });
+    } catch {
+        console.log('Network never went idle, continuing anyway');
+    }
 
 
     // ── Wait for dynamic upload page to load ──
@@ -189,8 +210,15 @@ test('Fiji Visa Application', async ({ page, waitForCaptcha }) => {
 
     // ── Save & Continue ──
 
+    await page.waitForTimeout(1000);
+    await capturescreenshot(page, 'doc-page');
     await page.getByRole('button', { name: 'Save & Continue' })
         .click();
+    try {
+        await page.waitForLoadState('networkidle', { timeout: 5000 });
+    } catch {
+        console.log('Network never went idle, continuing anyway');
+    }
 
 
     // ── Final assertions ──
@@ -198,6 +226,9 @@ test('Fiji Visa Application', async ({ page, waitForCaptcha }) => {
     await expect(
         page.getByRole('heading', { name: 'Pay Application Processing Fee' })
     ).toBeVisible({ timeout: 30000 });
+
+    await page.waitForTimeout(1000);
+    await capturescreenshot(page, 'payment-page');
 
     await expect(
         page.getByText('dm443790@gmail.com')

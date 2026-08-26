@@ -1,4 +1,4 @@
-import { test, expect } from '../../utils/baseTest';
+import { test, expect, capturescreenshot } from '../../utils/baseTest';
 import {
     getArrivalDate,
     getPassportExpiryDate,
@@ -87,7 +87,14 @@ test('Israel Visa Application', async ({ page, waitForCaptcha }) => {
     // 6. REGISTER & PASSPORT DETAILS
     // =====================================
 
+    await page.waitForTimeout(1000);
+    await capturescreenshot(page, 'registration-page');
     await page.getByRole('button', { name: 'Register' }).click();
+    try {
+        await page.waitForLoadState('networkidle', { timeout: 5000 });
+    } catch {
+        console.log('Network never went idle, continuing anyway');
+    }
 
     // Wait for the passport form to load
     await page.getByRole('textbox', {
@@ -127,8 +134,22 @@ test('Israel Visa Application', async ({ page, waitForCaptcha }) => {
     // 7. SUBMIT & PREVIEW
     // =====================================
 
+    await page.waitForTimeout(1000);
+    await capturescreenshot(page, 'applicant-detail');
     await page.getByRole('button', { name: 'Submit & Preview' }).click();
+    try {
+        await page.waitForLoadState('networkidle', { timeout: 5000 });
+    } catch {
+        console.log('Network never went idle, continuing anyway');
+    }
+    await page.waitForTimeout(1000);
+    await capturescreenshot(page, 'preview');
     await page.getByRole('button', { name: 'Confirm & Submit' }).click();
+    try {
+        await page.waitForLoadState('networkidle', { timeout: 5000 });
+    } catch {
+        console.log('Network never went idle, continuing anyway');
+    }
 
     // =====================================
     // 8. UPLOAD SECTION
@@ -188,12 +209,22 @@ test('Israel Visa Application', async ({ page, waitForCaptcha }) => {
         console.log('Network never went idle, continuing anyway');
     }
 
+    await page.waitForTimeout(1000);
+    await capturescreenshot(page, 'doc-page');
     await page.getByRole('button', { name: 'Save & Continue' }).click();
+    try {
+        await page.waitForLoadState('networkidle', { timeout: 5000 });
+    } catch {
+        console.log('Network never went idle, continuing anyway');
+    }
 
     // Final Assertions
     await expect(
         page.getByRole('heading', { name: 'Application Detail' })
     ).toBeVisible({ timeout: 30000 });
+
+    await page.waitForTimeout(1000);
+    await capturescreenshot(page, 'payment-page');
 
     await expect(
         page.getByText('dm443790@gmail.com')

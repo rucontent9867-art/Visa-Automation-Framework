@@ -8,7 +8,7 @@
  * - API-based upload confirmation
  */
 
-import { test, expect } from '../../utils/baseTest';
+import { test, expect, capturescreenshot } from '../../utils/baseTest';
 import {
     getArrivalDate,
     getDepartureDate,
@@ -32,6 +32,11 @@ test('Jordan Visa Application', async ({ page, waitForCaptcha, getUploadFile }) 
     // =====================================
 
     await page.goto('https://jordan-evisa.info/apply/');
+    try {
+        await page.waitForLoadState('networkidle', { timeout: 5000 });
+    } catch {
+        console.log('Network never went idle, continuing anyway');
+    }
 
     try {
         await page.waitForLoadState('networkidle', {
@@ -121,8 +126,15 @@ test('Jordan Visa Application', async ({ page, waitForCaptcha, getUploadFile }) 
     // 8. REGISTER
     // =====================================
 
+    await page.waitForTimeout(1000);
+    await capturescreenshot(page, 'registration-page');
     await page.getByRole('button', { name: 'Register' })
         .click();
+    try {
+        await page.waitForLoadState('networkidle', { timeout: 5000 });
+    } catch {
+        console.log('Network never went idle, continuing anyway');
+    }
 
     await page.getByRole('textbox', {
         name: 'Name as per Passport',
@@ -195,9 +207,16 @@ test('Jordan Visa Application', async ({ page, waitForCaptcha, getUploadFile }) 
     // 10. SUBMIT & PREVIEW
     // =====================================
 
+    await page.waitForTimeout(1000);
+    await capturescreenshot(page, 'applicant-detail');
     await page.getByRole('button', {
         name: 'Submit & Preview'
     }).click();
+    try {
+        await page.waitForLoadState('networkidle', { timeout: 5000 });
+    } catch {
+        console.log('Network never went idle, continuing anyway');
+    }
 
     // Sometimes the button clicks twice or changes state
     try {
@@ -277,7 +296,11 @@ test('Jordan Visa Application', async ({ page, waitForCaptcha, getUploadFile }) 
 
     await page.reload();
     try{
-        await page.waitForLoadState('networkidle');
+        try {
+        await page.waitForLoadState('networkidle', { timeout: 5000 });
+    } catch {
+        console.log('Network never went idle, continuing anyway');
+    }
     } catch {
         console.log('Network idle timeout after reload, continuing...');
     }
@@ -286,9 +309,16 @@ test('Jordan Visa Application', async ({ page, waitForCaptcha, getUploadFile }) 
     // 13. SAVE & CONTINUE
     // =====================================
 
+    await page.waitForTimeout(1000);
+    await capturescreenshot(page, 'doc-page');
     await page.getByRole('button', {
         name: 'Save & Continue'
     }).click();
+    try {
+        await page.waitForLoadState('networkidle', { timeout: 5000 });
+    } catch {
+        console.log('Network never went idle, continuing anyway');
+    }
 
 
     // =====================================
@@ -302,6 +332,9 @@ test('Jordan Visa Application', async ({ page, waitForCaptcha, getUploadFile }) 
     ).toBeVisible({
         timeout: 30000
     });
+
+    await page.waitForTimeout(1000);
+    await capturescreenshot(page, 'payment-page');
 
     await expect(
         page.getByText('dm443790@gmail.com')

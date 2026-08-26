@@ -4,7 +4,7 @@
  * Refactored to use shared baseTest and captcha helper.
  */
 
-import { test, expect, getUploadFile } from '../../utils/baseTest';
+import { test, expect, getUploadFile, capturescreenshot } from '../../utils/baseTest';
 import {
     getArrivalDate,
     getDepartureDate,
@@ -77,8 +77,15 @@ test('Brazil Visa Application', async ({ page, waitForCaptcha }) => {
     // REGISTER
     // =====================================
 
+    await page.waitForTimeout(1000);
+    await capturescreenshot(page, 'registration-page');
     await page.getByRole('button', { name: 'Register' })
         .click();
+    try {
+        await page.waitForLoadState('networkidle', { timeout: 5000 });
+    } catch {
+        console.log('Network never went idle, continuing anyway');
+    }
 
     await page.getByRole('textbox', {
         name: 'Name as per Passport',
@@ -191,10 +198,24 @@ test('Brazil Visa Application', async ({ page, waitForCaptcha }) => {
     await page.locator('#ref_phone_in_0')
         .fill('testing');
 
+    await page.waitForTimeout(1000);
+    await capturescreenshot(page, 'applicant-detail');
     await page.getByRole('button', { name: 'Submit & Preview' })
         .click();
+    try {
+        await page.waitForLoadState('networkidle', { timeout: 5000 });
+    } catch {
+        console.log('Network never went idle, continuing anyway');
+    }
+    await page.waitForTimeout(1000);
+    await capturescreenshot(page, 'preview');
     await page.getByRole('button', { name: 'Submit & Preview' })
         .click();
+    try {
+        await page.waitForLoadState('networkidle', { timeout: 5000 });
+    } catch {
+        console.log('Network never went idle, continuing anyway');
+    }
 
     await expect(page.locator('[id^="passport_form_"]'))
         .toBeVisible({ timeout: 15000 });
@@ -218,21 +239,39 @@ test('Brazil Visa Application', async ({ page, waitForCaptcha }) => {
         .toBeVisible();
     console.log('Photo uploaded');
 
-    await page.waitForLoadState('networkidle');
+    try {
+        await page.waitForLoadState('networkidle', { timeout: 5000 });
+    } catch {
+        console.log('Network never went idle, continuing anyway');
+    }
 
 
     // =====================================
     // PAYMENT
     // =====================================
 
+    await page.waitForTimeout(1000);
+    await capturescreenshot(page, 'doc-page');
     await page.getByRole('button', { name: 'Save & Continue' })
         .click();
+    try {
+        await page.waitForLoadState('networkidle', { timeout: 5000 });
+    } catch {
+        console.log('Network never went idle, continuing anyway');
+    }
 
     await expect(
         page.getByRole('heading', {
             name: 'Pay Application Processing Fee'
         })
     ).toBeVisible({ timeout: 30000 });
+
+    await page.waitForTimeout(1000);
+    await capturescreenshot(page, 'payment-page');
+
+    await expect(
+        page.getByText('dm443790@gmail.com')
+    ).toBeVisible();
 
     console.log(
         `\n================ PAYMENT PAGE URL ================\n` +

@@ -1,4 +1,4 @@
-import { test, expect } from '../../utils/baseTest';
+import { test, expect, capturescreenshot } from '../../utils/baseTest';
 import { uploadAndWaitForSuccess } from '../../utils/apiUpload';
 import {
     getArrivalDate,
@@ -23,6 +23,11 @@ test('Malawi Visa Application', async ({ page, waitForCaptcha, getUploadFile }) 
     // =====================================
 
     await page.goto('https://malawi-evisa.com/apply-evisa/');
+    try {
+        await page.waitForLoadState('networkidle', { timeout: 5000 });
+    } catch {
+        console.log('Network never went idle, continuing anyway');
+    }
 
     try {
         await page.waitForLoadState('networkidle', {
@@ -103,8 +108,15 @@ test('Malawi Visa Application', async ({ page, waitForCaptcha, getUploadFile }) 
     // 6. REGISTER
     // =====================================
 
+    await page.waitForTimeout(1000);
+    await capturescreenshot(page, 'registration-page');
     await page.getByRole('button', { name: 'Register' })
         .click();
+    try {
+        await page.waitForLoadState('networkidle', { timeout: 5000 });
+    } catch {
+        console.log('Network never went idle, continuing anyway');
+    }
 
     await page.getByRole('textbox', {
         name: 'Name as per Passport',
@@ -267,9 +279,16 @@ test('Malawi Visa Application', async ({ page, waitForCaptcha, getUploadFile }) 
     // 11. SUBMIT & PREVIEW
     // =====================================
 
+    await page.waitForTimeout(1000);
+    await capturescreenshot(page, 'applicant-detail');
     await page.getByRole('button', {
         name: 'Submit & Preview'
     }).click();
+    try {
+        await page.waitForLoadState('networkidle', { timeout: 5000 });
+    } catch {
+        console.log('Network never went idle, continuing anyway');
+    }
 
     await page.getByRole('button', {
         name: 'Submit & Preview'
@@ -349,8 +368,15 @@ test('Malawi Visa Application', async ({ page, waitForCaptcha, getUploadFile }) 
     // 14. FINALIZE
     // =====================================
 
+    await page.waitForTimeout(1000);
+    await capturescreenshot(page, 'doc-page');
     await page.getByRole('button', { name: 'Save & Continue' })
         .click();
+    try {
+        await page.waitForLoadState('networkidle', { timeout: 5000 });
+    } catch {
+        console.log('Network never went idle, continuing anyway');
+    }
 
 
     // =====================================
@@ -364,6 +390,9 @@ test('Malawi Visa Application', async ({ page, waitForCaptcha, getUploadFile }) 
     ).toBeVisible({
         timeout: 30000
     });
+
+    await page.waitForTimeout(1000);
+    await capturescreenshot(page, 'payment-page');
 
 
     await expect(

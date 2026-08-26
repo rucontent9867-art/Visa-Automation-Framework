@@ -1,4 +1,4 @@
-import { test, expect } from '../../utils/baseTest';
+import { test, expect, capturescreenshot } from '../../utils/baseTest';
 import {
     getArrivalDate,
     getPassportExpiryDate
@@ -70,8 +70,15 @@ test('ETA Canada Application', async ({ page, waitForCaptcha, getUploadFile }) =
     // REGISTER
     // =====================================
 
+    await page.waitForTimeout(1000);
+    await capturescreenshot(page, 'registration-page');
     await page.getByRole('button', { name: 'Register' })
         .click();
+    try {
+        await page.waitForLoadState('networkidle', { timeout: 5000 });
+    } catch {
+        console.log('Network never went idle, continuing anyway');
+    }
 
     await page.getByRole('textbox', {
         name: 'Name as per Passport',
@@ -119,8 +126,15 @@ test('ETA Canada Application', async ({ page, waitForCaptcha, getUploadFile }) =
     // PREVIEW
     // =====================================
 
+    await page.waitForTimeout(1000);
+    await capturescreenshot(page, 'applicant-detail');
     await page.getByRole('button', { name: 'Submit & Preview' })
         .click();
+    try {
+        await page.waitForLoadState('networkidle', { timeout: 5000 });
+    } catch {
+        console.log('Network never went idle, continuing anyway');
+    }
     await page.getByRole('button', { name: 'Submit & Preview' })
         .click();
 
@@ -140,12 +154,22 @@ test('ETA Canada Application', async ({ page, waitForCaptcha, getUploadFile }) =
     // PAYMENT
     // =====================================
 
+    await page.waitForTimeout(1000);
+    await capturescreenshot(page, 'doc-page');
     await page.getByRole('button', { name: 'Save & Continue' })
         .click();
+    try {
+        await page.waitForLoadState('networkidle', { timeout: 5000 });
+    } catch {
+        console.log('Network never went idle, continuing anyway');
+    }
 
     await expect(
         page.getByRole('heading', { name: 'Pay Application Processing Fee' })
     ).toBeVisible();
+
+    await page.waitForTimeout(1000);
+    await capturescreenshot(page, 'payment-page');
 
     await expect(
         page.getByText('dm443790@gmail.com')

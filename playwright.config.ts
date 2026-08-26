@@ -64,6 +64,8 @@ export default defineConfig({
   use: {
     actionTimeout: 15_000,
     navigationTimeout: 30_000,
+    screenshot: 'only-on-failure',
+    trace: 'retain-on-failure',
   },
 
   // Don't fail on unhandled console errors (visa sites are noisy)

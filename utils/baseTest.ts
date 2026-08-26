@@ -23,7 +23,7 @@ import { captureScreenshot, getCapturedScreenshots, clearCapturedScreenshots } f
 import path from 'path';
 import fs from 'fs';
 
-export { captureScreenshot };
+export { captureScreenshot, captureScreenshot as capturescreenshot };
 
 // ─── Result data structure ───
 
@@ -147,58 +147,121 @@ test.afterEach(async ({ page }, testInfo: TestInfo) => {
   // Capture payment URL (if test passed, current page URL is payment page) and capture page screenshot
   let paymentUrl = 'N/A';
   let capturedUrlScreenshot: string | null = null;
+  let failureScreenshotPath: string | null = null;
 
-  try {
-    if (page && !page.isClosed()) {
-      if (isPassed) {
+  const sessionTimestamp = process.env.SESSION_TIMESTAMP || getFallbackTimestamp();
+  const testKey = scriptName.replace(/\.(spec|test)\.(ts|js)$/, '');
+
+  if (isPassed) {
+    try {
+      if (page && !page.isClosed()) {
         paymentUrl = page.url();
-      }
 
-      // Automatically capture screenshot of the page whose URL was captured
-      try {
-        const sessionTimestamp = process.env.SESSION_TIMESTAMP || getFallbackTimestamp();
-        const testKey = scriptName.replace(/\.(spec|test)\.(ts|js)$/, '');
-        const cleanName = `${testKey}-${device}-${browser}-captured-url.png`
-          .toLowerCase()
-          .replace(/[^a-z0-9\-_.]/g, '-');
+        // Automatically capture screenshot of the page whose URL was captured
+        try {
+          const cleanName = `${testKey}-${device}-${browser}-captured-url.png`
+            .toLowerCase()
+            .replace(/[^a-z0-9\-_.]/g, '-');
 
-        const relativeDir = path.join('screenshots', sessionTimestamp, testKey);
-        const fullDir = path.join(process.cwd(), relativeDir);
-        fs.mkdirSync(fullDir, { recursive: true });
+          const relativeDir = path.join('screenshots', sessionTimestamp, testKey);
+          const fullDir = path.join(process.cwd(), relativeDir);
+          fs.mkdirSync(fullDir, { recursive: true });
 
-        const fullPath = path.join(fullDir, cleanName);
-        const relativePath = `/screenshots/${sessionTimestamp}/${testKey}/${cleanName}`.replace(/\\/g, '/');
+          const fullPath = path.join(fullDir, cleanName);
+          const relativePath = `/screenshots/${sessionTimestamp}/${testKey}/${cleanName}`.replace(/\\/g, '/');
 
-        // Also mirror to reports/screenshots/ for standalone report viewing
-        const reportsDir = path.join(process.cwd(), 'reports', 'screenshots', sessionTimestamp, testKey);
-        fs.mkdirSync(reportsDir, { recursive: true });
-        const reportsFullPath = path.join(reportsDir, cleanName);
+          // Also mirror to reports/screenshots/ for standalone report viewing
+          const reportsDir = path.join(process.cwd(), 'reports', 'screenshots', sessionTimestamp, testKey);
+          fs.mkdirSync(reportsDir, { recursive: true });
+          const reportsFullPath = path.join(reportsDir, cleanName);
 
-        await page.screenshot({
-          path: fullPath,
-          fullPage: true,
-          timeout: 5000,
-        });
+          await page.screenshot({
+            path: fullPath,
+            fullPage: true,
+            timeout: 5000,
+          });
 
-        if (fs.existsSync(fullPath)) {
-          fs.copyFileSync(fullPath, reportsFullPath);
+          if (fs.existsSync(fullPath)) {
+            fs.copyFileSync(fullPath, reportsFullPath);
+          }
+
+          capturedUrlScreenshot = relativePath;
+        } catch (screenshotErr: any) {
+          console.warn(
+            `[baseTest] Failed to capture screenshot of URL page for ${scriptName}:`,
+            screenshotErr?.message || screenshotErr
+          );
         }
-
-        capturedUrlScreenshot = relativePath;
-      } catch (screenshotErr: any) {
-        console.warn(
-          `[baseTest] Failed to capture screenshot of URL page for ${scriptName}:`,
-          screenshotErr?.message || screenshotErr
-        );
       }
+    } catch {}
+  } else {
+    // ─── GUARANTEED FAILURE SCREENSHOT CAPTURE (Locator errors, timeouts, network, assertions, etc.) ───
+    try {
+      const cleanFailureName = `${testKey}-${device}-${browser}-failed.png`
+        .toLowerCase()
+        .replace(/[^a-z0-9\-_.]/g, '-');
+
+      const relativeDir = path.join('screenshots', sessionTimestamp, testKey);
+      const fullDir = path.join(process.cwd(), relativeDir);
+      fs.mkdirSync(fullDir, { recursive: true });
+
+      const fullPath = path.join(fullDir, cleanFailureName);
+      const relativePath = `/screenshots/${sessionTimestamp}/${testKey}/${cleanFailureName}`.replace(/\\/g, '/');
+
+      const reportsDir = path.join(process.cwd(), 'reports', 'screenshots', sessionTimestamp, testKey);
+      fs.mkdirSync(reportsDir, { recursive: true });
+      const reportsFullPath = path.join(reportsDir, cleanFailureName);
+
+      let saved = false;
+
+      // 1. If page is open, capture immediately (using fullPage: false as primary to avoid hanging on broken DOM/scroll, with safe timeout)
+      if (page && !page.isClosed()) {
+        try {
+          await page.screenshot({
+            path: fullPath,
+            fullPage: false,
+            timeout: 4000,
+          });
+          saved = fs.existsSync(fullPath);
+        } catch (pageErr: any) {
+          console.warn(`[baseTest] Direct failure screenshot attempt error for ${scriptName}:`, pageErr?.message || pageErr);
+        }
+      }
+
+      // 2. Check Playwright's native attachment (from screenshot: 'only-on-failure')
+      if (!saved && testInfo.attachments && testInfo.attachments.length > 0) {
+        const screenshotAtt = testInfo.attachments.find(
+          (att) =>
+            (att.name === 'screenshot' || att.contentType?.startsWith('image/')) &&
+            att.path &&
+            fs.existsSync(att.path)
+        );
+        if (screenshotAtt?.path) {
+          try {
+            fs.copyFileSync(screenshotAtt.path, fullPath);
+            saved = true;
+          } catch (_) {}
+        }
+      }
+
+      if (saved && fs.existsSync(fullPath)) {
+        try {
+          fs.copyFileSync(fullPath, reportsFullPath);
+        } catch (_) {}
+        failureScreenshotPath = relativePath;
+      }
+    } catch (failErr: any) {
+      console.warn(`[baseTest] Failed to capture failure screenshot for ${scriptName}:`, failErr?.message || failErr);
     }
-  } catch {}
+  }
 
   // Evaluate captured screenshots
   let finalScreenshotPath = 'N/A';
   const isScreenshotEnabled = process.env.ENABLE_SCREENSHOT_CAPTURE === 'true';
 
-  if (capturedUrlScreenshot) {
+  if (failureScreenshotPath) {
+    finalScreenshotPath = failureScreenshotPath;
+  } else if (capturedUrlScreenshot) {
     finalScreenshotPath = capturedUrlScreenshot;
   } else if (isScreenshotEnabled) {
     const captured = getCapturedScreenshots();
@@ -254,7 +317,6 @@ test.afterEach(async ({ page }, testInfo: TestInfo) => {
   const resultDir = path.join(process.cwd(), '.temp-results');
   fs.mkdirSync(resultDir, { recursive: true });
 
-  const testKey = scriptName.replace(/\.(spec|test)\.(ts|js)$/, '');
   const resultFileName = `${testKey}__${device}__${browser}.json`;
   const resultFilePath = path.join(resultDir, resultFileName);
 
