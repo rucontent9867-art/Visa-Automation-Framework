@@ -20,10 +20,29 @@ import {
 } from '@playwright/test';
 import { waitForCaptcha } from './captcha/captchaHelper';
 import { captureScreenshot, getCapturedScreenshots, clearCapturedScreenshots } from './screenshot';
+import {
+  setupUrlTracker,
+  trackUrl,
+  recordCustomUrl,
+  getTrackedUrls,
+  getCapturedUrls,
+  clearTrackedUrls,
+  TrackedUrlRecord,
+} from './urlTracker';
 import path from 'path';
 import fs from 'fs';
 
-export { captureScreenshot, captureScreenshot as capturescreenshot };
+export {
+  captureScreenshot,
+  captureScreenshot as capturescreenshot,
+  trackUrl,
+  recordCustomUrl,
+  getTrackedUrls,
+  getCapturedUrls,
+  clearTrackedUrls,
+  setupUrlTracker,
+};
+export type { TrackedUrlRecord };
 
 // ─── Result data structure ───
 
@@ -38,6 +57,8 @@ export interface TestResultData {
   retries: number;
   duration: number;
   paymentUrl: string;
+  capturedUrls: string[];
+  urlHistory: TrackedUrlRecord[];
   screenshotPath: string;
   error: string;
   failedStep: string;
@@ -72,12 +93,21 @@ type MyFixtures = {
   /** Re-exported captcha helper for convenient import */
   waitForCaptcha: typeof waitForCaptcha;
   getUploadFile: typeof getUploadFile;
+  /** Utility method to track / label URL changes explicitly in spec */
+  trackUrl: (customLabel?: string) => Promise<string>;
+  /** Utility to record an arbitrary custom URL */
+  recordUrl: (url: string, customLabel?: string) => void;
+  /** Utility to get full URL change history for this test */
+  getTrackedUrls: () => TrackedUrlRecord[];
 };
 
 // ─── Extend test ───
 
 export const test = base.extend<MyFixtures>({
   page: async ({ page }, use) => {
+    // Automatically setup URL tracker to capture all navigations & redirects
+    setupUrlTracker(page);
+
     // Configurable timeouts passed from Dashboard execution session
     const envActionTimeout = process.env.PLAYWRIGHT_ACTION_TIMEOUT ? parseInt(process.env.PLAYWRIGHT_ACTION_TIMEOUT, 10) : NaN;
     const envNavTimeout = process.env.PLAYWRIGHT_NAVIGATION_TIMEOUT ? parseInt(process.env.PLAYWRIGHT_NAVIGATION_TIMEOUT, 10) : NaN;
@@ -94,6 +124,15 @@ export const test = base.extend<MyFixtures>({
   },
   getUploadFile: async ({}, use) => {
     await use(getUploadFile);
+  },
+  trackUrl: async ({ page }, use) => {
+    await use((customLabel?: string) => trackUrl(page, customLabel));
+  },
+  recordUrl: async ({ page }, use) => {
+    await use((url: string, customLabel?: string) => recordCustomUrl(page, url, customLabel));
+  },
+  getTrackedUrls: async ({ page }, use) => {
+    await use(() => getTrackedUrls(page));
   },
 });
 
@@ -144,8 +183,46 @@ test.afterEach(async ({ page }, testInfo: TestInfo) => {
     }
   } catch {}
 
-  // Capture payment URL (if test passed, current page URL is payment page) and capture page screenshot
+  // ─── Track and Collect all URLs encountered during test execution ───
+  const trackedUrlRecords: TrackedUrlRecord[] = [...getTrackedUrls(page)];
+  let latestPageUrl = 'N/A';
+  try {
+    if (page && !page.isClosed()) {
+      const cur = page.url();
+      if (cur && !cur.startsWith('about:') && !cur.startsWith('chrome-error:')) {
+        latestPageUrl = cur;
+        const lastRec = trackedUrlRecords[trackedUrlRecords.length - 1];
+        if (!lastRec || lastRec.url !== cur) {
+          trackedUrlRecords.push({
+            url: cur,
+            timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
+            label: isPassed ? 'Final / Payment Page' : 'Page URL at finish',
+          });
+        }
+      }
+    }
+  } catch {}
+
+  const capturedUrls: string[] = [];
+  const seenUrls = new Set<string>();
+  for (const rec of trackedUrlRecords) {
+    if (rec.url && !seenUrls.has(rec.url)) {
+      seenUrls.add(rec.url);
+      capturedUrls.push(rec.url);
+    }
+  }
+  if (latestPageUrl !== 'N/A' && !seenUrls.has(latestPageUrl)) {
+    capturedUrls.push(latestPageUrl);
+  }
+
+  // Primary URL (backward compatible with paymentUrl)
   let paymentUrl = 'N/A';
+  if (latestPageUrl !== 'N/A') {
+    paymentUrl = latestPageUrl;
+  } else if (capturedUrls.length > 0) {
+    paymentUrl = capturedUrls[capturedUrls.length - 1];
+  }
+
   let capturedUrlScreenshot: string | null = null;
   let failureScreenshotPath: string | null = null;
 
@@ -214,17 +291,26 @@ test.afterEach(async ({ page }, testInfo: TestInfo) => {
 
       let saved = false;
 
-      // 1. If page is open, capture immediately (using fullPage: false as primary to avoid hanging on broken DOM/scroll, with safe timeout)
+      // 1. If page is open, capture full screen immediately (with fallback if fullPage times out)
       if (page && !page.isClosed()) {
         try {
           await page.screenshot({
             path: fullPath,
-            fullPage: false,
-            timeout: 4000,
+            fullPage: true,
+            timeout: 5000,
           });
           saved = fs.existsSync(fullPath);
-        } catch (pageErr: any) {
-          console.warn(`[baseTest] Direct failure screenshot attempt error for ${scriptName}:`, pageErr?.message || pageErr);
+        } catch (fullPageErr: any) {
+          try {
+            await page.screenshot({
+              path: fullPath,
+              fullPage: false,
+              timeout: 3000,
+            });
+            saved = fs.existsSync(fullPath);
+          } catch (pageErr: any) {
+            console.warn(`[baseTest] Direct failure screenshot attempt error for ${scriptName}:`, pageErr?.message || pageErr);
+          }
         }
       }
 
@@ -304,6 +390,8 @@ test.afterEach(async ({ page }, testInfo: TestInfo) => {
     retries: testInfo.retry,
     duration: parseFloat(durationSec),
     paymentUrl: paymentUrl,
+    capturedUrls: capturedUrls,
+    urlHistory: trackedUrlRecords,
     screenshotPath: finalScreenshotPath,
     error: errorMessage,
     failedStep: failedStep,

@@ -42,8 +42,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const reportPanel = document.getElementById('reportPanel');
   const openHtmlReportBtn = document.getElementById('openHtmlReportBtn');
+  const openExcelReportBtn = document.getElementById('openExcelReportBtn');
+  const viewBackupsBtn = document.getElementById('viewBackupsBtn');
   const openFolderBtn = document.getElementById('openFolderBtn');
   const resetDataBtn = document.getElementById('resetDataBtn');
+
+  // Reset Confirmation & Backup Modal elements
+  const resetConfirmModal = document.getElementById('resetConfirmModal');
+  const closeResetModalBtn = document.getElementById('closeResetModalBtn');
+  const cancelResetModalBtn = document.getElementById('cancelResetModalBtn');
+  const confirmResetModalBtn = document.getElementById('confirmResetModalBtn');
+  const confirmResetBtnIcon = document.getElementById('confirmResetBtnIcon');
+  const confirmResetBtnText = document.getElementById('confirmResetBtnText');
+  const backupBeforeClearCheckbox = document.getElementById('backupBeforeClearCheckbox');
+  const backupOptionsWrap = document.getElementById('backupOptionsWrap');
+  const backupFolderNameInput = document.getElementById('backupFolderNameInput');
+  const affectedActionLabel = document.getElementById('affectedActionLabel');
+
+  // Backups List Modal elements
+  const backupsListModal = document.getElementById('backupsListModal');
+  const closeBackupsModalBtn = document.getElementById('closeBackupsModalBtn');
+  const closeBackupsModalFooterBtn = document.getElementById('closeBackupsModalFooterBtn');
+  const refreshBackupsBtn = document.getElementById('refreshBackupsBtn');
+  const backupsListContainer = document.getElementById('backupsListContainer');
+  const toastContainer = document.getElementById('toastContainer');
 
   // Statistics UI Elements
   const statTotal = document.getElementById('statTotal');
@@ -1081,8 +1103,19 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && errorModal && !errorModal.classList.contains('hidden')) {
-      closeErrorModal();
+    if (e.key === 'Escape') {
+      if (errorModal && !errorModal.classList.contains('hidden')) {
+        closeErrorModal();
+      }
+      if (urlsModal && !urlsModal.classList.contains('hidden')) {
+        closeUrlsModal();
+      }
+      if (resetConfirmModal && !resetConfirmModal.classList.contains('hidden') && !isResettingData) {
+        closeResetModal();
+      }
+      if (backupsListModal && !backupsListModal.classList.contains('hidden')) {
+        closeBackupsModal();
+      }
     }
   });
 
@@ -1105,8 +1138,107 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // ─── Captured URLs Modal Management ───
+  const urlsModal = document.getElementById('urlsModal');
+  const urlsModalMeta = document.getElementById('urlsModalMeta');
+  const urlsModalCount = document.getElementById('urlsModalCount');
+  const urlsModalList = document.getElementById('urlsModalList');
+  const urlsModalCloseBtn = document.getElementById('urlsModalCloseBtn');
+  const urlsModalOkBtn = document.getElementById('urlsModalOkBtn');
+  const urlsModalCopyAllBtn = document.getElementById('urlsModalCopyAllBtn');
+
+  const executionUrlsStore = new Map();
+
+  window.openUrlsModal = function(execId) {
+    const urlData = executionUrlsStore.get(execId);
+    if (!urlData || !urlsModal) return;
+
+    if (urlsModalCount) urlsModalCount.textContent = urlData.urls.length;
+    if (urlsModalMeta) {
+      urlsModalMeta.innerHTML = `
+        <strong>${escapeHtml(urlData.title)}</strong> &bull; 
+        <span>${escapeHtml(urlData.device)} / ${escapeHtml(urlData.browser)}</span>
+      `;
+    }
+
+    if (urlsModalList) {
+      let itemsHtml = '';
+      const history = (urlData.history && urlData.history.length > 0)
+        ? urlData.history
+        : urlData.urls.map((u, i) => ({ url: u, timestamp: '', label: `Step ${i + 1}` }));
+
+      history.forEach((h, index) => {
+        const stepNum = index + 1;
+        const label = h.label || `Step ${stepNum}`;
+        const timeStr = h.timestamp ? `<span class="url-history-time"><i class="fas fa-clock"></i> ${escapeHtml(h.timestamp)}</span>` : '';
+        const titleStr = h.title ? `<div style="font-size: 11.5px; color: var(--text-secondary);"><i class="fas fa-heading"></i> ${escapeHtml(h.title)}</div>` : '';
+
+        itemsHtml += `
+          <div class="url-history-item">
+            <div class="url-history-header">
+              <div class="url-history-label"><span class="url-step-badge">#${stepNum}</span> ${escapeHtml(label)}</div>
+              ${timeStr}
+            </div>
+            ${titleStr}
+            <div class="url-history-box">${escapeHtml(h.url)}</div>
+            <div class="url-history-actions">
+              <button type="button" class="btn-table btn-table-icon" onclick="copySingleUrl('${escapeHtml(h.url)}', this)" title="Copy URL">
+                <i class="fas fa-copy"></i> Copy
+              </button>
+              <a href="${escapeHtml(h.url)}" target="_blank" class="btn-table btn-table-url">
+                <i class="fas fa-external-link-alt"></i> Open URL
+              </a>
+            </div>
+          </div>
+        `;
+      });
+      urlsModalList.innerHTML = itemsHtml;
+    }
+
+    urlsModal.setAttribute('data-active-exec', execId);
+    urlsModal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+  };
+
+  function closeUrlsModal() {
+    if (!urlsModal) return;
+    urlsModal.classList.add('hidden');
+    document.body.style.overflow = '';
+  }
+
+  window.copySingleUrl = function(urlText, btn) {
+    if (!urlText) return;
+    navigator.clipboard.writeText(urlText).then(() => {
+      if (btn) {
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check" style="color: #10b981;"></i> Copied';
+        setTimeout(() => { btn.innerHTML = orig; }, 1800);
+      }
+    });
+  };
+
+  if (urlsModalCloseBtn) urlsModalCloseBtn.addEventListener('click', closeUrlsModal);
+  if (urlsModalOkBtn) urlsModalOkBtn.addEventListener('click', closeUrlsModal);
+  if (urlsModal) {
+    urlsModal.addEventListener('click', (e) => {
+      if (e.target === urlsModal) closeUrlsModal();
+    });
+  }
+  if (urlsModalCopyAllBtn) {
+    urlsModalCopyAllBtn.addEventListener('click', () => {
+      const activeExecId = urlsModal.getAttribute('data-active-exec');
+      const data = executionUrlsStore.get(activeExecId);
+      if (data && data.urls && data.urls.length > 0) {
+        navigator.clipboard.writeText(data.urls.join('\n')).then(() => {
+          showToast(`Copied ${data.urls.length} URLs to clipboard`, 'success');
+        });
+      }
+    });
+  }
+
   function appendOrUpdateExecRow(exec) {
     if (!resultsList) return;
+    const formattedTitle = formatTestTitle(exec.testScript);
     let row = document.getElementById(`exec-row-${exec.id}`);
     if (!row) {
       row = document.createElement('tr');
@@ -1125,9 +1257,56 @@ document.addEventListener('DOMContentLoaded', () => {
     const attempts = exec.retries != null ? (exec.retries + 1) : 1;
     const attemptBadge = `<span class="exec-attempts">Attempt #${attempts}</span>`;
 
-    const payUrlHtml = (exec.paymentUrl && exec.paymentUrl !== 'N/A')
-      ? `<a href="${escapeHtml(exec.paymentUrl)}" target="_blank" class="btn-table btn-table-url"><i class="fas fa-external-link-alt"></i> Open URL</a>`
-      : '<span class="empty-cell">—</span>';
+    // Extract all captured URLs (supports array or legacy paymentUrl)
+    const capturedList = [];
+    if (Array.isArray(exec.capturedUrls) && exec.capturedUrls.length > 0) {
+      for (const u of exec.capturedUrls) {
+        const uStr = typeof u === 'string' ? u : (u && u.url);
+        if (uStr && uStr !== 'N/A' && !capturedList.includes(uStr)) {
+          capturedList.push(uStr);
+        }
+      }
+    }
+    if (capturedList.length === 0 && exec.paymentUrl && exec.paymentUrl !== 'N/A') {
+      capturedList.push(exec.paymentUrl);
+    }
+
+    if (capturedList.length > 0) {
+      executionUrlsStore.set(exec.id, {
+        title: formattedTitle || exec.testScript,
+        device: exec.device,
+        browser: exec.browser,
+        urls: capturedList,
+        history: Array.isArray(exec.urlHistory) ? exec.urlHistory : []
+      });
+    }
+
+    let payUrlHtml = '<span class="empty-cell">—</span>';
+    if (capturedList.length === 1) {
+      const singleUrl = capturedList[0];
+      payUrlHtml = `
+        <div class="url-cell-wrapper">
+          <a href="${escapeHtml(singleUrl)}" target="_blank" class="btn-table btn-table-url" title="${escapeHtml(singleUrl)}">
+            <i class="fas fa-external-link-alt"></i> Open URL
+          </a>
+          <button type="button" class="btn-table-icon" onclick="copySingleUrl('${escapeHtml(singleUrl)}', this)" title="Copy URL">
+            <i class="fas fa-copy"></i>
+          </button>
+        </div>
+      `;
+    } else if (capturedList.length > 1) {
+      const latestUrl = capturedList[capturedList.length - 1];
+      payUrlHtml = `
+        <div class="url-cell-wrapper">
+          <button type="button" class="btn-table btn-table-url-multiple" onclick="openUrlsModal('${exec.id}')" title="View all ${capturedList.length} captured URLs">
+            <i class="fas fa-layer-group"></i> ${capturedList.length} URLs
+          </button>
+          <a href="${escapeHtml(latestUrl)}" target="_blank" class="btn-table btn-table-url-latest" title="Open latest: ${escapeHtml(latestUrl)}">
+            <i class="fas fa-external-link-alt"></i> Latest
+          </a>
+        </div>
+      `;
+    }
 
     const screenshotHtml = (exec.screenshotPath && exec.screenshotPath !== 'N/A')
       ? `<a href="${escapeHtml(exec.screenshotPath)}" target="_blank" class="btn-table btn-table-screenshot"><i class="fas fa-image"></i> View Screenshot</a>`
@@ -1135,7 +1314,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const statusBadge = getStatusBadgeHtml(exec.status);
     const durationText = exec.duration != null ? `${exec.duration}s` : '—';
-    const formattedTitle = formatTestTitle(exec.testScript);
 
     let errorHtml = '<span class="empty-cell">—</span>';
     if (exec.error && exec.error.trim()) {
@@ -1258,6 +1436,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const hasData = Array.isArray(sessData.sessions) && sessData.sessions.length > 0;
         if (openHtmlReportBtn) openHtmlReportBtn.disabled = !hasData;
         if (openFolderBtn) openFolderBtn.disabled = !hasData;
+        if (openExcelReportBtn) openExcelReportBtn.disabled = !hasData;
         if (resetDataBtn) resetDataBtn.disabled = !hasData || isRunActive || isStartingRun || isResettingData;
       } catch (e) {
         if (openHtmlReportBtn) openHtmlReportBtn.disabled = !data.exists;
@@ -1280,35 +1459,259 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  if (resetDataBtn) {
-    resetDataBtn.addEventListener('click', async () => {
-      if (isRunActive || isResettingData) return;
-      if (confirm('Are you sure you want to clear all test execution history and reset HTML reports?')) {
-        isResettingData = true;
-        updateButtonStates();
-        try {
-          const res = await fetch('/api/reset', { method: 'POST' });
-          const data = await res.json();
-          if (data.success) {
-            executionMap.clear();
-            executionErrorStore.clear();
-            if (progressPanel) progressPanel.style.display = 'none';
-            if (resultsList) resultsList.innerHTML = '';
-            currentSessionId = null;
-            isRunActive = false;
-            updateButtonStates();
-            checkReportAvailable();
-          } else {
-            alert('Failed to reset data: ' + (data.error || 'Unknown error'));
-          }
-        } catch (err) {
-          console.error('Error resetting report data:', err);
-          alert('Error resetting data: ' + err.message);
-        } finally {
-          isResettingData = false;
-          updateButtonStates();
-        }
+  // ── Toast Notifications ──
+  function showToast(message, type = 'info') {
+    if (!toastContainer) return;
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    const icon = type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle';
+    toast.innerHTML = `<i class="fas ${icon}"></i> <span>${escapeHtml(message)}</span>`;
+    toastContainer.appendChild(toast);
+    setTimeout(() => {
+      toast.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateY(10px)';
+      setTimeout(() => toast.remove(), 300);
+    }, 4500);
+  }
+
+  function getDefaultBackupName() {
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const hh = String(now.getHours()).padStart(2, '0');
+    const min = String(now.getMinutes()).padStart(2, '0');
+    const ss = String(now.getSeconds()).padStart(2, '0');
+    return `backup-${yyyy}-${mm}-${dd}_${hh}-${min}-${ss}`;
+  }
+
+  // ── Reset & Backup Modal Management ──
+  function openResetModal() {
+    if (isRunActive || isResettingData) return;
+    if (backupBeforeClearCheckbox) {
+      backupBeforeClearCheckbox.checked = true;
+    }
+    if (backupOptionsWrap) {
+      backupOptionsWrap.style.display = 'flex';
+    }
+    if (backupFolderNameInput) {
+      backupFolderNameInput.value = getDefaultBackupName();
+    }
+    if (affectedActionLabel) {
+      affectedActionLabel.textContent = 'backed up & deleted';
+    }
+    if (confirmResetBtnText) {
+      confirmResetBtnText.textContent = 'Create Backup & Clear Everything';
+    }
+    if (confirmResetBtnIcon) {
+      confirmResetBtnIcon.className = 'fas fa-shield-alt';
+    }
+    if (confirmResetModalBtn) {
+      confirmResetModalBtn.disabled = false;
+      confirmResetModalBtn.innerHTML = '<i class="fas fa-shield-alt" id="confirmResetBtnIcon"></i> <span id="confirmResetBtnText">Create Backup & Clear Everything</span>';
+    }
+    if (resetConfirmModal) {
+      resetConfirmModal.classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+    }
+  }
+
+  function closeResetModal() {
+    if (resetConfirmModal) {
+      resetConfirmModal.classList.add('hidden');
+      document.body.style.overflow = '';
+    }
+  }
+
+  if (backupBeforeClearCheckbox) {
+    backupBeforeClearCheckbox.addEventListener('change', () => {
+      const willBackup = backupBeforeClearCheckbox.checked;
+      if (backupOptionsWrap) {
+        backupOptionsWrap.style.display = willBackup ? 'flex' : 'none';
       }
+      if (affectedActionLabel) {
+        affectedActionLabel.textContent = willBackup ? 'backed up & deleted' : 'permanently deleted (no backup)';
+      }
+      const btnSpan = document.getElementById('confirmResetBtnText');
+      const btnIcon = document.getElementById('confirmResetBtnIcon');
+      if (btnSpan) {
+        btnSpan.textContent = willBackup ? 'Create Backup & Clear Everything' : 'Clear Everything Without Backup';
+      }
+      if (btnIcon) {
+        btnIcon.className = willBackup ? 'fas fa-shield-alt' : 'fas fa-trash-alt';
+      }
+    });
+  }
+
+  if (closeResetModalBtn) closeResetModalBtn.addEventListener('click', closeResetModal);
+  if (cancelResetModalBtn) cancelResetModalBtn.addEventListener('click', closeResetModal);
+  if (resetConfirmModal) {
+    resetConfirmModal.addEventListener('click', (e) => {
+      if (e.target === resetConfirmModal && !isResettingData) closeResetModal();
+    });
+  }
+
+  if (resetDataBtn) {
+    resetDataBtn.addEventListener('click', () => {
+      if (isRunActive || isResettingData) return;
+      openResetModal();
+    });
+  }
+
+  if (confirmResetModalBtn) {
+    confirmResetModalBtn.addEventListener('click', async () => {
+      if (isRunActive || isResettingData) return;
+      isResettingData = true;
+      confirmResetModalBtn.disabled = true;
+      if (cancelResetModalBtn) cancelResetModalBtn.disabled = true;
+      if (closeResetModalBtn) closeResetModalBtn.disabled = true;
+
+      const shouldBackup = backupBeforeClearCheckbox ? backupBeforeClearCheckbox.checked : true;
+      const backupName = backupFolderNameInput ? backupFolderNameInput.value.trim() : '';
+
+      confirmResetModalBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + (shouldBackup ? 'Backing up & clearing...' : 'Clearing data...');
+      updateButtonStates();
+
+      try {
+        const res = await fetch('/api/reset', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ backup: shouldBackup, backupName })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          closeResetModal();
+          executionMap.clear();
+          executionErrorStore.clear();
+          if (progressPanel) progressPanel.style.display = 'none';
+          if (resultsList) resultsList.innerHTML = '';
+          currentSessionId = null;
+          isRunActive = false;
+          updateButtonStates();
+          checkReportAvailable();
+
+          if (data.backupCreated && data.backup) {
+            showToast(`Cleared successfully! Backup saved to ${data.backup.folderName} (${data.backup.screenshotsCount} screenshots, Excel & HTML reports)`, 'success');
+          } else {
+            showToast('All reports, Excel files, execution history, and screenshots have been cleared.', 'info');
+          }
+        } else {
+          showToast('Failed to clear data: ' + (data.error || 'Unknown error'), 'error');
+        }
+      } catch (err) {
+        console.error('Error during reset/backup:', err);
+        showToast('Error resetting data: ' + err.message, 'error');
+      } finally {
+        isResettingData = false;
+        confirmResetModalBtn.disabled = false;
+        if (cancelResetModalBtn) cancelResetModalBtn.disabled = false;
+        if (closeResetModalBtn) closeResetModalBtn.disabled = false;
+        updateButtonStates();
+      }
+    });
+  }
+
+  // ── Open Excel Report Handler ──
+  if (openExcelReportBtn) {
+    openExcelReportBtn.addEventListener('click', async () => {
+      try {
+        openExcelReportBtn.disabled = true;
+        const origHtml = openExcelReportBtn.innerHTML;
+        openExcelReportBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading Excel...';
+        const res = await fetch('/api/report/excel');
+        const data = await res.json();
+        if (data.success && data.path) {
+          window.open(data.path + '?t=' + Date.now(), '_blank');
+        } else {
+          showToast('Excel report generated: /reports/test-reports.xlsx', 'info');
+        }
+      } catch (err) {
+        showToast('Error generating Excel report: ' + err.message, 'error');
+      } finally {
+        openExcelReportBtn.disabled = false;
+        openExcelReportBtn.innerHTML = '<i class="fas fa-file-excel" style="color: #107c41;"></i> Open Excel Report (.xlsx)';
+      }
+    });
+  }
+
+  // ── Backups List Modal Management ──
+  async function loadBackupsList() {
+    if (!backupsListContainer) return;
+    backupsListContainer.innerHTML = '<div style="text-align: center; padding: 24px; color: var(--text-muted);"><i class="fas fa-spinner fa-spin fa-2x"></i><p style="margin-top: 8px;">Loading backups...</p></div>';
+
+    try {
+      const res = await fetch('/api/backups');
+      const data = await res.json();
+      const backups = data.backups || [];
+
+      if (backups.length === 0) {
+        backupsListContainer.innerHTML = `
+          <div style="text-align: center; padding: 36px 16px; background: var(--bg-tertiary); border: 1px dashed var(--border); border-radius: 8px; color: var(--text-muted);">
+            <i class="fas fa-box-open fa-2x" style="margin-bottom: 8px; opacity: 0.5;"></i>
+            <p style="margin: 0; font-size: 13.5px; font-weight: 600;">No Backups Found</p>
+            <p style="margin: 4px 0 0 0; font-size: 12px;">When you click "Clear Reports / Reset Test Data", you can choose to create a full backup archive.</p>
+          </div>
+        `;
+        return;
+      }
+
+      backupsListContainer.innerHTML = backups.map(b => {
+        const dateFormatted = b.createdAt ? new Date(b.createdAt).toLocaleString() : b.folderName;
+        const screenshots = b.screenshotsCount || 0;
+        const size = b.totalSizeFormatted || 'N/A';
+        const sessions = b.sessionsCount != null ? b.sessionsCount : '—';
+        const execs = b.executionsCount != null ? b.executionsCount : '—';
+
+        return `
+          <div style="background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+            <div style="display: flex; flex-direction: column; gap: 3px;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-archive" style="color: var(--accent);"></i>
+                <strong style="font-family: monospace; font-size: 13px; color: var(--text-primary);">${escapeHtml(b.folderName)}</strong>
+              </div>
+              <div style="font-size: 11.5px; color: var(--text-muted);">
+                Created: ${escapeHtml(dateFormatted)} &bull; ${size} &bull; ${sessions} sessions (${execs} runs) &bull; ${screenshots} screenshots
+              </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <a href="/${escapeHtml(b.relativePath)}/reports/execution-report.html" target="_blank" class="btn btn-secondary btn-sm" style="text-decoration: none;">
+                <i class="fas fa-external-link-alt"></i> View Report
+              </a>
+              <a href="/${escapeHtml(b.relativePath)}/README.txt" target="_blank" class="btn btn-secondary btn-sm" style="text-decoration: none;" title="View backup manifest">
+                <i class="fas fa-file-lines"></i> Manifest
+              </a>
+            </div>
+          </div>
+        `;
+      }).join('');
+    } catch (err) {
+      console.error('Failed to load backups:', err);
+      backupsListContainer.innerHTML = `<div style="color: var(--danger); padding: 16px; font-size: 13px;">Error loading backups: ${escapeHtml(err.message)}</div>`;
+    }
+  }
+
+  function openBackupsModal() {
+    if (!backupsListModal) return;
+    backupsListModal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    loadBackupsList();
+  }
+
+  function closeBackupsModal() {
+    if (!backupsListModal) return;
+    backupsListModal.classList.add('hidden');
+    document.body.style.overflow = '';
+  }
+
+  if (viewBackupsBtn) viewBackupsBtn.addEventListener('click', openBackupsModal);
+  if (closeBackupsModalBtn) closeBackupsModalBtn.addEventListener('click', closeBackupsModal);
+  if (closeBackupsModalFooterBtn) closeBackupsModalFooterBtn.addEventListener('click', closeBackupsModal);
+  if (refreshBackupsBtn) refreshBackupsBtn.addEventListener('click', loadBackupsList);
+  if (backupsListModal) {
+    backupsListModal.addEventListener('click', (e) => {
+      if (e.target === backupsListModal) closeBackupsModal();
     });
   }
 

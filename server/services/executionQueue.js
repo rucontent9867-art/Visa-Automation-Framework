@@ -183,6 +183,8 @@ function enqueueSession({ testFiles, browsers, devices, retries, headless, batch
         retries: 0,
         duration: null,
         paymentUrl: 'N/A',
+        capturedUrls: [],
+        urlHistory: [],
         screenshotPath: 'N/A',
         error: '',
         failedStep: '',
@@ -210,6 +212,8 @@ function enqueueSession({ testFiles, browsers, devices, retries, headless, batch
             retries: 0,
             duration: null,
             paymentUrl: 'N/A',
+            capturedUrls: [],
+            urlHistory: [],
             screenshotPath: 'N/A',
             error: '',
             failedStep: '',
@@ -361,6 +365,10 @@ async function runSingleTestTask(exec, session) {
       exec.status = rj.status || (result.exitCode === 0 ? 'PASS' : 'FAIL');
       exec.duration = rj.duration || 0;
       exec.paymentUrl = rj.paymentUrl || 'N/A';
+      exec.capturedUrls = Array.isArray(rj.capturedUrls) && rj.capturedUrls.length > 0
+        ? rj.capturedUrls
+        : (exec.paymentUrl && exec.paymentUrl !== 'N/A' ? [exec.paymentUrl] : []);
+      exec.urlHistory = Array.isArray(rj.urlHistory) ? rj.urlHistory : [];
       exec.screenshotPath = rj.screenshotPath || 'N/A';
       exec.error = rj.error || '';
       exec.failedStep = rj.failedStep || '';

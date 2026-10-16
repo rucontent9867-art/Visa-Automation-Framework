@@ -128,14 +128,30 @@ async function updateExcelReportDisk() {
         const envStr = `${exec.device || 'Desktop'} / ${exec.browser || 'Chromium'}`;
         const dateTimeStr = exec.startTime ? new Date(exec.startTime).toLocaleString() : new Date(session.createdAt).toLocaleString();
 
-        // Prepare Captured URL
-        let paymentUrlObj = '—';
-        if (exec.paymentUrl && exec.paymentUrl !== 'N/A') {
-          if (/^https?:\/\//i.test(exec.paymentUrl)) {
-            paymentUrlObj = { text: exec.paymentUrl, hyperlink: exec.paymentUrl, tooltip: exec.paymentUrl };
-          } else {
-            paymentUrlObj = exec.paymentUrl;
+        // Prepare Captured URL(s)
+        const capturedUrlsList = [];
+        if (Array.isArray(exec.capturedUrls) && exec.capturedUrls.length > 0) {
+          for (const u of exec.capturedUrls) {
+            const uStr = typeof u === 'string' ? u : (u && u.url);
+            if (uStr && uStr !== 'N/A' && !capturedUrlsList.includes(uStr)) {
+              capturedUrlsList.push(uStr);
+            }
           }
+        }
+        if (capturedUrlsList.length === 0 && exec.paymentUrl && exec.paymentUrl !== 'N/A') {
+          capturedUrlsList.push(exec.paymentUrl);
+        }
+
+        let paymentUrlObj = '—';
+        if (capturedUrlsList.length === 1) {
+          const singleUrl = capturedUrlsList[0];
+          if (/^https?:\/\//i.test(singleUrl)) {
+            paymentUrlObj = { text: singleUrl, hyperlink: singleUrl, tooltip: singleUrl };
+          } else {
+            paymentUrlObj = singleUrl;
+          }
+        } else if (capturedUrlsList.length > 1) {
+          paymentUrlObj = capturedUrlsList.map((u, idx) => `[Step ${idx + 1}] ${u}`).join('\n');
         }
 
         // Prepare Screenshot hyperlink
@@ -179,6 +195,9 @@ async function updateExcelReportDisk() {
       }
     }
 
+    // Populate / update dedicated "URL History" worksheet
+    updateUrlHistoryWorksheet(workbook, dateGroups);
+
     // Save workbook safely
     try {
       await workbook.xlsx.writeFile(EXCEL_PATH);
@@ -193,6 +212,123 @@ async function updateExcelReportDisk() {
   }
 }
 
+function updateUrlHistoryWorksheet(workbook, dateGroups) {
+  let urlSheet = workbook.getWorksheet('URL History');
+  if (!urlSheet) {
+    urlSheet = workbook.addWorksheet('URL History');
+    setupUrlHistoryHeaders(urlSheet);
+  } else if (urlSheet.rowCount === 0) {
+    setupUrlHistoryHeaders(urlSheet);
+  }
+
+  const existingRowMap = new Map();
+  urlSheet.eachRow((row, rowNumber) => {
+    if (rowNumber === 1) return;
+    const key = row.getCell(9).value; // Row unique key in Col 9
+    if (key) existingRowMap.set(String(key), rowNumber);
+  });
+
+  for (const items of dateGroups.values()) {
+    for (const { session, exec } of items) {
+      const dateTimeStr = exec.startTime ? new Date(exec.startTime).toLocaleString() : new Date(session.createdAt).toLocaleString();
+      const formattedTitle = formatTestTitle(exec.testScript) || exec.testScript;
+      const envStr = `${exec.device || 'Desktop'} / ${exec.browser || 'Chromium'}`;
+
+      let historyItems = [];
+      if (Array.isArray(exec.urlHistory) && exec.urlHistory.length > 0) {
+        historyItems = exec.urlHistory;
+      } else if (Array.isArray(exec.capturedUrls) && exec.capturedUrls.length > 0) {
+        historyItems = exec.capturedUrls.map((u, i) => ({
+          url: typeof u === 'string' ? u : u.url,
+          label: i === 0 ? 'Initial Navigation' : `Step ${i + 1}`,
+          timestamp: exec.startTime || '',
+        }));
+      } else if (exec.paymentUrl && exec.paymentUrl !== 'N/A') {
+        historyItems = [{
+          url: exec.paymentUrl,
+          label: 'Captured URL',
+          timestamp: exec.endTime || exec.startTime || '',
+        }];
+      }
+
+      historyItems.forEach((item, idx) => {
+        const stepNum = idx + 1;
+        const rowKey = `${exec.id}__step_${stepNum}`;
+        const targetUrl = item.url;
+        let urlCellObj = targetUrl;
+        if (/^https?:\/\//i.test(targetUrl)) {
+          urlCellObj = { text: targetUrl, hyperlink: targetUrl, tooltip: targetUrl };
+        }
+
+        const rowValues = [
+          `Run #${session.runNumber}`,
+          dateTimeStr,
+          `${formattedTitle} (${exec.testScript})`,
+          envStr,
+          stepNum,
+          item.label || `Step ${stepNum}`,
+          urlCellObj,
+          item.timestamp || dateTimeStr,
+          rowKey,
+        ];
+
+        let targetRowNumber = existingRowMap.get(rowKey);
+        let row;
+        if (targetRowNumber) {
+          row = urlSheet.getRow(targetRowNumber);
+          row.values = rowValues;
+        } else {
+          row = urlSheet.addRow(rowValues);
+          existingRowMap.set(rowKey, row.number);
+        }
+
+        row.height = 22;
+        row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+          cell.font = cell.font || { name: 'Arial', size: 9.5 };
+          cell.alignment = {
+            vertical: 'middle',
+            horizontal: (colNumber === 1 || colNumber === 5 || colNumber === 8) ? 'center' : 'left',
+          };
+          cell.border = { bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } } };
+          if (colNumber === 7 && typeof cell.value === 'object' && cell.value !== null && cell.value.hyperlink) {
+            cell.font = { name: 'Arial', size: 9.5, color: { argb: 'FF0284C7' }, underline: true };
+          }
+        });
+      });
+    }
+  }
+}
+
+function setupUrlHistoryHeaders(worksheet) {
+  worksheet.columns = [
+    { header: 'Run #', key: 'runNumber', width: 12 },
+    { header: 'Date & Time', key: 'dateTime', width: 22 },
+    { header: 'Test Script', key: 'testScript', width: 34 },
+    { header: 'Environment', key: 'environment', width: 24 },
+    { header: 'Step #', key: 'stepNumber', width: 10 },
+    { header: 'Step Label / Event', key: 'label', width: 28 },
+    { header: 'Captured URL', key: 'url', width: 55 },
+    { header: 'Timestamp', key: 'timestamp', width: 22 },
+    { header: 'Key', key: 'rowKey', width: 36 },
+  ];
+
+  const col9 = worksheet.getColumn(9);
+  col9.hidden = true;
+
+  const headerRow = worksheet.getRow(1);
+  headerRow.height = 28;
+  headerRow.eachCell((cell) => {
+    cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+    cell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF312E81' }, // Indigo dark header
+    };
+    cell.alignment = { vertical: 'middle', horizontal: 'center' };
+    cell.border = { bottom: { style: 'medium', color: { argb: 'FF4338CA' } } };
+  });
+}
+
 function setupWorksheetHeaders(worksheet) {
   worksheet.columns = [
     { header: 'Run #', key: 'runNumber', width: 12 },
@@ -201,7 +337,7 @@ function setupWorksheetHeaders(worksheet) {
     { header: 'Environment', key: 'environment', width: 24 },
     { header: 'Status', key: 'status', width: 14 },
     { header: 'Attempts', key: 'attempts', width: 14 },
-    { header: 'Captured URL', key: 'paymentUrl', width: 45 },
+    { header: 'Captured URL(s)', key: 'paymentUrl', width: 48 },
     { header: 'Screenshot', key: 'screenshot', width: 16 },
     { header: 'Duration', key: 'duration', width: 12 },
     { header: 'Error Details', key: 'error', width: 45 },
@@ -241,6 +377,13 @@ function formatDataRow(row, status) {
     cell.border = {
       bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
     };
+
+    // Multi-line captured URLs wrapText
+    if (colNumber === 7 && typeof cell.value === 'string' && cell.value.includes('\n')) {
+      cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+      const lineCount = cell.value.split('\n').length;
+      row.height = Math.max(row.height || 22, lineCount * 17);
+    }
 
     // Style Status column (Col 5)
     if (colNumber === 5) {

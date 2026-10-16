@@ -37,16 +37,17 @@ app.use(express.json());
 // Serve web frontend static files
 app.use(express.static(path.join(process.cwd(), 'web')));
 
-// Serve generated reports and screenshots
+// Serve generated reports, screenshots, and backups
 app.use('/reports', express.static(path.join(process.cwd(), 'reports')));
 app.use('/screenshots', express.static(path.join(process.cwd(), 'screenshots')));
+app.use('/backups', express.static(path.join(process.cwd(), 'backups')));
 
 // API routes
 app.use('/api', apiRoutes);
 
 // Fallback to web/index.html for SPA routing
 app.get('*', (req, res, next) => {
-  if (req.path.startsWith('/api') || req.path.startsWith('/reports') || req.path.startsWith('/screenshots')) {
+  if (req.path.startsWith('/api') || req.path.startsWith('/reports') || req.path.startsWith('/screenshots') || req.path.startsWith('/backups')) {
     return next();
   }
   res.sendFile(path.join(process.cwd(), 'web', 'index.html'));

@@ -324,6 +324,23 @@ function generateReportHtml(data) {
     .btn-table-details { background: var(--bg-tertiary); color: var(--text-secondary); border-color: var(--border); padding: 3px 8px; font-size: 11px; }
     .btn-table-details:hover, .btn-table-details.active { background: #fee2e2; color: #dc2626; border-color: #fecaca; }
     
+    .btn-table-url-multiple { background: #e0e7ff; color: #4338ca; border: 1px solid #c7d2fe; font-weight: 600; padding: 4px 9px; border-radius: var(--radius-sm); font-size: 11px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; transition: all 0.15s ease; }
+    .btn-table-url-multiple:hover { background: #4338ca; color: white; border-color: #4338ca; box-shadow: 0 2px 6px rgba(67, 56, 202, 0.25); }
+    .btn-table-url-latest { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; font-size: 11px; padding: 4px 8px; border-radius: var(--radius-sm); display: inline-flex; align-items: center; gap: 4px; text-decoration: none; font-weight: 500; }
+    .btn-table-url-latest:hover { background: #15803d; color: white; border-color: #15803d; }
+    .btn-table-icon { background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-secondary); padding: 4px 7px; cursor: pointer; font-size: 11px; display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s ease; }
+    .btn-table-icon:hover { color: var(--primary); border-color: var(--primary); background: var(--bg-secondary); }
+    .url-cell-wrapper { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    
+    .url-history-item { background: var(--bg-primary); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 10px; display: flex; flex-direction: column; gap: 8px; transition: border-color 0.15s ease; }
+    .url-history-item:hover { border-color: var(--primary); }
+    .url-history-header { display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: 600; color: var(--text-primary); }
+    .url-history-label { display: flex; align-items: center; gap: 6px; color: var(--primary); }
+    .url-step-badge { background: #e0e7ff; color: #4338ca; padding: 2px 6px; border-radius: 4px; font-size: 10.5px; font-weight: 700; }
+    .url-history-time { font-size: 11px; color: var(--text-muted); font-weight: normal; }
+    .url-history-box { background: #0f172a; color: #38bdf8; padding: 8px 12px; border-radius: 4px; font-family: 'Fira Code', 'Cascadia Code', monospace; font-size: 12px; word-break: break-all; border: 1px solid #1e293b; user-select: all; }
+    .url-history-actions { display: flex; gap: 8px; justify-content: flex-end; }
+    
     .error-cell-wrapper { display: flex; flex-direction: column; gap: 6px; max-width: 220px; }
     .error-preview { font-size: 12px; color: var(--danger); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: 'Fira Code', 'Cascadia Code', monospace; }
     
@@ -373,6 +390,26 @@ function generateReportHtml(data) {
       <div class="modal-footer">
         <button type="button" class="btn-table btn-table-details" id="errorModalCopyBtn"><i class="fas fa-copy"></i> Copy Error</button>
         <button type="button" class="btn-table btn-table-cancel" id="errorModalOkBtn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Captured URLs History Modal -->
+  <div class="modal-backdrop hidden" id="urlsModal" role="dialog" aria-modal="true">
+    <div class="modal-container" style="max-width: 780px;">
+      <div class="modal-header">
+        <h3 class="modal-title"><i class="fas fa-link" style="color: var(--accent);"></i> Captured URLs History (<span id="urlsModalCount">0</span>)</h3>
+        <button type="button" class="modal-close-btn" id="urlsModalCloseBtn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="error-meta" id="urlsModalMeta"></div>
+        <div id="urlsModalList" style="display: flex; flex-direction: column; gap: 10px; max-height: 480px; overflow-y: auto;">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-table btn-table-details" id="urlsModalCopyAllBtn"><i class="fas fa-copy"></i> Copy All URLs</button>
+        <button type="button" class="btn-table btn-table-cancel" id="urlsModalOkBtn">Close</button>
       </div>
     </div>
   </div>
@@ -430,6 +467,7 @@ function generateReportHtml(data) {
     }
 
     const executionErrorStore = new Map();
+    const executionUrlsStore = new Map();
 
     function openErrorModal(execId) {
       const errorData = executionErrorStore.get(execId);
@@ -458,6 +496,72 @@ function generateReportHtml(data) {
       document.body.style.overflow = '';
     }
 
+    function openUrlsModal(execId) {
+      const urlData = executionUrlsStore.get(execId);
+      const urlsModal = document.getElementById('urlsModal');
+      if (!urlData || !urlsModal) return;
+
+      const metaEl = document.getElementById('urlsModalMeta');
+      const countEl = document.getElementById('urlsModalCount');
+      const listEl = document.getElementById('urlsModalList');
+
+      if (countEl) countEl.textContent = urlData.urls.length;
+      if (metaEl) {
+        metaEl.innerHTML = '<strong>' + escapeHtml(urlData.title) + '</strong> &bull; ' +
+          '<span>' + escapeHtml(urlData.device) + ' / ' + escapeHtml(urlData.browser) + '</span>';
+      }
+
+      if (listEl) {
+        let itemsHtml = '';
+        const history = (urlData.history && urlData.history.length > 0)
+          ? urlData.history
+          : urlData.urls.map(function(u, i) { return { url: u, timestamp: '', label: 'Step ' + (i + 1) }; });
+
+        history.forEach(function(h, index) {
+          const stepNum = index + 1;
+          const label = h.label || ('Step ' + stepNum);
+          const timeStr = h.timestamp ? '<span class="url-history-time"><i class="fas fa-clock"></i> ' + escapeHtml(h.timestamp) + '</span>' : '';
+          const titleStr = h.title ? '<div style="font-size: 11.5px; color: var(--text-secondary);"><i class="fas fa-heading"></i> ' + escapeHtml(h.title) + '</div>' : '';
+
+          itemsHtml += '<div class="url-history-item">' +
+            '<div class="url-history-header">' +
+              '<div class="url-history-label"><span class="url-step-badge">#' + stepNum + '</span> ' + escapeHtml(label) + '</div>' +
+              timeStr +
+            '</div>' +
+            titleStr +
+            '<div class="url-history-box">' + escapeHtml(h.url) + '</div>' +
+            '<div class="url-history-actions">' +
+              '<button type="button" class="btn-table btn-table-icon" onclick="copySingleUrl(\'' + escapeHtml(h.url) + '\', this)" title="Copy URL"><i class="fas fa-copy"></i> Copy</button>' +
+              '<a href="' + escapeHtml(h.url) + '" target="_blank" class="btn-table btn-table-url"><i class="fas fa-external-link-alt"></i> Open URL</a>' +
+            '</div>' +
+          '</div>';
+        });
+        listEl.innerHTML = itemsHtml;
+      }
+
+      urlsModal.setAttribute('data-active-exec', execId);
+      urlsModal.classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeUrlsModal() {
+      const urlsModal = document.getElementById('urlsModal');
+      if (!urlsModal) return;
+      urlsModal.classList.add('hidden');
+      document.body.style.overflow = '';
+    }
+
+    window.copySingleUrl = function(urlText, btn) {
+      if (!urlText) return;
+      navigator.clipboard.writeText(urlText).then(function() {
+        if (btn) {
+          const orig = btn.innerHTML;
+          btn.innerHTML = '<i class="fas fa-check" style="color: #10b981;"></i> Copied';
+          setTimeout(function() { btn.innerHTML = orig; }, 1800);
+        }
+      });
+    };
+
     document.addEventListener('DOMContentLoaded', function() {
       const closeBtn = document.getElementById('errorModalCloseBtn');
       const okBtn = document.getElementById('errorModalOkBtn');
@@ -471,8 +575,39 @@ function generateReportHtml(data) {
           if (e.target === modal) closeErrorModal();
         });
       }
+
+      const urlsCloseBtn = document.getElementById('urlsModalCloseBtn');
+      const urlsOkBtn = document.getElementById('urlsModalOkBtn');
+      const urlsCopyAllBtn = document.getElementById('urlsModalCopyAllBtn');
+      const urlsModal = document.getElementById('urlsModal');
+
+      if (urlsCloseBtn) urlsCloseBtn.addEventListener('click', closeUrlsModal);
+      if (urlsOkBtn) urlsOkBtn.addEventListener('click', closeUrlsModal);
+      if (urlsModal) {
+        urlsModal.addEventListener('click', function(e) {
+          if (e.target === urlsModal) closeUrlsModal();
+        });
+      }
+
+      if (urlsCopyAllBtn) {
+        urlsCopyAllBtn.addEventListener('click', function() {
+          const activeExecId = urlsModal.getAttribute('data-active-exec');
+          const data = executionUrlsStore.get(activeExecId);
+          if (data && data.urls && data.urls.length > 0) {
+            navigator.clipboard.writeText(data.urls.join('\n')).then(function() {
+              const orig = urlsCopyAllBtn.innerHTML;
+              urlsCopyAllBtn.innerHTML = '<i class="fas fa-check"></i> Copied All (' + data.urls.length + ')';
+              setTimeout(function() { urlsCopyAllBtn.innerHTML = orig; }, 2000);
+            });
+          }
+        });
+      }
+
       document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') closeErrorModal();
+        if (e.key === 'Escape') {
+          closeErrorModal();
+          closeUrlsModal();
+        }
       });
 
       if (copyBtn) {
@@ -635,7 +770,7 @@ function generateReportHtml(data) {
                     '<th>Environment</th>' +
                     '<th>Status</th>' +
                     '<th>Attempts</th>' +
-                    '<th>Captured URL</th>' +
+                    '<th>Captured URL(s)</th>' +
                     '<th>Screenshot</th>' +
                     '<th>Duration</th>' +
                     '<th>Error Details</th>' +
@@ -647,9 +782,45 @@ function generateReportHtml(data) {
             cardsHtml += '<tr><td colspan="8" style="text-align:center; padding: 20px; color: var(--text-muted); font-size: 13px;"><i class="fas fa-filter"></i> No completed (PASS/FAIL) test executions in this session.</td></tr>';
           } else {
             for (const exec of execs) {
-            const payUrl = (exec.paymentUrl && exec.paymentUrl !== 'N/A')
-              ? '<a href="' + escapeHtml(exec.paymentUrl) + '" target="_blank" class="btn-table btn-table-url"><i class="fas fa-external-link-alt"></i> Open URL</a>'
-              : '<span class="empty-cell">—</span>';
+            const formattedTitle = formatTestTitle(exec.testScript);
+            // Extract all captured URLs (supports array or legacy paymentUrl)
+            const capturedList = [];
+            if (Array.isArray(exec.capturedUrls) && exec.capturedUrls.length > 0) {
+              for (const u of exec.capturedUrls) {
+                const uStr = typeof u === 'string' ? u : (u && u.url);
+                if (uStr && uStr !== 'N/A' && !capturedList.includes(uStr)) {
+                  capturedList.push(uStr);
+                }
+              }
+            }
+            if (capturedList.length === 0 && exec.paymentUrl && exec.paymentUrl !== 'N/A') {
+              capturedList.push(exec.paymentUrl);
+            }
+
+            if (capturedList.length > 0) {
+              executionUrlsStore.set(exec.id, {
+                title: formattedTitle || exec.testScript,
+                device: exec.device,
+                browser: exec.browser,
+                urls: capturedList,
+                history: Array.isArray(exec.urlHistory) ? exec.urlHistory : []
+              });
+            }
+
+            let payUrl = '<span class="empty-cell">—</span>';
+            if (capturedList.length === 1) {
+              const singleUrl = capturedList[0];
+              payUrl = '<div class="url-cell-wrapper">' +
+                '<a href="' + escapeHtml(singleUrl) + '" target="_blank" class="btn-table btn-table-url" title="' + escapeHtml(singleUrl) + '"><i class="fas fa-external-link-alt"></i> Open URL</a>' +
+                '<button type="button" class="btn-table-icon" onclick="copySingleUrl(\'' + escapeHtml(singleUrl) + '\', this)" title="Copy URL"><i class="fas fa-copy"></i></button>' +
+              '</div>';
+            } else if (capturedList.length > 1) {
+              const latestUrl = capturedList[capturedList.length - 1];
+              payUrl = '<div class="url-cell-wrapper">' +
+                '<button type="button" class="btn-table btn-table-url-multiple" onclick="openUrlsModal(\'' + exec.id + '\')" title="View all ' + capturedList.length + ' captured URLs"><i class="fas fa-layer-group"></i> ' + capturedList.length + ' URLs</button>' +
+                '<a href="' + escapeHtml(latestUrl) + '" target="_blank" class="btn-table btn-table-url-latest" title="Open latest: ' + escapeHtml(latestUrl) + '"><i class="fas fa-external-link-alt"></i> Latest</a>' +
+              '</div>';
+            }
 
             const screenshot = (exec.screenshotPath && exec.screenshotPath !== 'N/A')
               ? '<a href="' + escapeHtml(exec.screenshotPath) + '" target="_blank" class="btn-table btn-table-screenshot"><i class="fas fa-image"></i> View Screenshot</a>'
@@ -658,7 +829,6 @@ function generateReportHtml(data) {
             const attempts = exec.retries != null ? (exec.retries + 1) : 1;
             const attemptBadge = '<span class="exec-attempts">Attempt #' + attempts + '</span>';
             const durationText = exec.duration != null ? exec.duration + 's' : '—';
-            const formattedTitle = formatTestTitle(exec.testScript);
 
             let errorHtml = '<span class="empty-cell">—</span>';
             if (exec.error && exec.error.trim()) {

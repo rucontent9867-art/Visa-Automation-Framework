@@ -477,7 +477,7 @@
                 <th>Environment</th>
                 <th>Status</th>
                 <th>Attempts</th>
-                <th>Captured URL</th>
+                <th>Captured URL(s)</th>
                 <th>Screenshot</th>
                 <th>Duration</th>
                 <th>Error Details</th>
@@ -502,8 +502,11 @@
           <button class="btn btn-primary btn-lg" id="openHtmlReportBtn">
             <i class="fas fa-external-link-alt"></i> Open Full HTML Report
           </button>
-          <button class="btn btn-outline btn-lg" id="openFolderBtn">
-            <i class="fas fa-folder-open"></i> Open Reports Folder
+          <button class="btn btn-outline btn-lg" id="openExcelReportBtn" title="Open or download Excel workbook audit log">
+            <i class="fas fa-file-excel" style="color: #107c41;"></i> Open Excel Report (.xlsx)
+          </button>
+          <button class="btn btn-outline btn-lg" id="viewBackupsBtn" title="Browse and view saved backup archives">
+            <i class="fas fa-box-archive" style="color: #4f46e5;"></i> View Backups
           </button>
           <button class="btn btn-danger-outline btn-lg" id="resetDataBtn">
             <i class="fas fa-trash-alt"></i> Clear Reports / Reset Test Data
@@ -526,6 +529,102 @@
   <!-- ═══════════════ TOAST CONTAINER ═══════════════ -->
   <div class="toast-container" id="toastContainer"></div>
 
+  <!-- ═══════════════ CLEAR DATA & BACKUP CONFIRMATION MODAL ═══════════════ -->
+  <div class="modal-backdrop hidden" id="resetConfirmModal" role="dialog" aria-modal="true" aria-labelledby="resetModalTitle">
+    <div class="modal-container" style="max-width: 640px;">
+      <div class="modal-header" style="background: #fff1f2; border-bottom: 1px solid #fecdd3;">
+        <h3 class="modal-title" id="resetModalTitle" style="color: #9f1239; font-weight: 700;">
+          <i class="fas fa-trash-alt" style="color: #e11d48;"></i> Clear All Test Data & Reports
+        </h3>
+        <button type="button" class="modal-close-btn" id="closeResetModalBtn" aria-label="Close modal">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 22px; display: flex; flex-direction: column; gap: 16px;">
+        <div style="display: flex; gap: 14px; align-items: flex-start; padding: 14px 16px; background: #fff1f2; border: 1px solid #fecdd3; border-radius: 10px; color: #9f1239; font-size: 13.5px; line-height: 1.5;">
+          <i class="fas fa-exclamation-triangle" style="font-size: 20px; margin-top: 2px; flex-shrink: 0; color: #e11d48;"></i>
+          <div>
+            <strong style="font-size: 14px;">Confirm Data Deletion</strong><br>
+            You are about to clear all stored test execution records, HTML reports, Excel workbooks, and captured screenshot images.
+          </div>
+        </div>
+
+        <!-- Backup Option Card -->
+        <div style="background: #f8fafc; border: 1.5px solid #bfdbfe; border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 1px 3px rgba(37, 99, 235, 0.08);">
+          <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; user-select: none;">
+            <input type="checkbox" id="backupBeforeClearCheckbox" checked style="width: 18px; height: 18px; margin-top: 2px; cursor: pointer; accent-color: #2563eb;" />
+            <div>
+              <div style="font-size: 14px; font-weight: 700; color: #1e3a8a;">
+                <i class="fas fa-shield-alt" style="color: #2563eb;"></i> Create a full backup before clearing (Recommended)
+              </div>
+              <div style="font-size: 12.5px; color: #475569; margin-top: 3px; line-height: 1.45;">
+                Copies everything slated for deletion into a timestamped archive folder in <code>/backups</code> including all screenshots, HTML report, Excel file, and execution history.
+              </div>
+            </div>
+          </label>
+
+          <div id="backupOptionsWrap" style="margin-left: 30px; display: flex; flex-direction: column; gap: 6px;">
+            <label style="font-size: 12px; font-weight: 600; color: #475569;" for="backupFolderNameInput">
+              Backup Archive Folder Name:
+            </label>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <span style="font-size: 12px; color: #64748b; font-family: monospace;">backups/</span>
+              <input type="text" id="backupFolderNameInput" style="flex: 1; padding: 7px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: monospace; font-size: 12.5px;" placeholder="backup-YYYY-MM-DD_HH-mm-ss" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Items slated for deletion & backup -->
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; font-size: 12.5px; color: #475569;">
+          <div style="font-weight: 600; color: #1e293b; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+            <i class="fas fa-boxes-stacked" style="color: #2563eb;"></i> Items to be <span id="affectedActionLabel">backed up & deleted</span>:
+          </div>
+          <ul style="margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; line-height: 1.4;">
+            <li><strong>Execution Sessions & History</strong> &mdash; <code>data/store.json</code></li>
+            <li><strong>HTML Test Report</strong> &mdash; <code>reports/execution-report.html</code></li>
+            <li><strong>Excel Workbook</strong> &mdash; <code>reports/test-reports.xlsx</code></li>
+            <li><strong>All Screenshots</strong> &mdash; <code>screenshots/*</code> (failure, success & step captures)</li>
+          </ul>
+        </div>
+      </div>
+      <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px;">
+        <button type="button" class="btn btn-secondary" id="cancelResetModalBtn">
+          Cancel
+        </button>
+        <button type="button" class="btn btn-danger" id="confirmResetModalBtn" style="gap: 8px;">
+          <i class="fas fa-shield-alt" id="confirmResetBtnIcon"></i>
+          <span id="confirmResetBtnText">Create Backup & Clear Everything</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ BACKUP ARCHIVES LIST MODAL ═══════════════ -->
+  <div class="modal-backdrop hidden" id="backupsListModal" role="dialog" aria-modal="true" aria-labelledby="backupsModalTitle">
+    <div class="modal-container modal-lg">
+      <div class="modal-header">
+        <h3 class="modal-title" id="backupsModalTitle">
+          <i class="fas fa-box-archive" style="color: #4f46e5;"></i> Saved Backup Archives
+        </h3>
+        <button type="button" class="modal-close-btn" id="closeBackupsModalBtn" aria-label="Close modal">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 20px; display: flex; flex-direction: column; gap: 14px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+          <p style="margin: 0; font-size: 13px; color: var(--text-secondary);">
+            Complete archives created before clearing data. Each backup contains all screenshots, reports, and data from that point in time.
+          </p>
+          <button type="button" class="btn btn-secondary btn-sm" id="refreshBackupsBtn">
+            <i class="fas fa-sync-alt"></i> Refresh
+          </button>
+        </div>
+        <div id="backupsListContainer" style="display: flex; flex-direction: column; gap: 10px; max-height: 450px; overflow-y: auto;">
+          <!-- Loaded dynamically -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary btn-sm" id="closeBackupsModalFooterBtn">Close</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ═══════════════ ERROR DETAILS MODAL ═══════════════ -->
   <div class="modal-backdrop hidden" id="errorModal" role="dialog" aria-modal="true" aria-labelledby="errorModalTitle">
     <div class="modal-container">
@@ -546,6 +645,30 @@
           <i class="fas fa-copy"></i> Copy Error
         </button>
         <button type="button" class="btn btn-sm btn-primary" id="errorModalOkBtn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ CAPTURED URLS HISTORY MODAL ═══════════════ -->
+  <div class="modal-backdrop hidden" id="urlsModal" role="dialog" aria-modal="true" aria-labelledby="urlsModalTitle">
+    <div class="modal-container" style="max-width: 760px;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="urlsModalTitle">
+          <i class="fas fa-link" style="color: var(--accent);"></i> Captured URLs History (<span id="urlsModalCount">0</span>)
+        </h3>
+        <button type="button" class="modal-close-btn" id="urlsModalCloseBtn" aria-label="Close modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="error-meta" id="urlsModalMeta" style="margin-bottom: 8px;"></div>
+        <div id="urlsModalList" style="display: flex; flex-direction: column; gap: 10px; max-height: 480px; overflow-y: auto;">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-sm btn-outline" id="urlsModalCopyAllBtn">
+          <i class="fas fa-copy"></i> Copy All URLs
+        </button>
+        <button type="button" class="btn btn-sm btn-primary" id="urlsModalOkBtn">Close</button>
       </div>
     </div>
   </div>
@@ -597,6 +720,21 @@
             </ul>
           </div>
 
+          <!-- Backup Archives Directory -->
+          <div class="guide-card">
+            <div class="guide-card-header">
+              <i class="fas fa-box-archive" style="color: #4f46e5;"></i>
+              <span>/backups</span>
+            </div>
+            <p class="guide-card-desc">
+              Stores complete timestamped archives created before clearing reports and data.
+            </p>
+            <ul class="guide-card-list">
+              <li><strong>Safe Retention:</strong> Preserves full copies of <code>data/store.json</code>, <code>reports/execution-report.html</code>, <code>reports/test-reports.xlsx</code>, and all screenshots.</li>
+              <li><strong>Viewable & Restorable:</strong> Browse historical HTML reports or inspect manifests via the "View Backups" dialog.</li>
+            </ul>
+          </div>
+
           <!-- Test Specs Directory -->
           <div class="guide-card">
             <div class="guide-card-header">
@@ -636,8 +774,9 @@
               Test execution framework utilities and helper functions.
             </p>
             <ul class="guide-card-list">
+              <li><code>utils/urlTracker.ts</code>: Automatic URL change listener and explicit tracking utility capturing all navigations, redirects, and payment handoffs.</li>
               <li><code>utils/screenshot.ts</code>: Helper utility providing <code>captureScreenshot()</code> for saving step-by-step test evidence.</li>
-              <li><code>utils/baseTest.ts</code>: Base Playwright test fixture wrapping execution state, retries, and error handling.</li>
+              <li><code>utils/baseTest.ts</code>: Base Playwright test fixture wrapping execution state, retries, URL tracker, and error handling.</li>
             </ul>
           </div>
 

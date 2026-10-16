@@ -131,6 +131,8 @@ class QueueManager {
             retries: 0,
             duration: null,
             paymentUrl: 'N/A',
+            capturedUrls: [],
+            urlHistory: [],
             screenshotPath: 'N/A',
             error: '',
             failedStep: '',
@@ -284,6 +286,8 @@ class QueueManager {
       retries: i.retries || 0,
       duration: i.duration || 0,
       paymentUrl: i.paymentUrl || 'N/A',
+      capturedUrls: i.capturedUrls || (i.paymentUrl && i.paymentUrl !== 'N/A' ? [i.paymentUrl] : []),
+      urlHistory: i.urlHistory || [],
       screenshotPath: i.screenshotPath || 'N/A',
       error: i.error || '',
       failedStep: i.failedStep || '',
@@ -394,6 +398,10 @@ class QueueManager {
               item.retries = resData.retries || 0;
               item.duration = resData.duration || 0;
               item.paymentUrl = resData.paymentUrl || 'N/A';
+              item.capturedUrls = Array.isArray(resData.capturedUrls) && resData.capturedUrls.length > 0
+                ? resData.capturedUrls
+                : (item.paymentUrl && item.paymentUrl !== 'N/A' ? [item.paymentUrl] : []);
+              item.urlHistory = Array.isArray(resData.urlHistory) ? resData.urlHistory : [];
               item.screenshotPath = resData.screenshotPath || 'N/A';
               item.error = resData.error || '';
               item.failedStep = resData.failedStep || '';
@@ -428,6 +436,8 @@ class QueueManager {
             status: item.status,
             duration: item.duration,
             paymentUrl: item.paymentUrl,
+            capturedUrls: item.capturedUrls,
+            urlHistory: item.urlHistory,
             screenshotPath: item.screenshotPath,
             error: item.error,
           });

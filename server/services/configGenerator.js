@@ -116,7 +116,7 @@ function generateSingleExecutionConfig({ testFile, browser, device, retries, hea
   }
   useLines.push(`actionTimeout: ${actionTimeout},`);
   useLines.push(`navigationTimeout: ${navigationTimeout},`);
-  useLines.push(`screenshot: 'only-on-failure',`);
+  useLines.push(`screenshot: { mode: 'only-on-failure', fullPage: true },`);
 
   const launchArgs = getLaunchArgs();
   useLines.push(`launchOptions: {

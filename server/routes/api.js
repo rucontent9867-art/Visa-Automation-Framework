@@ -419,13 +419,48 @@ router.post('/settings', (req, res) => {
   }
 });
 
-// ── POST /api/reset ── clear all session history & reset report
+// ── POST /api/reset ── clear all session history, reports, excel files, and screenshots with optional backup
 router.post('/reset', (req, res) => {
   try {
-    store.clear();
-    const { updateReportDisk } = require('../services/htmlReportGenerator');
-    updateReportDisk({ immediate: true });
-    res.json({ success: true, message: 'All report data and execution sessions reset.' });
+    const { backup = false, backupName = '' } = req.body || {};
+    const backupService = require('../services/backupService');
+
+    let backupResult = null;
+    if (backup === true || backup === 'true') {
+      try {
+        backupResult = backupService.createBackup({ backupName });
+      } catch (backupErr) {
+        console.error('[api] Error creating backup before clearing:', backupErr);
+        return res.status(500).json({
+          error: 'Failed to create backup: ' + backupErr.message,
+          backupCreated: false,
+        });
+      }
+    }
+
+    // Completely clear all stored data, reports, excel files, and screenshots
+    const clearResult = backupService.clearAllStoredData();
+
+    res.json({
+      success: true,
+      backupCreated: !!backupResult,
+      backup: backupResult,
+      clearedDetails: clearResult.clearedDetails,
+      message: backupResult
+        ? `Backup saved to ${backupResult.folderName} and all stored data, reports, and screenshots were successfully cleared.`
+        : 'All report data, Excel files, and screenshots were successfully cleared without backup.',
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/backups ── list all created backups
+router.get('/backups', (req, res) => {
+  try {
+    const backupService = require('../services/backupService');
+    const backups = backupService.listBackups();
+    res.json({ success: true, backups });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

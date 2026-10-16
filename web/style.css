@@ -1590,6 +1590,140 @@ button, .btn {
   box-shadow: 0 2px 6px rgba(37, 99, 235, 0.2);
 }
 
+.btn-table-url-multiple {
+  background: #e0e7ff;
+  color: #4338ca;
+  border: 1px solid #c7d2fe;
+  font-weight: 600;
+  padding: 4px 9px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.15s ease;
+}
+
+.btn-table-url-multiple:hover {
+  background: #4338ca;
+  color: white;
+  border-color: #4338ca;
+  box-shadow: 0 2px 6px rgba(67, 56, 202, 0.25);
+}
+
+.btn-table-url-latest {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.btn-table-url-latest:hover {
+  background: #15803d;
+  color: white;
+  border-color: #15803d;
+}
+
+.btn-table-icon {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  padding: 4px 7px;
+  cursor: pointer;
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.btn-table-icon:hover {
+  color: var(--primary);
+  border-color: var(--primary);
+  background: var(--bg-secondary);
+}
+
+.url-cell-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.url-history-item {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: border-color 0.15s ease;
+}
+
+.url-history-item:hover {
+  border-color: var(--primary);
+}
+
+.url-history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.url-history-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--primary);
+}
+
+.url-step-badge {
+  background: #e0e7ff;
+  color: #4338ca;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.url-history-time {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: normal;
+}
+
+.url-history-box {
+  background: #0f172a;
+  color: #38bdf8;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-family: 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 12px;
+  word-break: break-all;
+  border: 1px solid #1e293b;
+  user-select: all;
+}
+
+.url-history-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 .btn-table-screenshot {
   background: #f0f9ff;
   color: #0284c7;
