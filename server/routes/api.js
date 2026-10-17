@@ -466,4 +466,76 @@ router.get('/backups', (req, res) => {
   }
 });
 
+// ── GitHub Version Control & Sync Endpoints ──
+const githubService = require('../services/githubService');
+
+router.get('/github/config', (req, res) => {
+  try {
+    const config = githubService.getConfig();
+    // Do not return token in plaintext for security display, or mask it
+    const masked = { ...config, token: config.token ? '••••••••••••••••' : '' };
+    res.json({ success: true, config: masked });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/github/config', (req, res) => {
+  try {
+    const { repoUrl, branch, token, authorName, authorEmail } = req.body;
+    const current = githubService.getConfig();
+    const updateData = {
+      ...(repoUrl !== undefined ? { repoUrl } : {}),
+      ...(branch !== undefined ? { branch } : {}),
+      // If token is masked or empty, keep existing unless new token provided
+      ...(token && token !== '••••••••••••••••' ? { token } : {}),
+      ...(authorName !== undefined ? { authorName } : {}),
+      ...(authorEmail !== undefined ? { authorEmail } : {})
+    };
+    const updated = githubService.saveConfig(updateData);
+    res.json({ success: true, config: { ...updated, token: updated.token ? '••••••••••••••••' : '' } });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/github/status', async (req, res) => {
+  try {
+    const status = await githubService.getStatus();
+    res.json(status);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/github/push', async (req, res) => {
+  try {
+    const { commitMessage } = req.body;
+    const result = await githubService.pushChanges(commitMessage);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/github/versions', async (req, res) => {
+  try {
+    const result = await githubService.getRemoteVersions();
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/github/pull', async (req, res) => {
+  try {
+    const { versionName } = req.body;
+    const result = await githubService.pullVersion(versionName);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
+

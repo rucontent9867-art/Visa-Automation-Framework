@@ -2252,4 +2252,407 @@ document.addEventListener('DOMContentLoaded', () => {
       positionFloatingTooltip(activeTooltipContainer);
     }
   }, { passive: true });
+
+  // ── Unified GitHub Version Control & Settings Modal Handlers ──
+  const openGithubModalBtn = document.getElementById('openGithubModalBtn');
+  const githubUnifiedModal = document.getElementById('githubUnifiedModal');
+  const githubUnifiedCloseBtn = document.getElementById('githubUnifiedCloseBtn');
+  const githubUnifiedFooterCloseBtn = document.getElementById('githubUnifiedFooterCloseBtn');
+
+  // Status & chips
+  const ghStatusRepoText = document.getElementById('ghStatusRepoText');
+  const ghStatusBranchText = document.getElementById('ghStatusBranchText');
+  const ghStatusChangesText = document.getElementById('ghStatusChangesText');
+  const ghRefreshStatusBtn = document.getElementById('ghRefreshStatusBtn');
+
+  // Tabs
+  const ghTabButtons = document.querySelectorAll('.gh-tab-btn');
+  const ghTabPanels = {
+    push: document.getElementById('ghPanelPush'),
+    pull: document.getElementById('ghPanelPull'),
+    settings: document.getElementById('ghPanelSettings'),
+    history: document.getElementById('ghPanelHistory')
+  };
+
+  // Push Tab
+  const commitMessageInput = document.getElementById('commitMessageInput');
+  const githubPushSubmitBtn = document.getElementById('githubPushSubmitBtn');
+  const githubPushStatus = document.getElementById('githubPushStatus');
+  const ghModifiedFilesContainer = document.getElementById('ghModifiedFilesContainer');
+  const ghModifiedFilesList = document.getElementById('ghModifiedFilesList');
+
+  // Pull Tab
+  const githubVersionSelect = document.getElementById('githubVersionSelect');
+  const githubRefreshVersionsBtn = document.getElementById('githubRefreshVersionsBtn');
+  const githubPullSubmitBtn = document.getElementById('githubPullSubmitBtn');
+  const githubPullStatus = document.getElementById('githubPullStatus');
+
+  // Settings Tab
+  const ghRepoUrlInput = document.getElementById('ghRepoUrlInput');
+  const ghBranchInput = document.getElementById('ghBranchInput');
+  const ghTokenInput = document.getElementById('ghTokenInput');
+  const ghTokenToggleBtn = document.getElementById('ghTokenToggleBtn');
+  const ghAuthorNameInput = document.getElementById('ghAuthorNameInput');
+  const ghAuthorEmailInput = document.getElementById('ghAuthorEmailInput');
+  const githubSettingsSaveBtn = document.getElementById('githubSettingsSaveBtn');
+  const githubSettingsStatus = document.getElementById('githubSettingsStatus');
+
+  // History Tab
+  const ghCommitHistoryList = document.getElementById('ghCommitHistoryList');
+
+  function setGhFeedback(element, text, type = 'info') {
+    if (!element) return;
+    if (!text) {
+      element.className = 'gh-feedback-msg';
+      element.textContent = '';
+      element.style.display = 'none';
+      return;
+    }
+    element.className = `gh-feedback-msg show ${type}`;
+    element.style.display = 'flex';
+    let iconClass = 'fa-info-circle';
+    if (type === 'success') iconClass = 'fa-check-circle';
+    if (type === 'error') iconClass = 'fa-exclamation-triangle';
+    element.innerHTML = `<i class="fas ${iconClass}"></i> <span>${text}</span>`;
+  }
+
+  function switchGhTab(targetTab) {
+    ghTabButtons.forEach(btn => {
+      if (btn.getAttribute('data-tab') === targetTab) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+
+    Object.keys(ghTabPanels).forEach(key => {
+      const panel = ghTabPanels[key];
+      if (panel) {
+        panel.style.display = (key === targetTab) ? 'block' : 'none';
+      }
+    });
+
+    if (targetTab === 'pull' && githubVersionSelect && githubVersionSelect.options.length <= 1) {
+      fetchRemoteVersions();
+    } else if (targetTab === 'settings') {
+      loadGithubConfig();
+    } else if (targetTab === 'history') {
+      loadGithubStatus();
+    }
+  }
+
+  ghTabButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = btn.getAttribute('data-tab');
+      if (tab) switchGhTab(tab);
+    });
+  });
+
+  // Quick commit message template buttons
+  document.querySelectorAll('.gh-template-btn').forEach(tplBtn => {
+    tplBtn.addEventListener('click', () => {
+      const tpl = tplBtn.getAttribute('data-template');
+      if (tpl && commitMessageInput) {
+        commitMessageInput.value = tpl;
+        commitMessageInput.focus();
+      }
+    });
+  });
+
+  // Token visibility toggle
+  if (ghTokenToggleBtn && ghTokenInput) {
+    ghTokenToggleBtn.addEventListener('click', () => {
+      const isPassword = ghTokenInput.type === 'password';
+      ghTokenInput.type = isPassword ? 'text' : 'password';
+      ghTokenToggleBtn.innerHTML = isPassword ? '<i class="fas fa-eye-slash"></i>' : '<i class="fas fa-eye"></i>';
+    });
+  }
+
+  async function loadGithubStatus() {
+    try {
+      if (ghStatusRepoText) ghStatusRepoText.textContent = 'Loading repository status...';
+      const res = await fetch('/api/github/status');
+      const data = await res.json();
+
+      if (ghStatusRepoText) {
+        if (data.configured && data.repoUrl) {
+          ghStatusRepoText.textContent = data.repoUrl;
+          ghStatusRepoText.title = data.repoUrl;
+        } else {
+          ghStatusRepoText.textContent = 'Repository URL not configured (see Settings tab)';
+          ghStatusRepoText.title = 'Configure repository in Settings tab';
+        }
+      }
+
+      if (ghStatusBranchText) {
+        ghStatusBranchText.textContent = data.currentBranch || 'main';
+      }
+
+      if (ghStatusChangesText) {
+        const count = data.modifiedCount || 0;
+        if (count > 0) {
+          ghStatusChangesText.innerHTML = `<strong>${count}</strong> modified file${count > 1 ? 's' : ''}`;
+        } else {
+          ghStatusChangesText.textContent = 'Clean working directory';
+        }
+      }
+
+      // Modified files preview
+      if (ghModifiedFilesContainer && ghModifiedFilesList) {
+        if (Array.isArray(data.modifiedFiles) && data.modifiedFiles.length > 0) {
+          ghModifiedFilesContainer.style.display = 'block';
+          ghModifiedFilesList.innerHTML = data.modifiedFiles.map(f => {
+            const trimmed = f.trim();
+            const statusChar = trimmed.substring(0, 2).trim();
+            const filename = trimmed.substring(2).trim();
+            return `<div class="gh-file-item"><span class="gh-file-status">[${statusChar || 'M'}]</span> <span>${filename || trimmed}</span></div>`;
+          }).join('');
+        } else {
+          ghModifiedFilesContainer.style.display = 'none';
+          ghModifiedFilesList.innerHTML = '';
+        }
+      }
+
+      // Commit history log
+      if (ghCommitHistoryList) {
+        if (Array.isArray(data.commitLog) && data.commitLog.length > 0) {
+          ghCommitHistoryList.innerHTML = data.commitLog.map(c => `
+            <div class="gh-commit-entry">
+              <div class="gh-commit-top">
+                <span class="gh-commit-hash">${c.hash || ''}</span>
+                <span class="gh-commit-time"><i class="far fa-clock"></i> ${c.time || ''}</span>
+              </div>
+              <div class="gh-commit-msg">${c.message || 'No commit message'}</div>
+              <div class="gh-commit-author"><i class="fas fa-user-circle"></i> ${c.author || 'User'}</div>
+            </div>
+          `).join('');
+        } else {
+          ghCommitHistoryList.innerHTML = '<div style="padding: 24px; text-align: center; color: var(--text-muted); font-size: 13px;">No recent commit records found.</div>';
+        }
+      }
+    } catch (err) {
+      if (ghStatusRepoText) ghStatusRepoText.textContent = 'Error checking repository status';
+      console.error('[GitHub] loadStatus error:', err);
+    }
+  }
+
+  async function loadGithubConfig() {
+    try {
+      const res = await fetch('/api/github/config');
+      const data = await res.json();
+      if (data.success && data.config) {
+        if (ghRepoUrlInput) ghRepoUrlInput.value = data.config.repoUrl || '';
+        if (ghBranchInput) ghBranchInput.value = data.config.branch || 'main';
+        if (ghTokenInput) ghTokenInput.value = data.config.token || '';
+        if (ghAuthorNameInput) ghAuthorNameInput.value = data.config.authorName || '';
+        if (ghAuthorEmailInput) ghAuthorEmailInput.value = data.config.authorEmail || 'dm443790@gmail.com';
+      }
+    } catch (err) {
+      console.error('[GitHub] loadConfig error:', err);
+    }
+  }
+
+  async function fetchRemoteVersions() {
+    if (!githubVersionSelect) return;
+    githubVersionSelect.innerHTML = '<option value="">-- Fetching branches and tags... --</option>';
+    setGhFeedback(githubPullStatus, 'Fetching remote branches and tags from GitHub...', 'info');
+
+    try {
+      const res = await fetch('/api/github/versions');
+      const data = await res.json();
+      if (data.success && Array.isArray(data.versions)) {
+        if (data.versions.length === 0) {
+          githubVersionSelect.innerHTML = '<option value="">No remote versions found</option>';
+          setGhFeedback(githubPullStatus, 'No branches or tags found. Verify repository URL and access token in Settings.', 'error');
+        } else {
+          githubVersionSelect.innerHTML = data.versions.map(v => 
+            `<option value="${v.name}">${v.type === 'tag' ? '🏷️ Tag: ' : '🌿 Branch: '}${v.name}</option>`
+          ).join('');
+          setGhFeedback(githubPullStatus, `Found ${data.versions.length} remote branch/tag version${data.versions.length > 1 ? 's' : ''}.`, 'success');
+        }
+      } else {
+        throw new Error(data.error || 'Failed to fetch versions');
+      }
+    } catch (err) {
+      githubVersionSelect.innerHTML = '<option value="">Error fetching versions</option>';
+      setGhFeedback(githubPullStatus, err.message + ' (Configure Repository URL & Token in Settings tab).', 'error');
+    }
+  }
+
+  if (ghRefreshStatusBtn) {
+    ghRefreshStatusBtn.addEventListener('click', () => {
+      loadGithubStatus();
+      showToast('GitHub status refreshed', 'info');
+    });
+  }
+
+  if (githubRefreshVersionsBtn) {
+    githubRefreshVersionsBtn.addEventListener('click', fetchRemoteVersions);
+  }
+
+  // Open / Close modal
+  function openGithubUnifiedModal() {
+    if (githubUnifiedModal) {
+      githubUnifiedModal.classList.remove('hidden');
+      if (commitMessageInput && !commitMessageInput.value) {
+        commitMessageInput.value = 'Update test automation framework & test suites';
+      }
+      setGhFeedback(githubPushStatus, '');
+      setGhFeedback(githubPullStatus, '');
+      setGhFeedback(githubSettingsStatus, '');
+      loadGithubStatus();
+      loadGithubConfig();
+    }
+  }
+
+  function closeGithubUnifiedModal() {
+    if (githubUnifiedModal) {
+      githubUnifiedModal.classList.add('hidden');
+    }
+  }
+
+  if (openGithubModalBtn) {
+    openGithubModalBtn.addEventListener('click', openGithubUnifiedModal);
+  }
+
+  if (githubUnifiedCloseBtn) {
+    githubUnifiedCloseBtn.addEventListener('click', closeGithubUnifiedModal);
+  }
+
+  if (githubUnifiedFooterCloseBtn) {
+    githubUnifiedFooterCloseBtn.addEventListener('click', closeGithubUnifiedModal);
+  }
+
+  if (githubUnifiedModal) {
+    githubUnifiedModal.addEventListener('click', (e) => {
+      if (e.target === githubUnifiedModal) {
+        closeGithubUnifiedModal();
+      }
+    });
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && githubUnifiedModal && !githubUnifiedModal.classList.contains('hidden')) {
+      closeGithubUnifiedModal();
+    }
+  });
+
+  // Commit & Push action
+  if (githubPushSubmitBtn) {
+    githubPushSubmitBtn.addEventListener('click', async () => {
+      const msg = commitMessageInput ? commitMessageInput.value.trim() : '';
+      if (!msg) {
+        setGhFeedback(githubPushStatus, 'Please enter a commit message before pushing.', 'error');
+        showToast('Please enter a commit message.', 'warning');
+        return;
+      }
+
+      setGhFeedback(githubPushStatus, 'Staging changes, creating commit, and pushing to GitHub...', 'info');
+      githubPushSubmitBtn.disabled = true;
+
+      try {
+        const res = await fetch('/api/github/push', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ commitMessage: msg })
+        });
+        const data = await res.json();
+        if (data.success) {
+          setGhFeedback(githubPushStatus, data.message || 'Successfully committed and pushed to GitHub!', 'success');
+          showToast(data.message || 'Successfully pushed to GitHub!', 'success');
+          loadGithubStatus();
+        } else {
+          throw new Error(data.error || 'Failed to push changes to GitHub');
+        }
+      } catch (err) {
+        setGhFeedback(githubPushStatus, 'Push failed: ' + err.message, 'error');
+        showToast('Push failed: ' + err.message, 'error');
+      } finally {
+        githubPushSubmitBtn.disabled = false;
+      }
+    });
+  }
+
+  // Pull & Update Framework action
+  if (githubPullSubmitBtn) {
+    githubPullSubmitBtn.addEventListener('click', async () => {
+      const selectedVersion = githubVersionSelect ? githubVersionSelect.value : '';
+      if (!selectedVersion) {
+        setGhFeedback(githubPullStatus, 'Please select a branch or release tag version to pull.', 'error');
+        showToast('Please select a version to pull.', 'warning');
+        return;
+      }
+
+      if (!confirm(`Are you sure you want to pull '${selectedVersion}'? This will update framework code while preserving your reports and run sessions.`)) {
+        return;
+      }
+
+      setGhFeedback(githubPullStatus, `Pulling '${selectedVersion}' and updating framework...`, 'info');
+      githubPullSubmitBtn.disabled = true;
+
+      try {
+        const res = await fetch('/api/github/pull', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ versionName: selectedVersion })
+        });
+        const data = await res.json();
+        if (data.success) {
+          setGhFeedback(githubPullStatus, data.message || `Successfully updated framework to version '${selectedVersion}'! Reloading...`, 'success');
+          showToast(data.message || 'Successfully updated framework!', 'success');
+          setTimeout(() => window.location.reload(), 1800);
+        } else {
+          throw new Error(data.error || 'Failed to pull version');
+        }
+      } catch (err) {
+        setGhFeedback(githubPullStatus, 'Pull failed: ' + err.message, 'error');
+        showToast('Pull failed: ' + err.message, 'error');
+      } finally {
+        githubPullSubmitBtn.disabled = false;
+      }
+    });
+  }
+
+  // Save Settings action
+  if (githubSettingsSaveBtn) {
+    githubSettingsSaveBtn.addEventListener('click', async () => {
+      const payload = {
+        repoUrl: ghRepoUrlInput ? ghRepoUrlInput.value.trim() : '',
+        branch: ghBranchInput ? ghBranchInput.value.trim() : 'main',
+        token: ghTokenInput ? ghTokenInput.value.trim() : '',
+        authorName: ghAuthorNameInput ? ghAuthorNameInput.value.trim() : '',
+        authorEmail: ghAuthorEmailInput ? ghAuthorEmailInput.value.trim() : 'dm443790@gmail.com'
+      };
+
+      if (!payload.repoUrl) {
+        setGhFeedback(githubSettingsStatus, 'Please provide a valid GitHub repository URL.', 'error');
+        showToast('Repository URL is required.', 'warning');
+        return;
+      }
+
+      setGhFeedback(githubSettingsStatus, 'Saving repository credentials...', 'info');
+      githubSettingsSaveBtn.disabled = true;
+
+      try {
+        const res = await fetch('/api/github/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+          setGhFeedback(githubSettingsStatus, 'GitHub settings saved successfully!', 'success');
+          showToast('GitHub repository settings saved successfully!', 'success');
+          loadGithubStatus();
+        } else {
+          throw new Error(data.error || 'Failed to save settings');
+        }
+      } catch (err) {
+        setGhFeedback(githubSettingsStatus, 'Save failed: ' + err.message, 'error');
+        showToast('Save failed: ' + err.message, 'error');
+      } finally {
+        githubSettingsSaveBtn.disabled = false;
+      }
+    });
+  }
 });

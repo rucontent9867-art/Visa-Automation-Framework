@@ -21,8 +21,10 @@ debug-chromium-desktop.png
 
 # Credentials / secrets
 credentials/
+data/github-config.json
 
 # Local/generated files
 node
 npm
 visa-test-automation@1.0.0
+.aistudio/

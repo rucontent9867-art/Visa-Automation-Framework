@@ -33,7 +33,7 @@ test('Tanzania Visa Application', async ({ page, waitForCaptcha, getUploadFile }
         .fill('testing');
 
     await page.locator('#email_id')
-        .fill('testing@test.com');
+        .fill('dm443790@gmail.com');
 
     await page.getByRole('combobox', { name: 'Selected country' })
         .click();
@@ -145,7 +145,7 @@ test('Tanzania Visa Application', async ({ page, waitForCaptcha, getUploadFile }
         .fill('9876543210');
 
     await page.locator('#host_email_0')
-        .fill('testing@test.com');
+        .fill('dm443790@gmail.com');
 
     await page.locator('#host_address_0')
         .fill('testing');
@@ -214,11 +214,11 @@ test('Tanzania Visa Application', async ({ page, waitForCaptcha, getUploadFile }
         page.getByText('dm443790@gmail.com')
     ).toBeVisible();
 
-    await page.getByText('testing@test.com')
+    await page.getByText('dm443790@gmail.com')
         .click();
 
     await expect(
-        page.getByText('testing@test.com')
+        page.getByText('dm443790@gmail.com')
     ).toBeVisible();
 
       console.log(
