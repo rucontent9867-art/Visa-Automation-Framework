@@ -508,6 +508,15 @@ router.get('/github/status', async (req, res) => {
   }
 });
 
+router.get('/github/check-update', async (req, res) => {
+  try {
+    const updateInfo = await githubService.checkForUpdates();
+    res.json({ success: true, ...updateInfo });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.post('/github/push', async (req, res) => {
   try {
     const { commitMessage } = req.body;

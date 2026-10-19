@@ -2806,6 +2806,55 @@ button, .btn {
   color: var(--accent);
 }
 
+/* Update Notification Badge on Header Button */
+.gh-update-badge {
+  background: #ea580c;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1.5px 6.5px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3.5px;
+  box-shadow: 0 1px 3px rgba(234, 88, 12, 0.4);
+  animation: pulse-update-badge 2.4s infinite ease-in-out;
+}
+
+@keyframes pulse-update-badge {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.06);
+    opacity: 0.9;
+  }
+}
+
+/* Update Alert Banner inside Modal */
+.gh-update-alert {
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  box-shadow: 0 1px 3px rgba(245, 158, 11, 0.08);
+}
+
+.gh-update-alert-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.gh-update-alert.hidden {
+  display: none !important;
+}
+
 /* Repository Status Banner */
 .gh-status-banner {
   background: var(--bg-tertiary);

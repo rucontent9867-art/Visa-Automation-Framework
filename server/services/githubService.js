@@ -104,6 +104,15 @@ async function getStatus() {
 
     const modifiedFiles = statusOutput ? statusOutput.split('\n').filter(Boolean) : [];
 
+    let updateInfo = null;
+    if (config.repoUrl) {
+      try {
+        updateInfo = await checkForUpdates();
+      } catch (e) {
+        // ignore
+      }
+    }
+
     return {
       success: true,
       configured: !!config.repoUrl,
@@ -111,7 +120,8 @@ async function getStatus() {
       repoUrl: config.repoUrl,
       modifiedCount: modifiedFiles.length,
       modifiedFiles,
-      commitLog
+      commitLog,
+      updateInfo
     };
   } catch (err) {
     return {
@@ -248,11 +258,61 @@ async function pullVersion(versionName) {
   return { success: true, message: `Successfully updated framework to version '${versionName}'!` };
 }
 
+async function checkForUpdates() {
+  const config = getConfig();
+  if (!config.repoUrl) {
+    return { hasUpdate: false, reason: 'Repository URL not configured' };
+  }
+  try {
+    const { owner, repo } = await parseGitHubRepoOwnerAndName(config.repoUrl);
+    const branch = config.branch || 'main';
+    const headers = {
+      'User-Agent': 'Visa-Automation-Framework',
+      'Accept': 'application/vnd.github.v3+json'
+    };
+    if (config.token) {
+      headers['Authorization'] = `token ${config.token}`;
+    }
+
+    const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/commits/${branch}`, { headers });
+    if (!res.ok) {
+      return { hasUpdate: false, error: `GitHub API status ${res.status}` };
+    }
+    const data = await res.json();
+    const remoteSha = data.sha;
+
+    let localSha = '';
+    try {
+      localSha = await runGit('git rev-parse HEAD');
+    } catch (e) {
+      localSha = '';
+    }
+
+    const hasUpdate = Boolean(remoteSha && localSha && remoteSha !== localSha);
+    return {
+      hasUpdate,
+      remoteCommit: {
+        sha: remoteSha ? remoteSha.substring(0, 7) : '',
+        message: data.commit?.message?.split('\n')[0] || '',
+        author: data.commit?.author?.name || '',
+        date: data.commit?.author?.date || ''
+      },
+      localCommit: {
+        sha: localSha ? localSha.substring(0, 7) : 'none'
+      },
+      branch
+    };
+  } catch (err) {
+    return { hasUpdate: false, error: err.message };
+  }
+}
+
 module.exports = {
   getConfig,
   saveConfig,
   getStatus,
   pushChanges,
   getRemoteVersions,
-  pullVersion
+  pullVersion,
+  checkForUpdates
 };

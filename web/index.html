@@ -25,6 +25,7 @@
       <div class="header-right">
         <button id="openGithubModalBtn" class="btn btn-secondary btn-sm header-github-btn" type="button" title="GitHub Settings & Version Control (Push, Pull, Versions, Auth)">
           <i class="fab fa-github"></i> <span class="header-github-text">GitHub</span>
+          <span class="gh-update-badge hidden" id="ghHeaderUpdateBadge" title="New version available on GitHub!"><i class="fas fa-circle-arrow-down"></i> Update</span>
         </button>
         <button id="helpGuideBtn" class="btn btn-secondary btn-sm header-help-btn" type="button" title="View Directory & File Locations Guide">
           <i class="fas fa-folder-open"></i> <span class="header-help-text">File & Directory Guide</span>
@@ -944,6 +945,20 @@
       </div>
 
       <div class="modal-body" style="padding: 16px 20px; display: flex; flex-direction: column; gap: 14px;">
+        <!-- New Version Update Notification Alert Banner -->
+        <div class="gh-update-alert hidden" id="ghUpdateAlertBanner">
+          <div class="gh-update-alert-content">
+            <i class="fas fa-bell-ring" style="font-size: 16px; color: #b45309;"></i>
+            <div>
+              <strong style="color: #92400e;">Update Available on GitHub!</strong>
+              <div id="ghUpdateAlertText" style="font-size: 12px; color: #78350f; margin-top: 2px;">A newer version has been pushed to the remote repository.</div>
+            </div>
+          </div>
+          <button type="button" class="btn btn-warning btn-sm" id="ghQuickPullBtn" style="white-space: nowrap; font-size: 12px; padding: 6px 12px; font-weight: 600;">
+            <i class="fas fa-cloud-arrow-down"></i> Pull Update Now
+          </button>
+        </div>
+
         <!-- Repository Status Banner -->
         <div class="gh-status-banner" id="ghStatusBanner">
           <div class="gh-status-info">

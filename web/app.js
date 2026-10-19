@@ -2265,6 +2265,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const ghStatusChangesText = document.getElementById('ghStatusChangesText');
   const ghRefreshStatusBtn = document.getElementById('ghRefreshStatusBtn');
 
+  // Update banner & badge
+  const ghHeaderUpdateBadge = document.getElementById('ghHeaderUpdateBadge');
+  const ghUpdateAlertBanner = document.getElementById('ghUpdateAlertBanner');
+  const ghUpdateAlertText = document.getElementById('ghUpdateAlertText');
+  const ghQuickPullBtn = document.getElementById('ghQuickPullBtn');
+
   // Tabs
   const ghTabButtons = document.querySelectorAll('.gh-tab-btn');
   const ghTabPanels = {
@@ -2430,10 +2436,35 @@ document.addEventListener('DOMContentLoaded', () => {
           ghCommitHistoryList.innerHTML = '<div style="padding: 24px; text-align: center; color: var(--text-muted); font-size: 13px;">No recent commit records found.</div>';
         }
       }
+      // Check for remote update availability
+      if (data.updateInfo && data.updateInfo.hasUpdate) {
+        if (ghHeaderUpdateBadge) ghHeaderUpdateBadge.classList.remove('hidden');
+        if (ghUpdateAlertBanner) ghUpdateAlertBanner.classList.remove('hidden');
+        if (ghUpdateAlertText) {
+          const rc = data.updateInfo.remoteCommit;
+          ghUpdateAlertText.textContent = `New commit on '${data.updateInfo.branch}': "${rc.message}" by ${rc.author || 'Contributor'} (${rc.sha}).`;
+        }
+      } else {
+        if (ghHeaderUpdateBadge) ghHeaderUpdateBadge.classList.add('hidden');
+        if (ghUpdateAlertBanner) ghUpdateAlertBanner.classList.add('hidden');
+      }
     } catch (err) {
       if (ghStatusRepoText) ghStatusRepoText.textContent = 'Error checking repository status';
+      if (ghHeaderUpdateBadge) ghHeaderUpdateBadge.classList.add('hidden');
+      if (ghUpdateAlertBanner) ghUpdateAlertBanner.classList.add('hidden');
       console.error('[GitHub] loadStatus error:', err);
     }
+  }
+
+  if (ghQuickPullBtn) {
+    ghQuickPullBtn.addEventListener('click', () => {
+      switchGhTab('pull');
+      if (githubPullSubmitBtn) {
+        setTimeout(() => {
+          githubPullSubmitBtn.scrollIntoView({ behavior: 'smooth' });
+        }, 150);
+      }
+    });
   }
 
   async function loadGithubConfig() {
@@ -2655,4 +2686,13 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
+
+  // Initial background check for GitHub updates & periodic sync
+  setTimeout(() => {
+    loadGithubStatus();
+  }, 2500);
+
+  setInterval(() => {
+    loadGithubStatus();
+  }, 180000);
 });
