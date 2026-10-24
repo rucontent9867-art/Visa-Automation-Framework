@@ -546,5 +546,98 @@ router.post('/github/pull', async (req, res) => {
   }
 });
 
+// ═══════════════════════════════════════════════════════════
+// AI Auto Script Generator Routes
+// ═══════════════════════════════════════════════════════════
+const scriptGeneratorService = require('../services/scriptGeneratorService');
+
+router.get('/generator/status', (req, res) => {
+  res.json({ success: true, ...scriptGeneratorService.getStatus() });
+});
+
+router.post('/generator/start', (req, res) => {
+  try {
+    const { mode, scriptName, targetUrl, scenario, options } = req.body;
+    const result = scriptGeneratorService.startJob({ mode, scriptName, targetUrl, scenario, options });
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/generator/stop', (req, res) => {
+  try {
+    const result = scriptGeneratorService.stopJob();
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+router.get('/generator/guide', (req, res) => {
+  try {
+    const content = scriptGeneratorService.getGuide();
+    res.json({ success: true, content });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/generator/guide', (req, res) => {
+  try {
+    const { content } = req.body;
+    const result = scriptGeneratorService.updateGuide(content);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.get('/generator/specs', (req, res) => {
+  try {
+    const specs = scriptGeneratorService.getExistingSpecs();
+    res.json({ success: true, specs });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.get('/generator/spec-content', (req, res) => {
+  try {
+    const { scriptName } = req.query;
+    const content = scriptGeneratorService.loadSpecContent(scriptName);
+    res.json({ success: true, content });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/generator/save-script', (req, res) => {
+  try {
+    const { scriptName, code } = req.body;
+    const result = scriptGeneratorService.saveScript(scriptName, code);
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+// SSE Streaming for live generator logs & checkpoints
+router.get('/generator/events', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  scriptGeneratorService.sseClients.add(res);
+
+  // Send initial connected event
+  res.write(`event: connected\ndata: ${JSON.stringify({ message: 'Connected to generator stream', status: scriptGeneratorService.getStatus() })}\n\n`);
+
+  req.on('close', () => {
+    scriptGeneratorService.sseClients.delete(res);
+  });
+});
+
 module.exports = router;
 

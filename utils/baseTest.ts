@@ -29,12 +29,20 @@ import {
   clearTrackedUrls,
   TrackedUrlRecord,
 } from './urlTracker';
+import {
+  verifyDirectUrls,
+  extractOrderId,
+  DirectUrlVerificationOptions,
+  DirectUrlVerificationResult,
+} from './directUrlVerifier';
 import path from 'path';
 import fs from 'fs';
 
 export {
   captureScreenshot,
   captureScreenshot as capturescreenshot,
+  verifyDirectUrls,
+  extractOrderId,
   trackUrl,
   recordCustomUrl,
   getTrackedUrls,
@@ -42,7 +50,7 @@ export {
   clearTrackedUrls,
   setupUrlTracker,
 };
-export type { TrackedUrlRecord };
+export type { TrackedUrlRecord, DirectUrlVerificationOptions, DirectUrlVerificationResult };
 
 // ─── Result data structure ───
 

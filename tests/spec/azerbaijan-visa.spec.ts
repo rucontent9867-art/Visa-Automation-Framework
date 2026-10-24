@@ -4,7 +4,7 @@
  * Refactored to use shared baseTest and captcha helper.
  */
 
-import { test, expect, capturescreenshot } from '../../utils/baseTest';
+import { test, expect, capturescreenshot, verifyDirectUrls } from '../../utils/baseTest';
 import { getArrivalDate, getPassportExpiryDate } from '../../utils/date';
 import path from 'path';
 
@@ -150,6 +150,20 @@ test('Azerbaijan Visa Application', async ({ page, waitForCaptcha, getUploadFile
     const fileName = path.basename(uploadFile);
     await expect(fileInput.first()).toHaveValue(new RegExp(fileName.replace('.', '\\.')));
 
+    // =========================================================================
+    // DIRECT URL VERIFICATION - STAGE 1: DOCUMENT UPLOAD
+    // Verify /visa-status/ and /complete-partially/ in separate tabs before submit
+    // =========================================================================
+    let orderId = (await page.locator('#order_id_spn, #order_id, input[name="order_id"]').textContent().catch(() => ''))?.trim() || '';
+    await verifyDirectUrls(page, {
+        orderId,
+        stageName: 'document-upload',
+        urls: [
+            'https://azerbaijan-visa.info/visa-status/',
+            'https://azerbaijan-visa.info/complete-partially/'
+        ],
+        waitForCaptcha
+    });
 
     // =====================================
     // PREVIEW
@@ -170,6 +184,22 @@ test('Azerbaijan Visa Application', async ({ page, waitForCaptcha, getUploadFile
         page.locator('#order_id_spn')
     ).toBeVisible();
 
+    // Copy extracted Order ID from Preview page
+    orderId = (await page.locator('#order_id_spn').textContent().catch(() => ''))?.trim() || orderId;
+
+    // =========================================================================
+    // DIRECT URL VERIFICATION - STAGE 2: PREVIEW PAGE
+    // Verify /visa-status/ and /complete-partially/ in separate tabs before submit
+    // =========================================================================
+    await verifyDirectUrls(page, {
+        orderId,
+        stageName: 'preview',
+        urls: [
+            'https://azerbaijan-visa.info/visa-status/',
+            'https://azerbaijan-visa.info/complete-partially/'
+        ],
+        waitForCaptcha
+    });
 
     // =====================================
     // PAYMENT
@@ -204,6 +234,20 @@ test('Azerbaijan Visa Application', async ({ page, waitForCaptcha, getUploadFile
             name: 'Application Detail'
         })
     ).toBeVisible();
+
+    // =========================================================================
+    // DIRECT URL VERIFICATION - STAGE 3: PAYMENT PAGE
+    // Verify /visa-status/ and /complete-partially/ in separate tabs at payment stage
+    // =========================================================================
+    await verifyDirectUrls(page, {
+        orderId,
+        stageName: 'payment',
+        urls: [
+            'https://azerbaijan-visa.info/visa-status/',
+            'https://azerbaijan-visa.info/complete-partially/'
+        ],
+        waitForCaptcha
+    });
 
 
     // =====================================

@@ -3144,4 +3144,365 @@ button, .btn {
   }
 }
 
+/* ═══════════════════════════════════════════════
+   AI Auto Script Generator & Workspace Styling
+   ═══════════════════════════════════════════════ */
+
+.header-generator-btn {
+  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+  border: 1px solid #4338ca;
+  color: #ffffff !important;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 6px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 1px 3px rgba(79, 70, 229, 0.3);
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.header-generator-btn:hover {
+  background: linear-gradient(135deg, #4338ca 0%, #4f46e5 100%);
+  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.45);
+  transform: translateY(-0.5px);
+}
+
+.header-generator-btn i {
+  color: #fbbf24;
+}
+
+.generator-active-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 6px #22c55e;
+  animation: pulse-gen-dot 1.5s infinite ease-in-out;
+}
+
+@keyframes pulse-gen-dot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.3); opacity: 0.7; }
+}
+
+/* Status Badge */
+.gen-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.gen-status-badge.idle {
+  background: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #cbd5e1;
+}
+
+.gen-status-badge.running {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #93c5fd;
+}
+
+.gen-status-badge.completed {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #86efac;
+}
+
+.gen-status-badge.failed {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
+}
+
+.gen-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* Modal Tabs */
+.gen-modal-tabs {
+  display: flex;
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border);
+  padding: 4px 16px 0;
+  gap: 6px;
+}
+
+.gen-tab-btn {
+  padding: 8px 14px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.gen-tab-btn:hover {
+  color: var(--text-primary);
+}
+
+.gen-tab-btn.active {
+  color: #4f46e5;
+  border-bottom-color: #4f46e5;
+  background: rgba(99, 102, 241, 0.05);
+}
+
+/* Mode Switcher */
+.gen-mode-toggle {
+  display: flex;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 3px;
+  gap: 4px;
+}
+
+.gen-mode-label {
+  flex: 1;
+  cursor: pointer;
+  margin: 0;
+}
+
+.gen-mode-label input {
+  display: none;
+}
+
+.gen-mode-label span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 4px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  transition: all 0.15s ease;
+}
+
+.gen-mode-label input:checked + span {
+  background: var(--bg-secondary);
+  color: #4f46e5;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* Timeline & Checkpoint Progress */
+.gen-timeline-track {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  position: relative;
+}
+
+.gen-timeline-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  position: relative;
+  z-index: 2;
+}
+
+.gen-timeline-node .node-circle {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11.5px;
+  background: var(--bg-secondary);
+  border: 2px solid var(--border);
+  color: var(--text-muted);
+  transition: all 0.2s ease;
+}
+
+.gen-timeline-node.active .node-circle {
+  border-color: #6366f1;
+  background: #e0e7ff;
+  color: #4f46e5;
+  box-shadow: 0 0 8px rgba(99, 102, 241, 0.4);
+}
+
+.gen-timeline-node.passed .node-circle {
+  border-color: #22c55e;
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.gen-timeline-node.healed .node-circle {
+  border-color: #f59e0b;
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.gen-timeline-node .node-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.gen-timeline-line {
+  flex: 1;
+  height: 2px;
+  background: var(--border);
+  margin: 0 4px;
+  margin-top: -16px;
+  z-index: 1;
+}
+
+/* Console Logs */
+.gen-console-box {
+  background: #090d16;
+  border: 1px solid #1e293b;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.gen-console-header {
+  background: #0f172a;
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #1e293b;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.gen-console-logs {
+  height: 180px;
+  overflow-y: auto;
+  padding: 10px 12px;
+  font-family: 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 11.5px;
+  line-height: 1.5;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.gen-log-entry {
+  display: flex;
+  gap: 6px;
+  word-break: break-word;
+}
+
+.gen-log-entry .log-time {
+  color: #64748b;
+  font-size: 10.5px;
+}
+
+.gen-log-entry.info {
+  color: #cbd5e1;
+}
+
+.gen-log-entry.success {
+  color: #4ade80;
+}
+
+.gen-log-entry.warning {
+  color: #fbbf24;
+}
+
+.gen-log-entry.error {
+  color: #f87171;
+}
+
+/* Checkpoint Cards */
+.checkpoint-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.checkpoint-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.checkpoint-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.checkpoint-url {
+  font-size: 11.5px;
+  color: var(--accent);
+  font-family: monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.checkpoint-code-preview {
+  background: #0f172a;
+  color: #38bdf8;
+  font-family: monospace;
+  font-size: 11px;
+  padding: 8px;
+  border-radius: 4px;
+  max-height: 120px;
+  overflow-y: auto;
+  white-space: pre;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .header-generator-btn .header-generator-text {
+    display: none;
+  }
+  .header-generator-btn {
+    padding: 6px 10px;
+  }
+  .gen-modal-tabs {
+    flex-wrap: wrap;
+  }
+  .gen-tab-btn {
+    flex: 1 1 calc(50% - 4px);
+    font-size: 11px;
+    padding: 6px 8px;
+  }
+  #genNewScriptContainer {
+    grid-template-columns: 1fr !important;
+  }
+  .gen-timeline-track {
+    overflow-x: auto;
+  }
+}
+
+
 

@@ -2687,6 +2687,533 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // ═══════════════════════════════════════════════════════════
+  // AI Auto Script Generator & Self-Healing Agent Handlers
+  // ═══════════════════════════════════════════════════════════
+  const openScriptGeneratorBtn = document.getElementById('openScriptGeneratorBtn');
+  const scriptGeneratorModal = document.getElementById('scriptGeneratorModal');
+  const closeGeneratorModalBtn = document.getElementById('closeGeneratorModalBtn');
+  const generatorFooterCloseBtn = document.getElementById('generatorFooterCloseBtn');
+  const headerGeneratorRunningDot = document.getElementById('headerGeneratorRunningDot');
+
+  const genStatusBadge = document.getElementById('genStatusBadge');
+  const genStatusBadgeText = document.getElementById('genStatusBadgeText');
+
+  // Generator tabs
+  const genTabButtons = document.querySelectorAll('.gen-tab-btn');
+  const genTabPanels = {
+    builder: document.getElementById('genPanelBuilder'),
+    checkpoints: document.getElementById('genPanelCheckpoints'),
+    preview: document.getElementById('genPanelPreview'),
+    guide: document.getElementById('genPanelGuide')
+  };
+
+  // Form controls
+  const genModeRadios = document.querySelectorAll('input[name="genMode"]');
+  const genNewScriptContainer = document.getElementById('genNewScriptContainer');
+  const genUpdateScriptContainer = document.getElementById('genUpdateScriptContainer');
+  const genScriptNameInput = document.getElementById('genScriptNameInput');
+  const genTargetUrlInput = document.getElementById('genTargetUrlInput');
+  const genExistingScriptSelect = document.getElementById('genExistingScriptSelect');
+  const genRefreshSpecsBtn = document.getElementById('genRefreshSpecsBtn');
+  const genScenarioPrompt = document.getElementById('genScenarioPrompt');
+
+  const startGeneratorBtn = document.getElementById('startGeneratorBtn');
+  const stopGeneratorBtn = document.getElementById('stopGeneratorBtn');
+
+  // Timeline & console
+  const genCheckpointStatusNote = document.getElementById('genCheckpointStatusNote');
+  const genCheckpointCountBadge = document.getElementById('genCheckpointCountBadge');
+  const genConsoleLogsContainer = document.getElementById('genConsoleLogsContainer');
+  const genClearLogsBtn = document.getElementById('genClearLogsBtn');
+  const genCopyLogsBtn = document.getElementById('genCopyLogsBtn');
+
+  // Checkpoints list
+  const genCheckpointsListContainer = document.getElementById('genCheckpointsListContainer');
+
+  // Preview & Guide
+  const genSpecCodeViewer = document.getElementById('genSpecCodeViewer');
+  const genCopySpecBtn = document.getElementById('genCopySpecBtn');
+  const genSaveSpecBtn = document.getElementById('genSaveSpecBtn');
+  const genGuideContentTextarea = document.getElementById('genGuideContentTextarea');
+  const genSaveGuideBtn = document.getElementById('genSaveGuideBtn');
+
+  let currentCheckpoints = [];
+
+  function switchGenTab(tabKey) {
+    genTabButtons.forEach(btn => {
+      if (btn.getAttribute('data-tab') === tabKey) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+
+    Object.keys(genTabPanels).forEach(k => {
+      const panel = genTabPanels[k];
+      if (panel) {
+        panel.style.display = (k === tabKey) ? 'block' : 'none';
+      }
+    });
+
+    if (tabKey === 'guide') {
+      loadGeneratorGuide();
+    }
+  }
+
+  genTabButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = btn.getAttribute('data-tab');
+      if (tab) switchGenTab(tab);
+    });
+  });
+
+  // Switch between "Create New Script" and "Update / Heal Existing Script"
+  genModeRadios.forEach(radio => {
+    radio.addEventListener('change', () => {
+      const mode = radio.value;
+      if (mode === 'create') {
+        if (genNewScriptContainer) genNewScriptContainer.style.display = 'grid';
+        if (genUpdateScriptContainer) genUpdateScriptContainer.style.display = 'none';
+      } else {
+        if (genNewScriptContainer) genNewScriptContainer.style.display = 'none';
+        if (genUpdateScriptContainer) genUpdateScriptContainer.style.display = 'block';
+        loadExistingSpecs();
+      }
+    });
+  });
+
+  // Quick scenario template buttons & Customizer panel handlers
+  const genToggleCustomizerBtn = document.getElementById('genToggleCustomizerBtn');
+  const genCustomizerPanel = document.getElementById('genCustomizerPanel');
+  const btnApplyDirectUrlTemplate = document.getElementById('btnApplyDirectUrlTemplate');
+  const btnResetDirectUrlDefaults = document.getElementById('btnResetDirectUrlDefaults');
+  const customDirectUrlsInput = document.getElementById('customDirectUrlsInput');
+  const customOrderIdSelectorInput = document.getElementById('customOrderIdSelectorInput');
+  const stageDocumentUploadCheck = document.getElementById('stageDocumentUploadCheck');
+  const stagePreviewCheck = document.getElementById('stagePreviewCheck');
+  const stagePaymentCheck = document.getElementById('stagePaymentCheck');
+  const customCaptchaHandlingCheck = document.getElementById('customCaptchaHandlingCheck');
+  const customTimeoutMsInput = document.getElementById('customTimeoutMsInput');
+  const genTplDirectUrlBtn = document.getElementById('genTplDirectUrlBtn');
+
+  if (genToggleCustomizerBtn && genCustomizerPanel) {
+    genToggleCustomizerBtn.addEventListener('click', () => {
+      const isVisible = genCustomizerPanel.style.display === 'block';
+      genCustomizerPanel.style.display = isVisible ? 'none' : 'block';
+    });
+  }
+
+  if (btnResetDirectUrlDefaults) {
+    btnResetDirectUrlDefaults.addEventListener('click', () => {
+      if (customDirectUrlsInput) customDirectUrlsInput.value = '/visa-status/, /complete-partially/';
+      if (customOrderIdSelectorInput) customOrderIdSelectorInput.value = '#order_id_spn, #order_id, [data-order-id]';
+      if (stageDocumentUploadCheck) stageDocumentUploadCheck.checked = true;
+      if (stagePreviewCheck) stagePreviewCheck.checked = true;
+      if (stagePaymentCheck) stagePaymentCheck.checked = true;
+      if (customCaptchaHandlingCheck) customCaptchaHandlingCheck.checked = true;
+      if (customTimeoutMsInput) customTimeoutMsInput.value = '5000';
+      showToast('Direct URL template reset to defaults', 'info');
+    });
+  }
+
+  if (btnApplyDirectUrlTemplate && genScenarioPrompt) {
+    btnApplyDirectUrlTemplate.addEventListener('click', () => {
+      const urls = customDirectUrlsInput ? customDirectUrlsInput.value.trim() : '/visa-status/, /complete-partially/';
+      const orderSelector = customOrderIdSelectorInput ? customOrderIdSelectorInput.value.trim() : '#order_id_spn';
+      const stages = [];
+      if (stageDocumentUploadCheck && stageDocumentUploadCheck.checked) stages.push('Document Upload');
+      if (stagePreviewCheck && stagePreviewCheck.checked) stages.push('Preview');
+      if (stagePaymentCheck && stagePaymentCheck.checked) stages.push('Payment');
+
+      const templateText = `Direct URL Verification Template:\n- URLs: [${urls}]\n- Order ID Selector: ${orderSelector}\n- Stages: ${stages.join(', ')}\n- Behavior: Before clicking Submit/Continue at each stage, open status & resume URLs in separate tabs, enter Order ID, solve Captcha, wait for networkidle (${customTimeoutMsInput ? customTimeoutMsInput.value : 5000}ms fallback), capture stage screenshots, close tabs, and resume.`;
+      genScenarioPrompt.value = templateText;
+      showToast('Direct URL custom template applied to prompt!', 'success');
+      if (genCustomizerPanel) genCustomizerPanel.style.display = 'none';
+    });
+  }
+
+  if (genTplDirectUrlBtn && genScenarioPrompt) {
+    genTplDirectUrlBtn.addEventListener('click', () => {
+      genScenarioPrompt.value = 'Direct URL Verification: at Preview, Document Upload, and Payment stages, copy Order ID into a variable, open /visa-status/ and /complete-partially/ in separate tabs before clicking Submit, enter Order ID, solve Captcha, wait for networkidle (5s fallback), capture stage screenshots, close tabs, and resume.';
+      genScenarioPrompt.focus();
+    });
+  }
+
+  document.querySelectorAll('.gen-tpl-btn').forEach(btn => {
+    if (btn.id === 'genTplDirectUrlBtn') return;
+    btn.addEventListener('click', () => {
+      const tpl = btn.getAttribute('data-template');
+      if (tpl && genScenarioPrompt) {
+        genScenarioPrompt.value = tpl;
+        genScenarioPrompt.focus();
+      }
+    });
+  });
+
+  async function loadExistingSpecs() {
+    if (!genExistingScriptSelect) return;
+    try {
+      genExistingScriptSelect.innerHTML = '<option value="">Loading test specs...</option>';
+      const res = await fetch('/api/generator/specs');
+      const data = await res.json();
+      if (data.success && Array.isArray(data.specs)) {
+        genExistingScriptSelect.innerHTML = '<option value="">-- Choose an existing test script --</option>' +
+          data.specs.map(s => `<option value="${s.name}">${s.name}</option>`).join('');
+      } else {
+        genExistingScriptSelect.innerHTML = '<option value="">No existing specs found</option>';
+      }
+    } catch (err) {
+      genExistingScriptSelect.innerHTML = '<option value="">Error loading specs</option>';
+    }
+  }
+
+  if (genRefreshSpecsBtn) {
+    genRefreshSpecsBtn.addEventListener('click', loadExistingSpecs);
+  }
+
+  if (genExistingScriptSelect) {
+    genExistingScriptSelect.addEventListener('change', async () => {
+      const selected = genExistingScriptSelect.value;
+      if (selected) {
+        if (genScriptNameInput) genScriptNameInput.value = selected;
+        const nameLabel = document.getElementById('genCurrentSpecNameLabel');
+        if (nameLabel) nameLabel.textContent = `(${selected})`;
+
+        // Load spec content immediately into code viewer
+        try {
+          const res = await fetch(`/api/generator/spec-content?scriptName=${encodeURIComponent(selected)}`);
+          const data = await res.json();
+          if (data.success && data.content) {
+            if (genSpecCodeViewer) genSpecCodeViewer.value = data.content;
+            // Auto extract target start URL
+            const urlMatch = data.content.match(/page\.goto\(['"]([^'"]+)['"]\)/);
+            if (urlMatch && genTargetUrlInput) {
+              genTargetUrlInput.value = urlMatch[1];
+            }
+            appendGeneratorLog(`Loaded spec "${selected}" into editor.`, 'info');
+          }
+        } catch (e) {
+          console.error('[Generator] Error loading spec content:', e);
+        }
+      }
+    });
+  }
+
+  function appendGeneratorLog(message, level = 'info') {
+    if (!genConsoleLogsContainer) return;
+    const entry = document.createElement('div');
+    entry.className = `gen-log-entry ${level}`;
+    const timeStr = new Date().toLocaleTimeString();
+    entry.innerHTML = `<span class="log-time">[${timeStr}]</span> <span>${escapeHtml(message)}</span>`;
+    genConsoleLogsContainer.appendChild(entry);
+    genConsoleLogsContainer.scrollTop = genConsoleLogsContainer.scrollHeight;
+  }
+
+  function updateGenStatus(status, errorText = '') {
+    if (!genStatusBadge || !genStatusBadgeText) return;
+    genStatusBadge.className = `gen-status-badge ${status}`;
+    if (status === 'running') {
+      genStatusBadgeText.textContent = 'Generating...';
+      if (startGeneratorBtn) startGeneratorBtn.disabled = true;
+      if (headerGeneratorRunningDot) headerGeneratorRunningDot.classList.remove('hidden');
+    } else if (status === 'completed') {
+      genStatusBadgeText.textContent = 'Ready & Saved';
+      if (startGeneratorBtn) startGeneratorBtn.disabled = false;
+      if (headerGeneratorRunningDot) headerGeneratorRunningDot.classList.add('hidden');
+    } else if (status === 'failed') {
+      genStatusBadgeText.textContent = 'Notice';
+      if (startGeneratorBtn) startGeneratorBtn.disabled = false;
+      if (headerGeneratorRunningDot) headerGeneratorRunningDot.classList.add('hidden');
+    } else {
+      genStatusBadgeText.textContent = 'Ready';
+      if (startGeneratorBtn) startGeneratorBtn.disabled = false;
+      if (headerGeneratorRunningDot) headerGeneratorRunningDot.classList.add('hidden');
+    }
+  }
+
+  // Load generator status & sync UI
+  async function syncGeneratorStatus() {
+    try {
+      const res = await fetch('/api/generator/status');
+      const data = await res.json();
+      if (data.success) {
+        updateGenStatus(data.status);
+        if (data.scriptName && genScriptNameInput && !genScriptNameInput.value) {
+          genScriptNameInput.value = data.scriptName;
+        }
+        if (data.targetUrl && genTargetUrlInput && !genTargetUrlInput.value) {
+          genTargetUrlInput.value = data.targetUrl;
+        }
+        if (data.generatedCode && genSpecCodeViewer) {
+          genSpecCodeViewer.value = data.generatedCode;
+        }
+        if (Array.isArray(data.logs) && genConsoleLogsContainer) {
+          genConsoleLogsContainer.innerHTML = '';
+          data.logs.forEach(l => appendGeneratorLog(l.message, l.level));
+        }
+      }
+    } catch (err) {
+      console.error('[Generator] sync status error:', err);
+    }
+  }
+
+  // Connect to SSE for real-time background progress
+  function initGeneratorEventStream() {
+    try {
+      const eventSource = new EventSource('/api/generator/events');
+
+      eventSource.addEventListener('log', (e) => {
+        try {
+          const l = JSON.parse(e.data);
+          appendGeneratorLog(l.message, l.level);
+        } catch {}
+      });
+
+      eventSource.addEventListener('started', (e) => {
+        updateGenStatus('running');
+      });
+
+      eventSource.addEventListener('completed', (e) => {
+        try {
+          const res = JSON.parse(e.data);
+          updateGenStatus('completed');
+          if (res.code && genSpecCodeViewer) {
+            genSpecCodeViewer.value = res.code;
+          }
+          const nameLabel = document.getElementById('genCurrentSpecNameLabel');
+          if (nameLabel && res.fileName) nameLabel.textContent = `(${res.fileName})`;
+          showToast(`Script successfully generated & saved to tests/spec/${res.fileName}!`, 'success');
+        } catch {}
+      });
+
+      eventSource.addEventListener('failed', (e) => {
+        updateGenStatus('failed');
+        showToast('Generator notice: check parameters.', 'warning');
+      });
+
+      eventSource.addEventListener('stopped', (e) => {
+        updateGenStatus('idle');
+      });
+
+    } catch (err) {
+      console.error('[Generator] EventSource error:', err);
+    }
+  }
+
+  // Start Generation
+  if (startGeneratorBtn) {
+    startGeneratorBtn.addEventListener('click', async () => {
+      const selectedMode = document.querySelector('input[name="genMode"]:checked')?.value || 'update';
+      const scriptName = genScriptNameInput ? genScriptNameInput.value.trim() : '';
+      let targetUrl = genTargetUrlInput ? genTargetUrlInput.value.trim() : '';
+      const scenario = genScenarioPrompt ? genScenarioPrompt.value.trim() : '';
+
+      if (selectedMode === 'create' && !targetUrl) {
+        showToast('Please enter the Target Start URL to generate a script.', 'warning');
+        if (genTargetUrlInput) genTargetUrlInput.focus();
+        return;
+      }
+
+      if (selectedMode === 'update') {
+        const chosenSpec = genExistingScriptSelect ? genExistingScriptSelect.value : '';
+        if (!chosenSpec) {
+          showToast('Please select an existing test script from tests/spec/.', 'warning');
+          return;
+        }
+      }
+
+      const rawUrls = customDirectUrlsInput ? customDirectUrlsInput.value.trim() : '/visa-status/, /complete-partially/';
+      const directUrls = rawUrls.split(',').map(s => s.trim()).filter(Boolean);
+      const orderIdSelector = customOrderIdSelectorInput ? customOrderIdSelectorInput.value.trim() : '#order_id_spn, #order_id, [data-order-id]';
+      const stages = [];
+      if (stageDocumentUploadCheck && stageDocumentUploadCheck.checked) stages.push('document-upload');
+      if (stagePreviewCheck && stagePreviewCheck.checked) stages.push('preview');
+      if (stagePaymentCheck && stagePaymentCheck.checked) stages.push('payment');
+
+      const options = {
+        directUrlOptions: {
+          urls: directUrls,
+          orderIdSelector,
+          stages,
+          timeoutMs: 5000
+        }
+      };
+
+      if (genConsoleLogsContainer) genConsoleLogsContainer.innerHTML = '';
+      updateGenStatus('running');
+      appendGeneratorLog(`Synthesizing test script (no test execution required)...`, 'info');
+
+      try {
+        const res = await fetch('/api/generator/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mode: selectedMode,
+            scriptName: selectedMode === 'update' ? genExistingScriptSelect.value : scriptName,
+            targetUrl,
+            scenario,
+            options
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          // Immediately refresh spec content
+          const finalName = selectedMode === 'update' ? genExistingScriptSelect.value : (scriptName || 'custom-visa.spec.ts');
+          const contentRes = await fetch(`/api/generator/spec-content?scriptName=${encodeURIComponent(finalName)}`);
+          const contentData = await contentRes.json();
+          if (contentData.success && contentData.content) {
+            if (genSpecCodeViewer) genSpecCodeViewer.value = contentData.content;
+            updateGenStatus('completed');
+            showToast(`Script generated & saved to tests/spec/${finalName}!`, 'success');
+          }
+        } else {
+          throw new Error(data.error || 'Failed to generate script');
+        }
+      } catch (err) {
+        updateGenStatus('idle');
+        showToast('Generation notice: ' + err.message, 'error');
+        appendGeneratorLog('Generation notice: ' + err.message, 'error');
+      }
+    });
+  }
+          updateGenStatus('idle');
+          showToast('Generator job stopped.', 'warning');
+        }
+      } catch (err) {
+        showToast('Failed to stop generator: ' + err.message, 'error');
+      }
+    });
+  }
+
+  // Clear & Copy Logs
+  if (genClearLogsBtn) {
+    genClearLogsBtn.addEventListener('click', () => {
+      if (genConsoleLogsContainer) genConsoleLogsContainer.innerHTML = '';
+    });
+  }
+
+  if (genCopyLogsBtn) {
+    genCopyLogsBtn.addEventListener('click', () => {
+      if (genConsoleLogsContainer) {
+        navigator.clipboard.writeText(genConsoleLogsContainer.innerText)
+          .then(() => showToast('Logs copied to clipboard', 'info'))
+          .catch(() => showToast('Failed to copy logs', 'warning'));
+      }
+    });
+  }
+
+  // Guide loading & saving
+  async function loadGeneratorGuide() {
+    if (!genGuideContentTextarea) return;
+    try {
+      const res = await fetch('/api/generator/guide');
+      const data = await res.json();
+      if (data.success && data.content) {
+        genGuideContentTextarea.value = data.content;
+      }
+    } catch (err) {
+      console.error('[Generator] load guide error:', err);
+    }
+  }
+
+  if (genSaveGuideBtn) {
+    genSaveGuideBtn.addEventListener('click', async () => {
+      const content = genGuideContentTextarea ? genGuideContentTextarea.value : '';
+      try {
+        const res = await fetch('/api/generator/guide', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('SCRIPT_GENERATOR_GUIDE.md saved successfully!', 'success');
+        }
+      } catch (err) {
+        showToast('Failed to save guide: ' + err.message, 'error');
+      }
+    });
+  }
+
+  // Spec Preview Copy & Save
+  if (genCopySpecBtn) {
+    genCopySpecBtn.addEventListener('click', () => {
+      if (genSpecCodeViewer && genSpecCodeViewer.value) {
+        navigator.clipboard.writeText(genSpecCodeViewer.value)
+          .then(() => showToast('Playwright spec code copied to clipboard!', 'info'))
+          .catch(() => showToast('Failed to copy code', 'warning'));
+      }
+    });
+  }
+
+  if (genSaveSpecBtn) {
+    genSaveSpecBtn.addEventListener('click', async () => {
+      const code = genSpecCodeViewer ? genSpecCodeViewer.value : '';
+      const scriptName = genScriptNameInput ? genScriptNameInput.value.trim() : 'custom-visa.spec.ts';
+      if (!code) {
+        showToast('No generated code to save.', 'warning');
+        return;
+      }
+      try {
+        const res = await fetch('/api/generator/save-script', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ scriptName, code })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast(`Successfully saved to tests/spec/${data.fileName}!`, 'success');
+          // Refresh dashboard test suites list
+          if (typeof loadTestSuites === 'function') loadTestSuites();
+        } else {
+          throw new Error(data.error || 'Failed to save script');
+        }
+      } catch (err) {
+        showToast('Save error: ' + err.message, 'error');
+      }
+    });
+  }
+
+  // Modal Open & Close Handlers (Closing does NOT stop background job!)
+  function openGeneratorModal() {
+    if (scriptGeneratorModal) {
+      scriptGeneratorModal.classList.remove('hidden');
+      syncGeneratorStatus();
+      loadExistingSpecs();
+    }
+  }
+
+  function closeGeneratorModal() {
+    if (scriptGeneratorModal) {
+      scriptGeneratorModal.classList.add('hidden');
+    }
+  }
+
+  if (openScriptGeneratorBtn) {
+    openScriptGeneratorBtn.addEventListener('click', openGeneratorModal);
+  }
+
+  if (closeGeneratorModalBtn) {
+    closeGeneratorModalBtn.addEventListener('click', closeGeneratorModal);
+  }
+
+  if (generatorFooterCloseBtn) {
+    generatorFooterCloseBtn.addEventListener('click', closeGeneratorModal);
+  }
+
+  if (scriptGeneratorModal) {
+    scriptGeneratorModal.addEventListener('click', (e) => {
+      if (e.target === scriptGeneratorModal) {
+        closeGeneratorModal();
+      }
+    });
+  }
+
+  // Initialize SSE event stream on page load
+  initGeneratorEventStream();
+  syncGeneratorStatus();
+
   // Initial background check for GitHub updates & periodic sync
   setTimeout(() => {
     loadGithubStatus();

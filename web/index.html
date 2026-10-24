@@ -23,6 +23,10 @@
         </div>
       </div>
       <div class="header-right">
+        <button id="openScriptGeneratorBtn" class="btn btn-primary btn-sm header-generator-btn" type="button" title="AI Auto Script Generator & Self-Healing Agent">
+          <i class="fas fa-wand-magic-sparkles"></i> <span class="header-generator-text">Script Generator</span>
+          <span class="generator-active-dot hidden" id="headerGeneratorRunningDot" title="Generation in progress"></span>
+        </button>
         <button id="openGithubModalBtn" class="btn btn-secondary btn-sm header-github-btn" type="button" title="GitHub Settings & Version Control (Push, Pull, Versions, Auth)">
           <i class="fab fa-github"></i> <span class="header-github-text">GitHub</span>
           <span class="gh-update-badge hidden" id="ghHeaderUpdateBadge" title="New version available on GitHub!"><i class="fas fa-circle-arrow-down"></i> Update</span>
@@ -1129,6 +1133,221 @@
 
       <div class="modal-footer" style="padding: 12px 20px; background: var(--bg-tertiary); display: flex; justify-content: flex-end;">
         <button type="button" class="btn btn-secondary" id="githubUnifiedFooterCloseBtn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ AI AUTO SCRIPT GENERATOR WORKSPACE MODAL ═══════════════ -->
+  <div class="modal-backdrop hidden" id="scriptGeneratorModal" role="dialog" aria-modal="true">
+    <div class="modal-container" style="max-width: 860px; width: 100%; max-height: 92vh; display: flex; flex-direction: column;">
+      <div class="modal-header" style="display: flex; align-items: center; justify-content: space-between; padding: 14px 20px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div class="generator-icon-wrap" style="width: 34px; height: 34px; border-radius: 8px; background: #e0e7ff; color: #4f46e5; display: flex; align-items: center; justify-content: center; font-size: 16px;">
+            <i class="fas fa-wand-magic-sparkles"></i>
+          </div>
+          <div>
+            <h3 class="modal-title" style="font-size: 16px; margin: 0; display: flex; align-items: center; gap: 8px;">
+              Playwright Automated Script Generator
+            </h3>
+            <span style="font-size: 11.5px; color: var(--text-muted);">Generate & update resilient test scripts with Direct URL Verification (no test execution)</span>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span class="gen-status-badge idle" id="genStatusBadge">
+            <span class="gen-status-dot"></span> <span id="genStatusBadgeText">Ready</span>
+          </span>
+          <button type="button" class="modal-close-btn" id="closeGeneratorModalBtn" title="Close modal">&times;</button>
+        </div>
+      </div>
+
+      <!-- Clean 2-Tab Navigation -->
+      <div class="gen-modal-tabs" role="tablist">
+        <button type="button" class="gen-tab-btn active" data-tab="builder" id="genTabBuilder">
+          <i class="fas fa-code"></i> Script Generator & Spec
+        </button>
+        <button type="button" class="gen-tab-btn" data-tab="guide" id="genTabGuide">
+          <i class="fas fa-book-open"></i> Guidelines (.md)
+        </button>
+      </div>
+
+      <div class="modal-body" style="padding: 16px 20px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 14px;">
+
+        <!-- ── TAB 1: SCRIPT GENERATOR & SPEC PREVIEW ── -->
+        <div class="gen-tab-panel active" id="genPanelBuilder">
+          <!-- Mode Selector Pill -->
+          <div class="gen-mode-toggle" style="margin-bottom: 12px;">
+            <label class="gen-mode-label">
+              <input type="radio" name="genMode" value="update" id="genModeUpdate" checked>
+              <span><i class="fas fa-wrench"></i> Update Existing Script (e.g. bahrain-visa, azerbaijan-visa)</span>
+            </label>
+            <label class="gen-mode-label">
+              <input type="radio" name="genMode" value="create" id="genModeCreate">
+              <span><i class="fas fa-file-circle-plus"></i> Create Brand New Script</span>
+            </label>
+          </div>
+
+          <!-- Mode B: Update Existing Script Selector (Default) -->
+          <div id="genUpdateScriptContainer" style="margin-bottom: 12px;">
+            <div class="form-group">
+              <label for="genExistingScriptSelect" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">
+                Select Script from <code>tests/spec/</code>: <span style="color: var(--danger);">*</span>
+              </label>
+              <div style="display: flex; gap: 8px;">
+                <select id="genExistingScriptSelect" class="form-control" style="flex: 1; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; background: white;">
+                  <option value="">-- Choose an existing test script --</option>
+                </select>
+                <button type="button" class="btn btn-secondary btn-sm" id="genRefreshSpecsBtn" title="Refresh Specs List">
+                  <i class="fas fa-rotate"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mode A: New Script Inputs -->
+          <div id="genNewScriptContainer" style="display: none; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+            <div class="form-group">
+              <label for="genScriptNameInput" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">
+                Script Filename: <span style="color: var(--danger);">*</span>
+              </label>
+              <input type="text" id="genScriptNameInput" class="form-control" placeholder="e.g. morocco-evisa.spec.ts" value="custom-visa-application.spec.ts" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px;" />
+            </div>
+            <div class="form-group">
+              <label for="genTargetUrlInput" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">
+                Target Start URL: <span style="color: var(--danger);">*</span>
+              </label>
+              <input type="url" id="genTargetUrlInput" class="form-control" placeholder="https://portal.example.com/apply" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px;" />
+            </div>
+          </div>
+
+          <!-- Direct URL Verification Settings Card (Default Enabled) -->
+          <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px 14px; margin-bottom: 12px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-shield-halved" style="color: #0284c7;"></i>
+                <span style="font-size: 12.5px; font-weight: 700; color: #1e293b;">Direct URL Verification</span>
+                <span style="font-size: 11px; background: #e0f2fe; color: #0369a1; padding: 2px 7px; border-radius: 4px; font-weight: 600;">Default</span>
+              </div>
+              <button type="button" class="btn btn-secondary btn-sm" id="genToggleCustomizerBtn" style="padding: 2px 8px; font-size: 11px;">
+                <i class="fas fa-sliders"></i> Customize Settings
+              </button>
+            </div>
+
+            <!-- Summary Bar -->
+            <div style="font-size: 11.5px; color: #475569; display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
+              <span><i class="fas fa-check text-success"></i> Email: <code>dm443790@gmail.com</code></span>
+              <span><i class="fas fa-check text-success"></i> Stages: <strong>Upload, Preview, Payment</strong></span>
+              <span><i class="fas fa-check text-success"></i> Auto-verify before each Submit</span>
+            </div>
+
+            <!-- Collapsible Settings Panel -->
+            <div id="genCustomizerPanel" style="display: none; margin-top: 12px; border-top: 1px solid #e2e8f0; padding-top: 12px;">
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                <div>
+                  <label style="font-size: 11.5px; font-weight: 600; color: #475569; display: block; margin-bottom: 3px;">
+                    Status & Resume URL Paths:
+                  </label>
+                  <input type="text" id="customDirectUrlsInput" class="form-control" value="/visa-status/, /complete-partially/" placeholder="/visa-status/, /complete-partially/" style="width: 100%; font-size: 12px; padding: 6px 9px;" />
+                  <span style="font-size: 10.5px; color: #64748b;">Relative paths or full URLs to check</span>
+                </div>
+                <div>
+                  <label style="font-size: 11.5px; font-weight: 600; color: #475569; display: block; margin-bottom: 3px;">
+                    Order ID Locator / Selector:
+                  </label>
+                  <input type="text" id="customOrderIdSelectorInput" class="form-control" value="#order_id_spn, #order_id, [data-order-id]" style="width: 100%; font-size: 12px; padding: 6px 9px;" />
+                  <span style="font-size: 10.5px; color: #64748b;">Selector to extract Order ID from page</span>
+                </div>
+              </div>
+
+              <div style="margin-bottom: 10px;">
+                <label style="font-size: 11.5px; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">
+                  Applicable Application Stages:
+                </label>
+                <div style="display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: #334155;">
+                  <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                    <input type="checkbox" id="stageDocumentUploadCheck" checked />
+                    <span>1. Document Upload Page</span>
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                    <input type="checkbox" id="stagePreviewCheck" checked />
+                    <span>2. Preview Page</span>
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                    <input type="checkbox" id="stagePaymentCheck" checked />
+                    <span>3. Payment Page</span>
+                  </label>
+                </div>
+              </div>
+
+              <div style="display: flex; justify-content: flex-end; gap: 6px; padding-top: 6px;">
+                <button type="button" class="btn btn-secondary btn-sm" id="btnResetDirectUrlDefaults" style="padding: 3px 8px; font-size: 11px;">Reset Defaults</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Scenario Instructions (Optional) -->
+          <div class="form-group" style="margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <label for="genScenarioPrompt" style="font-size: 12px; font-weight: 700; color: var(--text-muted);">
+                Test Scenario Instructions / Custom Requirements (Optional):
+              </label>
+            </div>
+            <textarea id="genScenarioPrompt" class="form-control" rows="2" placeholder="e.g. Standard visa application with Direct URL Verification at Preview, Document Upload, and Payment stages." style="width: 100%; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 12px; font-family: inherit;"></textarea>
+          </div>
+
+          <!-- Primary Action Button -->
+          <div style="margin-bottom: 12px;">
+            <button type="button" class="btn btn-primary" id="startGeneratorBtn" style="width: 100%; padding: 11px 18px; font-size: 14px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px;">
+              <i class="fas fa-bolt"></i> Generate & Apply Script (No Test Execution)
+            </button>
+          </div>
+
+          <!-- Generated Playwright Test Spec Output (Unified & Immediate) -->
+          <div style="background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 8px; padding: 12px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <i class="fas fa-file-code" style="color: #4f46e5;"></i>
+                <span style="font-size: 12.5px; font-weight: 700; color: var(--text-primary);">Generated Test Spec:</span>
+                <span id="genCurrentSpecNameLabel" style="font-size: 11px; color: var(--text-muted); font-family: monospace;"></span>
+              </div>
+              <div style="display: flex; gap: 6px;">
+                <button type="button" class="btn btn-secondary btn-sm" id="genCopySpecBtn" style="padding: 3px 8px; font-size: 11px;">
+                  <i class="fas fa-copy"></i> Copy Code
+                </button>
+                <button type="button" class="btn btn-primary btn-sm" id="genSaveSpecBtn" style="padding: 3px 10px; font-size: 11px;">
+                  <i class="fas fa-save"></i> Save to tests/spec/
+                </button>
+              </div>
+            </div>
+            <textarea id="genSpecCodeViewer" readonly style="width: 100%; height: 320px; background: #0f172a; color: #38bdf8; font-family: 'Fira Code', 'Cascadia Code', monospace; font-size: 11.5px; padding: 12px; border-radius: var(--radius-sm); border: 1px solid #1e293b; resize: vertical; line-height: 1.45; white-space: pre;" placeholder="Select an existing script above or click 'Generate & Apply Script' to view the synthesized Playwright test code..."></textarea>
+          </div>
+
+          <!-- Compact Activity Log -->
+          <div style="margin-top: 10px; background: #0f172a; border-radius: 6px; padding: 8px 12px; font-family: monospace; font-size: 11px; color: #94a3b8; max-height: 80px; overflow-y: auto;" id="genConsoleLogsContainer">
+            <div class="gen-log-entry info"><span class="log-time">[Ready]</span> Select a script or enter details, then click "Generate & Apply Script".</div>
+          </div>
+        </div>
+
+        <!-- ── TAB 2: GUIDELINES & UTILITIES (.MD) ── -->
+        <div class="gen-tab-panel" id="genPanelGuide" style="display: none;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+            <span style="font-size: 13px; color: var(--text-secondary);">
+              Review the master guidelines in <code>SCRIPT_GENERATOR_GUIDE.md</code>:
+            </span>
+            <button type="button" class="btn btn-primary btn-sm" id="genSaveGuideBtn">
+              <i class="fas fa-save"></i> Save Guide Changes
+            </button>
+          </div>
+          <textarea id="genGuideContentTextarea" style="width: 100%; height: 420px; font-family: monospace; font-size: 12px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); resize: vertical; line-height: 1.45;"></textarea>
+        </div>
+
+      </div>
+
+      <div class="modal-footer" style="padding: 12px 20px; background: var(--bg-tertiary); display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--border);">
+        <div style="font-size: 11.5px; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
+          <i class="fas fa-shield-check" style="color: #10b981;"></i>
+          <span>Execution-Free: Generates & updates Playwright test code without running tests.</span>
+        </div>
+        <button type="button" class="btn btn-secondary" id="generatorFooterCloseBtn">Close</button>
       </div>
     </div>
   </div>

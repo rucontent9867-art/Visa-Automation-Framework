@@ -4,7 +4,7 @@
  * Refactored to use shared baseTest and captcha helper.
  */
 
-import { test, expect, getUploadFile, capturescreenshot } from '../../utils/baseTest';
+import { test, expect, getUploadFile, capturescreenshot, verifyDirectUrls } from '../../utils/baseTest';
 import { getArrivalDate, getPassportExpiryDate } from '../../utils/date';
 
 test('Bahrain Visa Application', async ({ page, waitForCaptcha }) => {
@@ -150,6 +150,19 @@ test('Bahrain Visa Application', async ({ page, waitForCaptcha }) => {
 
     await page.waitForTimeout(1000);
     await capturescreenshot(page, 'preview');
+
+    // =======================================================================
+    // DIRECT URL VERIFICATION: PREVIEW STAGE
+    // Verify application status & partial resume before final submission
+    // =======================================================================
+    await verifyDirectUrls(page, {
+        stageName: 'preview',
+        orderIdSelector: '#order_id_spn, #order_id, [data-order-id]',
+        relativeUrls: ['/application-status/', '/complete-application/'],
+        waitForCaptcha: true,
+        networkIdleTimeoutMs: 5000,
+    });
+
     await page.getByRole('button', { name: 'Confirm & Submit' })
         .click();
     try {
@@ -202,6 +215,19 @@ test('Bahrain Visa Application', async ({ page, waitForCaptcha }) => {
 
     await page.waitForTimeout(1000);
     await capturescreenshot(page, 'doc-page');
+
+    // =======================================================================
+    // DIRECT URL VERIFICATION: DOCUMENT UPLOAD STAGE
+    // Verify direct URLs open Document Upload stage before proceeding
+    // =======================================================================
+    await verifyDirectUrls(page, {
+        stageName: 'document-upload',
+        orderIdSelector: '#order_id_spn, #order_id, [data-order-id]',
+        relativeUrls: ['/application-status/', '/complete-application/'],
+        waitForCaptcha: true,
+        networkIdleTimeoutMs: 5000,
+    });
+
     await page.getByRole('button', { name: 'Save & Continue' })
         .click();
     try {
@@ -224,6 +250,18 @@ test('Bahrain Visa Application', async ({ page, waitForCaptcha }) => {
 
     await page.waitForTimeout(1000);
     await capturescreenshot(page, 'payment-page');
+
+    // =======================================================================
+    // DIRECT URL VERIFICATION: PAYMENT STAGE
+    // Verify direct URLs open Payment stage before checkout
+    // =======================================================================
+    await verifyDirectUrls(page, {
+        stageName: 'payment',
+        orderIdSelector: '#order_id_spn, #order_id, [data-order-id]',
+        relativeUrls: ['/application-status/', '/complete-application/'],
+        waitForCaptcha: true,
+        networkIdleTimeoutMs: 5000,
+    });
 
     await expect(
         page.getByText('dm443790@gmail.com')
