@@ -28,3 +28,5 @@ node
 npm
 visa-test-automation@1.0.0
 .aistudio/
+# Ignore workflows from automated local pushes to avoid token workflow scope errors
+.github/
