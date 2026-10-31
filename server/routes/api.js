@@ -517,48 +517,210 @@ router.get('/github/check-update', async (req, res) => {
   }
 });
 
-router.post('/github/push', async (req, res) => {
+let permissionCache = { data: null, timestamp: 0 };
+
+router.get('/github/permission', async (req, res) => {
   try {
-    const { commitMessage } = req.body;
-    const result = await githubService.pushChanges(commitMessage);
+    const config = githubService.getConfig();
+    if (!config.repoUrl) {
+      return res.json({ ok: false, error: 'not_configured', message: 'Repository URL not configured.' });
+    }
+
+    const forceRefresh = req.query.refresh === 'true' || req.query.refresh === '1';
+    const now = Date.now();
+    if (!forceRefresh && permissionCache.data && (now - permissionCache.timestamp < 60000)) {
+      return res.json(permissionCache.data);
+    }
+
+    const { owner, repo } = await githubService.parseGitHubRepoOwnerAndName(config.repoUrl);
+    const perm = await githubService.checkUserPermission();
+    const canPush = perm.canPush;
+    const level = perm.level;
+    const username = perm.username || 'user';
+
+    const result = {
+      ok: true,
+      canPush,
+      level,
+      username,
+      owner,
+      repo
+    };
+
+    if (!canPush) {
+      result.requestUrl = githubService.buildAccessRequestUrl(owner, repo, username);
+    }
+
+    permissionCache = { data: result, timestamp: now };
     res.json(result);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    if (err.code === 'invalid_token' || err.message === 'invalid_token') {
+      return res.status(401).json({ ok: false, error: 'invalid_token' });
+    }
+    if (err.code === 'network' || err.message === 'network') {
+      return res.status(503).json({ ok: false, error: 'network' });
+    }
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+router.post('/github/push', async (req, res) => {
+  try {
+    const { commitMessage, targetBranch } = req.body;
+    const config = githubService.getConfig();
+    const branchToPush = (targetBranch && targetBranch.trim()) ? targetBranch.trim() : (config.branch || 'main');
+
+    // If pushing to main or master, check write permissions
+    if (branchToPush === 'main' || branchToPush === 'master') {
+      try {
+        const perm = await githubService.checkUserPermission();
+        if (!perm.canPush) {
+          const { owner, repo } = await githubService.parseGitHubRepoOwnerAndName(config.repoUrl);
+          const requestUrl = githubService.buildAccessRequestUrl(owner, repo, perm.username);
+          return res.status(403).json({
+            ok: false,
+            error: 'no_write_permission',
+            message: 'You do not have write permission to push directly to main/master.',
+            requestUrl
+          });
+        }
+      } catch (e) {
+        if (e.code === 'invalid_token') {
+          return res.status(403).json({
+            ok: false,
+            error: 'no_write_permission',
+            message: 'Authentication failed. Please verify your Personal Access Token.'
+          });
+        }
+      }
+    }
+
+    const result = await githubService.pushChanges(commitMessage, branchToPush);
+    // Invalidate cached status and permission
+    permissionCache = { data: null, timestamp: 0 };
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
   }
 });
 
 router.get('/github/versions', async (req, res) => {
   try {
     const result = await githubService.getRemoteVersions();
-    res.json(result);
+    res.json({ ok: true, ...result });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ ok: false, error: err.message });
   }
 });
 
 router.post('/github/pull', async (req, res) => {
   try {
-    const { versionName } = req.body;
-    const result = await githubService.pullVersion(versionName);
+    const { versionName, ref } = req.body;
+    const target = ref || versionName;
+    const result = await githubService.pullVersion(target);
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+router.get('/github/commit/:sha', async (req, res) => {
+  try {
+    const { sha } = req.params;
+    if (!/^[0-9a-f]{7,40}$/i.test(sha)) {
+      return res.status(400).json({ ok: false, error: 'Invalid commit SHA format. Must be 7 to 40 hex characters.' });
+    }
+    const diff = await githubService.getCommitDiff(sha);
+    res.json(diff);
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+router.post('/github/rollback', async (req, res) => {
+  try {
+    const { tag } = req.body;
+    if (!tag) {
+      return res.status(400).json({ ok: false, error: 'Tag parameter is required for rollback.' });
+    }
+    const result = await githubService.rollbackToTag(tag);
     res.json(result);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ ok: false, error: err.message });
   }
 });
 
 // ═══════════════════════════════════════════════════════════
-// AI Auto Script Generator Routes
+// AI Auto Script Generator & Multi-AI Provider Routes
 // ═══════════════════════════════════════════════════════════
 const scriptGeneratorService = require('../services/scriptGeneratorService');
+const aiProviderService = require('../services/aiProviderService');
 
 router.get('/generator/status', (req, res) => {
   res.json({ success: true, ...scriptGeneratorService.getStatus() });
 });
 
+router.get('/generator/ai-providers', (req, res) => {
+  try {
+    const config = aiProviderService.getAiConfig();
+    res.json({ success: true, ...config });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/generator/ai-providers', (req, res) => {
+  try {
+    const { providers, activeProviderId } = req.body;
+    if (!Array.isArray(providers)) {
+      return res.status(400).json({ success: false, error: 'providers must be an array' });
+    }
+    const updated = aiProviderService.saveProviders(providers, activeProviderId);
+    res.json({ success: true, ...updated });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/generator/ai-providers/test', async (req, res) => {
+  try {
+    const { providerId } = req.body;
+    if (!providerId) {
+      return res.status(400).json({ success: false, error: 'providerId is required' });
+    }
+    const result = await aiProviderService.testConnection(providerId);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+router.post('/generator/ai-providers/test-all', async (req, res) => {
+  try {
+    const results = await aiProviderService.testAllConnections();
+    res.json({ success: true, results });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/generator/ai-providers/active', (req, res) => {
+  try {
+    const { providerId } = req.body;
+    if (!providerId) {
+      return res.status(400).json({ success: false, error: 'providerId is required' });
+    }
+    const result = aiProviderService.setActiveProvider(providerId);
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
 router.post('/generator/start', (req, res) => {
   try {
-    const { mode, scriptName, targetUrl, scenario, options } = req.body;
-    const result = scriptGeneratorService.startJob({ mode, scriptName, targetUrl, scenario, options });
+    const { mode, scriptName, targetUrl, scenario, options, providerId } = req.body;
+    const result = scriptGeneratorService.startJob({ mode, scriptName, targetUrl, scenario, options, providerId });
     res.json(result);
   } catch (err) {
     res.status(400).json({ success: false, error: err.message });

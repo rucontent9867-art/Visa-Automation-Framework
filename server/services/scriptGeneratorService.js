@@ -12,6 +12,7 @@
 const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
+const aiProviderService = require('./aiProviderService');
 
 const GUIDE_PATH = path.join(process.cwd(), 'SCRIPT_GENERATOR_GUIDE.md');
 const SPECS_DIR = path.join(process.cwd(), 'tests', 'spec');
@@ -21,6 +22,7 @@ let activeJob = {
   id: null,
   status: 'idle', // 'idle' | 'running' | 'completed' | 'failed' | 'stopped'
   mode: 'create', // 'create' | 'update'
+  providerId: null,
   scriptName: '',
   targetUrl: '',
   scenario: '',
@@ -403,23 +405,27 @@ async function runGenerationPipeline(jobId) {
   try {
     addLog(`🚀 Starting script synthesis for: ${activeJob.scriptName}`, 'info');
     let generatedScript = '';
+    const testTitle = activeJob.scriptName
+      .replace(/\.spec\.(ts|js)$/, '')
+      .replace(/[-_]/g, ' ')
+      .replace(/\b\w/g, l => l.toUpperCase()) + ' Application';
 
+    let existingContent = '';
     if (activeJob.mode === 'update') {
       addLog(`Loading existing spec: ${activeJob.scriptName}...`, 'info');
-      const existingContent = loadSpecContent(activeJob.scriptName);
-      addLog(`Parsing stages and applying Direct URL Verification template...`, 'info');
-      generatedScript = enhanceExistingSpec(existingContent, activeJob.options);
-      addLog(`Applied Direct URL Verification across Preview, Upload, and Payment stages.`, 'success');
-      addLog(`Enforced authorized email standard: dm443790@gmail.com.`, 'success');
-    } else {
-      addLog(`Synthesizing brand-new Playwright test script for: ${activeJob.targetUrl}...`, 'info');
-      const testTitle = activeJob.scriptName
-        .replace(/\.spec\.(ts|js)$/, '')
-        .replace(/[-_]/g, ' ')
-        .replace(/\b\w/g, l => l.toUpperCase()) + ' Application';
-      generatedScript = generateNewSpec(testTitle, activeJob.targetUrl, activeJob.scenario, activeJob.options);
-      addLog(`Generated resilient E2E architecture with Captcha listener, date helpers, and Direct URL checks.`, 'success');
+      existingContent = loadSpecContent(activeJob.scriptName);
     }
+
+    generatedScript = await aiProviderService.generateScript({
+      providerId: activeJob.providerId,
+      testTitle,
+      targetUrl: activeJob.targetUrl,
+      scenario: activeJob.scenario,
+      existingCode: existingContent,
+      mode: activeJob.mode,
+      options: activeJob.options,
+      onLog: (msg, lvl) => addLog(msg, lvl)
+    });
 
     // Save directly to tests/spec/
     const saveRes = saveScript(activeJob.scriptName, generatedScript);
@@ -439,7 +445,7 @@ async function runGenerationPipeline(jobId) {
   }
 }
 
-function startJob({ mode = 'create', scriptName, targetUrl, scenario = '', options = {} }) {
+function startJob({ mode = 'create', scriptName, targetUrl, scenario = '', options = {}, providerId }) {
   let finalScriptName = scriptName ? scriptName.trim() : 'custom-visa-application.spec.ts';
   if (!finalScriptName.endsWith('.spec.ts') && !finalScriptName.endsWith('.spec.js')) {
     finalScriptName += '.spec.ts';
@@ -459,6 +465,7 @@ function startJob({ mode = 'create', scriptName, targetUrl, scenario = '', optio
     id: jobId,
     status: 'running',
     mode,
+    providerId: providerId || null,
     scriptName: finalScriptName,
     targetUrl: finalUrl,
     scenario,

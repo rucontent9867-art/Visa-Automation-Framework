@@ -85,6 +85,7 @@ async function runSingleExecution({ testFile, browser, device, retries = 2, head
         shell: useShell,
         env: {
           ...process.env,
+          PLAYWRIGHT_BROWSERS_PATH: process.env.PLAYWRIGHT_BROWSERS_PATH || (fs.existsSync('/ms-playwright') ? '/ms-playwright' : undefined),
           NODE_ENV: 'test',
           ENABLE_SCREENSHOT_CAPTURE: enableScreenshotCapture ? 'true' : 'false',
           SESSION_TIMESTAMP: sessionTimestamp || new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19),

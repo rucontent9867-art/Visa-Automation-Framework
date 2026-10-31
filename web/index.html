@@ -1001,6 +1001,38 @@
             Stage all local test scripts and configurations, commit with your message, and push directly to your GitHub repository.
           </div>
 
+          <!-- Permission Status & Access Request Helper -->
+          <div id="ghPermissionContainer" style="margin-bottom: 12px; padding: 10px 12px; border-radius: var(--radius-sm); background: #f8fafc; border: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span id="ghPermissionChip" class="gh-chip" style="font-weight: 600; font-size: 11.5px; background: #f1f5f9; color: #475569;">
+                <i class="fas fa-spinner fa-spin"></i> Checking permission...
+              </span>
+              <span id="ghPermissionUserHint" style="font-size: 12px; color: var(--text-muted);"></span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <a id="ghRequestAccessBtn" href="#" target="_blank" class="btn btn-warning btn-sm hidden" style="font-size: 11px; padding: 4px 10px; text-decoration: none; font-weight: 600;">
+                <i class="fas fa-hand-holding-hand"></i> Request Write Access
+              </a>
+              <button type="button" id="ghRefreshPermissionBtn" class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 4px 9px;" title="Re-check permissions">
+                <i class="fas fa-rotate"></i> Refresh Permission
+              </button>
+            </div>
+            <div id="ghPermissionRequestHint" class="hidden" style="width: 100%; font-size: 11.5px; color: #b45309; margin-top: 4px; padding-top: 4px; border-top: 1px dashed #e2e8f0;">
+              After the repository owner adds you as a collaborator, click <strong>Refresh Permission</strong>.
+            </div>
+          </div>
+
+          <!-- Push to Branch Input -->
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label for="ghPushBranchInput" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">
+              Push to Branch: <span style="color: var(--danger);">*</span>
+            </label>
+            <input type="text" id="ghPushBranchInput" class="form-control" placeholder="e.g. dev-bob" value="dev-user" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px;" />
+            <div id="ghBranchWarning" class="hidden" style="margin-top: 4px; font-size: 11.5px; color: var(--danger); font-weight: 600;">
+              <i class="fas fa-triangle-exclamation"></i> You have read-only access. Direct push to protected main/master branch is restricted.
+            </div>
+          </div>
+
           <div id="ghModifiedFilesContainer" style="display: none; margin-bottom: 12px;">
             <label style="font-size: 11.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px; display: block;">
               <i class="fas fa-list-check"></i> Modified Files to Commit:
@@ -1043,9 +1075,14 @@
                 <i class="fas fa-sync-alt"></i> Fetch Versions
               </button>
             </div>
-            <select id="githubVersionSelect" class="form-control" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-family: inherit; font-size: 13px; background: white;">
-              <option value="">-- Click Fetch Versions or open settings --</option>
-            </select>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <select id="githubVersionSelect" class="form-control" style="flex: 1; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-family: inherit; font-size: 13px; background: white;">
+                <option value="">-- Click Fetch Versions or open settings --</option>
+              </select>
+              <button type="button" class="btn btn-danger btn-sm hidden" id="githubRollbackBtn" style="white-space: nowrap; padding: 8px 12px; font-size: 12px; font-weight: 600;" title="Rollback working tree to this tag">
+                <i class="fas fa-history"></i> Rollback to build
+              </button>
+            </div>
           </div>
 
           <div class="gh-safety-box" style="padding: 10px 14px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: var(--radius-sm); margin-bottom: 14px; font-size: 12px; color: #1e40af; display: flex; align-items: flex-start; gap: 8px;">
@@ -1160,13 +1197,16 @@
         </div>
       </div>
 
-      <!-- Clean 2-Tab Navigation -->
+      <!-- Modern 3-Tab Navigation -->
       <div class="gen-modal-tabs" role="tablist">
         <button type="button" class="gen-tab-btn active" data-tab="builder" id="genTabBuilder">
-          <i class="fas fa-code"></i> Script Generator & Spec
+          <i class="fas fa-bolt"></i> Script Generator & Spec
+        </button>
+        <button type="button" class="gen-tab-btn" data-tab="ai" id="genTabAi">
+          <i class="fas fa-network-wired"></i> AI Models & Endpoints
         </button>
         <button type="button" class="gen-tab-btn" data-tab="guide" id="genTabGuide">
-          <i class="fas fa-book-open"></i> Guidelines (.md)
+          <i class="fas fa-book-open"></i> SDET Guidelines (.md)
         </button>
       </div>
 
@@ -1174,6 +1214,28 @@
 
         <!-- ── TAB 1: SCRIPT GENERATOR & SPEC PREVIEW ── -->
         <div class="gen-tab-panel active" id="genPanelBuilder">
+
+          <!-- AI Model Selection & Live Connectivity Bar -->
+          <div class="ai-provider-bar" style="margin-bottom: 12px;">
+            <div class="ai-provider-select-wrap">
+              <label for="genAiProviderSelect"><i class="fas fa-brain" style="color: #4f46e5;"></i> AI Engine:</label>
+              <select id="genAiProviderSelect" class="form-control ai-select">
+                <option value="builtin-sdet">Built-in SDET Expert Engine (100% Offline Guaranteed)</option>
+              </select>
+            </div>
+            <div class="ai-provider-status-wrap">
+              <span class="ai-status-badge untested" id="genActiveAiStatusBadge">
+                <span class="status-dot"></span> <span id="genActiveAiStatusText">Checking...</span>
+              </span>
+              <button type="button" class="btn btn-secondary btn-sm" id="genCheckActiveConnectionBtn" title="Test connection to active AI server">
+                <i class="fas fa-bolt"></i> Test Ping
+              </button>
+              <button type="button" class="btn btn-outline-primary btn-sm" id="genOpenAiTabBtn" title="Manage all AI Endpoints, Ollama, VLLM & API Keys">
+                <i class="fas fa-gear"></i> Configure Endpoints
+              </button>
+            </div>
+          </div>
+
           <!-- Mode Selector Pill -->
           <div class="gen-mode-toggle" style="margin-bottom: 12px;">
             <label class="gen-mode-label">
@@ -1219,38 +1281,38 @@
             </div>
           </div>
 
-          <!-- Direct URL Verification Settings Card (Default Enabled) -->
-          <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px 14px; margin-bottom: 12px;">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <i class="fas fa-shield-halved" style="color: #0284c7;"></i>
-                <span style="font-size: 12.5px; font-weight: 700; color: #1e293b;">Direct URL Verification</span>
-                <span style="font-size: 11px; background: #e0f2fe; color: #0369a1; padding: 2px 7px; border-radius: 4px; font-weight: 600;">Default</span>
+          <!-- Senior SDET Anti-Flakiness Guardrails (Applied to ALL models) -->
+          <div class="sdet-guardrails-banner" style="margin-bottom: 12px;">
+            <div class="sdet-guardrails-header">
+              <div class="sdet-guardrails-title">
+                <i class="fas fa-shield-check"></i>
+                <span>Senior SDET Anti-Flakiness Guardrails (Enforced on All AI Models)</span>
               </div>
               <button type="button" class="btn btn-secondary btn-sm" id="genToggleCustomizerBtn" style="padding: 2px 8px; font-size: 11px;">
-                <i class="fas fa-sliders"></i> Customize Settings
+                <i class="fas fa-sliders"></i> Direct URL Settings
               </button>
             </div>
-
-            <!-- Summary Bar -->
-            <div style="font-size: 11.5px; color: #475569; display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
-              <span><i class="fas fa-check text-success"></i> Email: <code>dm443790@gmail.com</code></span>
-              <span><i class="fas fa-check text-success"></i> Stages: <strong>Upload, Preview, Payment</strong></span>
-              <span><i class="fas fa-check text-success"></i> Auto-verify before each Submit</span>
+            <div class="sdet-pills-row">
+              <span class="sdet-pill"><i class="fas fa-check"></i> Dynamic Waits (getByRole/Label)</span>
+              <span class="sdet-pill"><i class="fas fa-check"></i> Loader & Overlay Detach</span>
+              <span class="sdet-pill"><i class="fas fa-check"></i> Captcha Hook Pre-Nav</span>
+              <span class="sdet-pill"><i class="fas fa-check"></i> Date Rollover Guard</span>
+              <span class="sdet-pill"><i class="fas fa-check"></i> Email: <code>dm443790@gmail.com</code></span>
+              <span class="sdet-pill"><i class="fas fa-check"></i> Direct URL Verifications</span>
             </div>
 
             <!-- Collapsible Settings Panel -->
-            <div id="genCustomizerPanel" style="display: none; margin-top: 12px; border-top: 1px solid #e2e8f0; padding-top: 12px;">
+            <div id="genCustomizerPanel" style="display: none; margin-top: 10px; border-top: 1px solid #bbf7d0; padding-top: 10px;">
               <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
                 <div>
-                  <label style="font-size: 11.5px; font-weight: 600; color: #475569; display: block; margin-bottom: 3px;">
-                    Status & Resume URL Paths:
+                  <label style="font-size: 11.5px; font-weight: 600; color: #166534; display: block; margin-bottom: 3px;">
+                    Direct URL Verification Paths:
                   </label>
                   <input type="text" id="customDirectUrlsInput" class="form-control" value="/visa-status/, /complete-partially/" placeholder="/visa-status/, /complete-partially/" style="width: 100%; font-size: 12px; padding: 6px 9px;" />
-                  <span style="font-size: 10.5px; color: #64748b;">Relative paths or full URLs to check</span>
+                  <span style="font-size: 10.5px; color: #64748b;">Relative paths or full URLs checked before submit</span>
                 </div>
                 <div>
-                  <label style="font-size: 11.5px; font-weight: 600; color: #475569; display: block; margin-bottom: 3px;">
+                  <label style="font-size: 11.5px; font-weight: 600; color: #166534; display: block; margin-bottom: 3px;">
                     Order ID Locator / Selector:
                   </label>
                   <input type="text" id="customOrderIdSelectorInput" class="form-control" value="#order_id_spn, #order_id, [data-order-id]" style="width: 100%; font-size: 12px; padding: 6px 9px;" />
@@ -1258,46 +1320,44 @@
                 </div>
               </div>
 
-              <div style="margin-bottom: 10px;">
-                <label style="font-size: 11.5px; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">
-                  Applicable Application Stages:
+              <div style="margin-bottom: 6px;">
+                <label style="font-size: 11.5px; font-weight: 600; color: #166534; display: block; margin-bottom: 4px;">
+                  Active Checkpoint Stages:
                 </label>
                 <div style="display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: #334155;">
                   <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
                     <input type="checkbox" id="stageDocumentUploadCheck" checked />
-                    <span>1. Document Upload Page</span>
+                    <span>1. Document Upload</span>
                   </label>
                   <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
                     <input type="checkbox" id="stagePreviewCheck" checked />
-                    <span>2. Preview Page</span>
+                    <span>2. Preview Stage</span>
                   </label>
                   <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
                     <input type="checkbox" id="stagePaymentCheck" checked />
-                    <span>3. Payment Page</span>
+                    <span>3. Payment Stage</span>
                   </label>
                 </div>
               </div>
 
-              <div style="display: flex; justify-content: flex-end; gap: 6px; padding-top: 6px;">
-                <button type="button" class="btn btn-secondary btn-sm" id="btnResetDirectUrlDefaults" style="padding: 3px 8px; font-size: 11px;">Reset Defaults</button>
+              <div style="display: flex; justify-content: flex-end; gap: 6px; padding-top: 4px;">
+                <button type="button" class="btn btn-secondary btn-sm" id="btnResetDirectUrlDefaults" style="padding: 2px 8px; font-size: 11px;">Reset Defaults</button>
               </div>
             </div>
           </div>
 
           <!-- Scenario Instructions (Optional) -->
           <div class="form-group" style="margin-bottom: 12px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-              <label for="genScenarioPrompt" style="font-size: 12px; font-weight: 700; color: var(--text-muted);">
-                Test Scenario Instructions / Custom Requirements (Optional):
-              </label>
-            </div>
-            <textarea id="genScenarioPrompt" class="form-control" rows="2" placeholder="e.g. Standard visa application with Direct URL Verification at Preview, Document Upload, and Payment stages." style="width: 100%; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 12px; font-family: inherit;"></textarea>
+            <label for="genScenarioPrompt" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">
+              Custom Requirements & Scenario Steps (Optional):
+            </label>
+            <textarea id="genScenarioPrompt" class="form-control" rows="2" placeholder="e.g. Standard visa application with dynamic date selection, document upload, and Direct URL checks at Preview & Payment." style="width: 100%; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 12px; font-family: inherit;"></textarea>
           </div>
 
           <!-- Primary Action Button -->
           <div style="margin-bottom: 12px;">
             <button type="button" class="btn btn-primary" id="startGeneratorBtn" style="width: 100%; padding: 11px 18px; font-size: 14px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px;">
-              <i class="fas fa-bolt"></i> Generate & Apply Script (No Test Execution)
+              <i class="fas fa-bolt"></i> Synthesize & Apply Script (No Test Execution)
             </button>
           </div>
 
@@ -1306,7 +1366,7 @@
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
               <div style="display: flex; align-items: center; gap: 6px;">
                 <i class="fas fa-file-code" style="color: #4f46e5;"></i>
-                <span style="font-size: 12.5px; font-weight: 700; color: var(--text-primary);">Generated Test Spec:</span>
+                <span style="font-size: 12.5px; font-weight: 700; color: var(--text-primary);">Synthesized Test Spec:</span>
                 <span id="genCurrentSpecNameLabel" style="font-size: 11px; color: var(--text-muted); font-family: monospace;"></span>
               </div>
               <div style="display: flex; gap: 6px;">
@@ -1318,16 +1378,118 @@
                 </button>
               </div>
             </div>
-            <textarea id="genSpecCodeViewer" readonly style="width: 100%; height: 320px; background: #0f172a; color: #38bdf8; font-family: 'Fira Code', 'Cascadia Code', monospace; font-size: 11.5px; padding: 12px; border-radius: var(--radius-sm); border: 1px solid #1e293b; resize: vertical; line-height: 1.45; white-space: pre;" placeholder="Select an existing script above or click 'Generate & Apply Script' to view the synthesized Playwright test code..."></textarea>
+            <textarea id="genSpecCodeViewer" readonly style="width: 100%; height: 320px; background: #0f172a; color: #38bdf8; font-family: 'Fira Code', 'Cascadia Code', monospace; font-size: 11.5px; padding: 12px; border-radius: var(--radius-sm); border: 1px solid #1e293b; resize: vertical; line-height: 1.45; white-space: pre;" placeholder="Select an existing script above or click 'Synthesize & Apply Script' to view the code..."></textarea>
           </div>
 
           <!-- Compact Activity Log -->
           <div style="margin-top: 10px; background: #0f172a; border-radius: 6px; padding: 8px 12px; font-family: monospace; font-size: 11px; color: #94a3b8; max-height: 80px; overflow-y: auto;" id="genConsoleLogsContainer">
-            <div class="gen-log-entry info"><span class="log-time">[Ready]</span> Select a script or enter details, then click "Generate & Apply Script".</div>
+            <div class="gen-log-entry info"><span class="log-time">[Ready]</span> Select an AI engine and click "Synthesize & Apply Script".</div>
           </div>
         </div>
 
-        <!-- ── TAB 2: GUIDELINES & UTILITIES (.MD) ── -->
+        <!-- ── TAB 2: AI MODELS & ENDPOINTS MANAGER ── -->
+        <div class="gen-tab-panel" id="genPanelAi" style="display: none;">
+          <!-- Top Toolbar -->
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+            <div>
+              <h4 style="margin: 0; font-size: 14px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-network-wired" style="color: #4f46e5;"></i> Configured AI Endpoints & Servers
+              </h4>
+              <span style="font-size: 11.5px; color: var(--text-muted);">
+                Connect to local Ollama, vLLM, Google Gemini, Copilot, or remote OpenAI-compatible servers
+              </span>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button type="button" class="btn btn-secondary btn-sm" id="btnTestAllAiConnections">
+                <i class="fas fa-satellite-dish"></i> Test All Connections
+              </button>
+              <button type="button" class="btn btn-secondary btn-sm" id="btnToggleImportJson">
+                <i class="fas fa-file-import"></i> Import JSON
+              </button>
+              <button type="button" class="btn btn-primary btn-sm" id="btnAddNewAiEndpoint">
+                <i class="fas fa-plus"></i> Add Endpoint
+              </button>
+            </div>
+          </div>
+
+          <!-- Collapsible JSON Import Drawer -->
+          <div id="aiImportJsonContainer" style="display: none; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px; margin-bottom: 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span style="font-size: 12px; font-weight: 700; color: #1e293b;">
+                <i class="fas fa-code"></i> Paste JSON Configuration Array
+              </span>
+              <button type="button" class="btn btn-secondary btn-sm" id="btnCloseImportJsonBtn" style="padding: 2px 7px; font-size: 11px;">✕</button>
+            </div>
+            <textarea id="aiImportJsonTextarea" rows="6" class="form-control" style="width: 100%; font-family: monospace; font-size: 11.5px; margin-bottom: 8px;" placeholder='[ { "name": "Custom Endpoint", "vendor": "customendpoint", "url": "http://192.168.1.250:8000/v1", "model": "Qwen3.6-35B-A3B-NVFP4" } ]'></textarea>
+            <div style="display: flex; justify-content: flex-end; gap: 8px;">
+              <button type="button" class="btn btn-primary btn-sm" id="btnApplyImportJson">
+                <i class="fas fa-check"></i> Parse & Apply JSON
+              </button>
+            </div>
+          </div>
+
+          <!-- Collapsible Add/Edit Endpoint Form Drawer -->
+          <div id="aiAddEndpointContainer" style="display: none; background: #f8fafc; border: 1px solid #6366f1; border-radius: 8px; padding: 14px; margin-bottom: 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+              <span style="font-size: 12.5px; font-weight: 700; color: #4338ca;" id="aiEndpointFormTitle">
+                <i class="fas fa-plus-circle"></i> Add New AI Endpoint
+              </span>
+              <button type="button" class="btn btn-secondary btn-sm" id="btnCloseEndpointFormBtn" style="padding: 2px 7px; font-size: 11px;">✕</button>
+            </div>
+            <input type="hidden" id="editEndpointId" value="" />
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+              <div>
+                <label style="font-size: 11.5px; font-weight: 600; color: #334155; display: block; margin-bottom: 3px;">
+                  Friendly Name: <span style="color: var(--danger);">*</span>
+                </label>
+                <input type="text" id="endpointNameInput" class="form-control" placeholder="e.g. My Local VLLM" style="width: 100%; font-size: 12px; padding: 6px 9px;" />
+              </div>
+              <div>
+                <label style="font-size: 11.5px; font-weight: 600; color: #334155; display: block; margin-bottom: 3px;">
+                  Vendor Type:
+                </label>
+                <select id="endpointVendorSelect" class="form-control" style="width: 100%; font-size: 12px; padding: 6px 9px;">
+                  <option value="customendpoint">Custom Endpoint (vLLM / Ollama / OpenAI-compatible)</option>
+                  <option value="gemini">Google Gemini</option>
+                  <option value="copilot">Copilot / Other</option>
+                </select>
+              </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+              <div>
+                <label style="font-size: 11.5px; font-weight: 600; color: #334155; display: block; margin-bottom: 3px;">
+                  Server URL:
+                </label>
+                <input type="text" id="endpointUrlInput" class="form-control" placeholder="e.g. http://192.168.1.250:8000/v1" style="width: 100%; font-size: 12px; padding: 6px 9px;" />
+              </div>
+              <div>
+                <label style="font-size: 11.5px; font-weight: 600; color: #334155; display: block; margin-bottom: 3px;">
+                  Model Name / ID: <span style="color: var(--danger);">*</span>
+                </label>
+                <input type="text" id="endpointModelInput" class="form-control" placeholder="e.g. Qwen3.6-35B-A3B-NVFP4 or gemini-2.5-flash" style="width: 100%; font-size: 12px; padding: 6px 9px;" />
+              </div>
+            </div>
+            <div style="margin-bottom: 10px;">
+              <label style="font-size: 11.5px; font-weight: 600; color: #334155; display: block; margin-bottom: 3px;">
+                API Key (Optional for local servers):
+              </label>
+              <input type="password" id="endpointApiKeyInput" class="form-control" placeholder="Optional for local servers; required for Gemini/cloud endpoints" style="width: 100%; font-size: 12px; padding: 6px 9px;" />
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 8px;">
+              <button type="button" class="btn btn-secondary btn-sm" id="btnCancelEndpointForm">Cancel</button>
+              <button type="button" class="btn btn-primary btn-sm" id="btnSaveEndpointForm">
+                <i class="fas fa-save"></i> Save Endpoint
+              </button>
+            </div>
+          </div>
+
+          <!-- List of configured AI Providers -->
+          <div id="aiProvidersListContainer" style="display: flex; flex-direction: column; gap: 10px;">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
+
+        <!-- ── TAB 3: GUIDELINES & UTILITIES (.MD) ── -->
         <div class="gen-tab-panel" id="genPanelGuide" style="display: none;">
           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
             <span style="font-size: 13px; color: var(--text-secondary);">

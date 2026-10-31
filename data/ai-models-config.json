@@ -1,0 +1,95 @@
+{
+  "activeProviderId": "builtin-sdet",
+  "providers": [
+    {
+      "id": "builtin-sdet",
+      "name": "Built-in SDET Expert Engine",
+      "vendor": "builtin",
+      "description": "Guaranteed 100% offline, zero-config resilient test synthesis with full dynamic element handling.",
+      "isBuiltin": true,
+      "enabled": true
+    },
+    {
+      "id": "google-gemini",
+      "name": "Google Gemini",
+      "vendor": "gemini",
+      "apiKey": "",
+      "model": "gemini-2.5-flash",
+      "settings": {
+        "models/gemini-2.5-flash": {
+          "reasoningEffort": "medium"
+        }
+      },
+      "enabled": true
+    },
+    {
+      "id": "ollama-local",
+      "name": "Ollama Local (qwen2.5-coder:14b)",
+      "vendor": "customendpoint",
+      "apiType": "chat-completions",
+      "url": "http://localhost:11434/v1",
+      "model": "qwen2.5-coder:14b",
+      "maxInputTokens": 8192,
+      "maxOutputTokens": 4096,
+      "enabled": true
+    },
+    {
+      "id": "vllm-qwen36",
+      "name": "Custom Endpoint (VLLM Qwen3.6-35B)",
+      "vendor": "customendpoint",
+      "apiType": "chat-completions",
+      "url": "http://192.168.1.250:8000/v1",
+      "model": "Qwen3.6-35B-A3B-NVFP4",
+      "maxInputTokens": 128000,
+      "maxOutputTokens": 16000,
+      "enabled": true
+    },
+    {
+      "id": "vllm-qwen38",
+      "name": "Custom Endpoint 2 (VLLM1 Qwen3.8-27B)",
+      "vendor": "customendpoint",
+      "apiType": "chat-completions",
+      "url": "http://192.168.1.250:8000/v1",
+      "model": "Qwen3.8-27B-NVFP4",
+      "maxInputTokens": 128000,
+      "maxOutputTokens": 16000,
+      "enabled": true
+    },
+    {
+      "id": "ollama-lan-qwen38",
+      "name": "Custom Endpoint 3 (LAN Ollama Qwen3.8)",
+      "vendor": "customendpoint",
+      "apiType": "chat-completions",
+      "url": "http://192.168.1.73:11434/v1",
+      "model": "qwen3.8:latest",
+      "maxInputTokens": 128000,
+      "maxOutputTokens": 16000,
+      "enabled": true
+    },
+    {
+      "id": "copilot-codex",
+      "name": "Copilot (gpt-5.3-codex)",
+      "vendor": "copilot",
+      "settings": {
+        "gpt-5.3-codex": {
+          "reasoningEffort": "xhigh"
+        }
+      },
+      "enabled": true
+    }
+  ],
+  "connectionStatuses": {
+    "builtin-sdet": {
+      "state": "connected",
+      "message": "Built-in SDET Smart Engine ready (100% Offline Guaranteed)",
+      "latencyMs": 1,
+      "checkedAt": "2026-10-31T22:06:09.057Z"
+    },
+    "ollama-local": {
+      "state": "offline",
+      "message": "Cannot connect (fetch failed) to http://localhost:11434/v1",
+      "latencyMs": 51,
+      "checkedAt": "2026-10-31T22:06:12.566Z"
+    }
+  }
+}

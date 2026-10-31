@@ -14,6 +14,11 @@
 import { defineConfig, devices } from '@playwright/test';
 import * as fs from 'fs';
 
+// Ensure browser cache path is set if running in container environment
+if (!process.env.PLAYWRIGHT_BROWSERS_PATH && fs.existsSync('/ms-playwright')) {
+  process.env.PLAYWRIGHT_BROWSERS_PATH = '/ms-playwright';
+}
+
 const isLinux = process.platform === 'linux';
 const isContainer = isLinux && (
   process.env.CONTAINER === 'true' ||
@@ -74,6 +79,16 @@ export default defineConfig({
   // Projects: all browser × device combinations
   projects: [
     // ─── Desktop ───
+    {
+      name: 'Desktop-Chromium',
+      use: {
+        viewport: { width: 1920, height: 1080 },
+        browserName: 'chromium',
+        launchOptions: {
+          args: getContainerLaunchArgs(),
+        },
+      },
+    },
     {
       name: 'Desktop-Chrome',
       use: {

@@ -1908,21 +1908,25 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderHealthStatus(data) {
     // Determine overall state: 'ready' | 'warning' | 'error' | 'disconnected'
     let state = 'ready';
-    let overallText = 'System Ready — All mandatory checks passed';
+    let overallText = 'System Ready — Primary Chromium engine active & operational';
     let badgeText = 'System Ready';
 
     if (!data.apiReachable) {
       state = 'disconnected';
       overallText = 'Disconnected — Backend Server Unreachable';
       badgeText = 'Disconnected';
-    } else if (!data.playwrightAvailable || (!data.chromiumInstalled && !data.firefoxInstalled && !data.webkitInstalled)) {
+    } else if (!data.playwrightAvailable || !data.chromiumInstalled) {
       state = 'error';
-      overallText = 'Critical Error — System cannot execute test suite';
-      badgeText = 'Critical Error';
-    } else if (!data.chromiumInstalled || !data.firefoxInstalled || !data.webkitInstalled || data.isLowMemory) {
+      overallText = 'Action Needed — Primary test framework or Chromium engine missing';
+      badgeText = 'Engine Missing';
+    } else if (data.isLowMemory) {
       state = 'warning';
-      overallText = 'Action Needed — System functional with warnings';
-      badgeText = 'Action Needed';
+      overallText = 'Notice — System memory is low, batch concurrency throttled';
+      badgeText = 'Low Memory';
+    } else {
+      state = 'ready';
+      overallText = 'System Ready — All mandatory checks passed (Chromium ready)';
+      badgeText = 'System Ready';
     }
 
     // 0. Update App Title Heading if provided by server
@@ -1974,23 +1978,23 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         {
           title: 'Chromium Engine',
-          subtitle: data.chromiumInstalled ? 'Chromium browser binary ready' : 'Chromium binary not downloaded',
-          status: data.chromiumInstalled ? 'ready' : 'warning',
+          subtitle: data.chromiumInstalled ? 'Chromium browser binary ready (Primary)' : 'Chromium binary not downloaded',
+          status: data.chromiumInstalled ? 'ready' : 'error',
           badge: data.chromiumInstalled ? 'Installed' : 'Missing',
           icon: 'fa-chrome'
         },
         {
-          title: 'Firefox Engine',
-          subtitle: data.firefoxInstalled ? 'Firefox browser binary ready' : 'Firefox binary not downloaded',
-          status: data.firefoxInstalled ? 'ready' : 'warning',
-          badge: data.firefoxInstalled ? 'Installed' : 'Missing',
+          title: 'Firefox Engine (Optional)',
+          subtitle: data.firefoxInstalled ? 'Firefox browser binary ready' : 'Optional secondary engine (not required)',
+          status: data.firefoxInstalled ? 'ready' : 'muted',
+          badge: data.firefoxInstalled ? 'Installed' : 'Optional',
           icon: 'fa-firefox-browser'
         },
         {
-          title: 'WebKit Engine',
-          subtitle: data.webkitInstalled ? 'WebKit Safari engine ready' : 'WebKit binary not downloaded',
-          status: data.webkitInstalled ? 'ready' : 'warning',
-          badge: data.webkitInstalled ? 'Installed' : 'Missing',
+          title: 'WebKit Engine (Optional)',
+          subtitle: data.webkitInstalled ? 'WebKit Safari engine ready' : 'Optional secondary engine (not required)',
+          status: data.webkitInstalled ? 'ready' : 'muted',
+          badge: data.webkitInstalled ? 'Installed' : 'Optional',
           icon: 'fa-safari'
         },
         {
@@ -2043,13 +2047,8 @@ document.addEventListener('DOMContentLoaded', () => {
       tips.push('Run <code>npm install</code> in terminal to install @playwright/test.');
     }
 
-    const missingBrowsers = [];
-    if (!data.chromiumInstalled) missingBrowsers.push('chromium');
-    if (!data.firefoxInstalled) missingBrowsers.push('firefox');
-    if (!data.webkitInstalled) missingBrowsers.push('webkit');
-
-    if (missingBrowsers.length > 0) {
-      tips.push(`To run tests on all engines, install missing browsers: <code>npx playwright install ${missingBrowsers.join(' ')}</code>`);
+    if (!data.chromiumInstalled) {
+      tips.push('To install the primary Chromium browser engine: <code>npx playwright install chromium</code>');
     }
 
     if (data.isLowMemory) {
@@ -2374,6 +2373,113 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Permission & Branching
+  const ghPermissionChip = document.getElementById('ghPermissionChip');
+  const ghPermissionUserHint = document.getElementById('ghPermissionUserHint');
+  const ghRequestAccessBtn = document.getElementById('ghRequestAccessBtn');
+  const ghRefreshPermissionBtn = document.getElementById('ghRefreshPermissionBtn');
+  const ghPermissionRequestHint = document.getElementById('ghPermissionRequestHint');
+  const ghPushBranchInput = document.getElementById('ghPushBranchInput');
+  const ghBranchWarning = document.getElementById('ghBranchWarning');
+  const githubRollbackBtn = document.getElementById('githubRollbackBtn');
+
+  let currentCanPush = true;
+  let currentUsername = 'user';
+  let currentOwner = '';
+  let currentRepo = '';
+
+  async function checkGithubPermission(forceRefresh = false) {
+    if (!ghPermissionChip) return;
+    try {
+      ghPermissionChip.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking permission...';
+      ghPermissionChip.style.background = '#f1f5f9';
+      ghPermissionChip.style.color = '#475569';
+
+      const url = forceRefresh ? '/api/github/permission?refresh=true' : '/api/github/permission';
+      const res = await fetch(url);
+      const data = await res.json();
+
+      if (data.ok) {
+        currentCanPush = Boolean(data.canPush);
+        currentUsername = data.username || 'user';
+        currentOwner = data.owner || '';
+        currentRepo = data.repo || '';
+
+        if (data.canPush) {
+          ghPermissionChip.innerHTML = `<i class="fas fa-check-circle" style="color: #16a34a;"></i> Write access: ${data.level || 'write'}`;
+          ghPermissionChip.style.background = '#dcfce7';
+          ghPermissionChip.style.color = '#15803d';
+          if (ghPermissionUserHint) ghPermissionUserHint.textContent = `(@${currentUsername})`;
+          if (ghRequestAccessBtn) ghRequestAccessBtn.classList.add('hidden');
+          if (ghPermissionRequestHint) ghPermissionRequestHint.classList.add('hidden');
+          if (githubPushSubmitBtn) githubPushSubmitBtn.disabled = false;
+        } else {
+          ghPermissionChip.innerHTML = `<i class="fas fa-ban" style="color: #dc2626;"></i> Read-only access`;
+          ghPermissionChip.style.background = '#fee2e2';
+          ghPermissionChip.style.color = '#b91c1c';
+          if (ghPermissionUserHint) ghPermissionUserHint.textContent = `(@${currentUsername})`;
+
+          if (ghRequestAccessBtn) {
+            if (data.requestUrl) {
+              ghRequestAccessBtn.href = data.requestUrl;
+              ghRequestAccessBtn.classList.remove('hidden');
+            } else {
+              ghRequestAccessBtn.classList.add('hidden');
+            }
+          }
+          if (ghPermissionRequestHint) ghPermissionRequestHint.classList.remove('hidden');
+          if (githubPushSubmitBtn) githubPushSubmitBtn.disabled = true;
+        }
+
+        if (ghPushBranchInput && (!ghPushBranchInput.dataset.manual || ghPushBranchInput.value === 'dev-user')) {
+          ghPushBranchInput.value = `dev-${currentUsername}`;
+        }
+        validateBranchInput();
+      } else {
+        if (data.error === 'invalid_token') {
+          ghPermissionChip.innerHTML = `<i class="fas fa-key text-danger"></i> Invalid / expired token`;
+          ghPermissionChip.style.background = '#fee2e2';
+          ghPermissionChip.style.color = '#b91c1c';
+          if (githubPushSubmitBtn) githubPushSubmitBtn.disabled = true;
+        } else if (data.error === 'not_configured') {
+          ghPermissionChip.innerHTML = `<i class="fas fa-circle-info"></i> Repository not configured`;
+          ghPermissionChip.style.background = '#f1f5f9';
+          ghPermissionChip.style.color = '#64748b';
+        } else {
+          ghPermissionChip.innerHTML = `<i class="fas fa-triangle-exclamation"></i> Permission check unavailable`;
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to check permission:', err);
+    }
+  }
+
+  function validateBranchInput() {
+    if (!ghPushBranchInput) return;
+    const b = ghPushBranchInput.value.trim().toLowerCase();
+    if ((b === 'main' || b === 'master') && !currentCanPush) {
+      if (ghBranchWarning) ghBranchWarning.classList.remove('hidden');
+      if (githubPushSubmitBtn) githubPushSubmitBtn.disabled = true;
+    } else {
+      if (ghBranchWarning) ghBranchWarning.classList.add('hidden');
+      if (githubPushSubmitBtn) githubPushSubmitBtn.disabled = !currentCanPush;
+    }
+  }
+
+  if (ghPushBranchInput) {
+    ghPushBranchInput.addEventListener('input', () => {
+      ghPushBranchInput.dataset.manual = 'true';
+      validateBranchInput();
+    });
+  }
+
+  if (ghRefreshPermissionBtn) {
+    ghRefreshPermissionBtn.addEventListener('click', () => {
+      checkGithubPermission(true);
+      showToast('Refreshing GitHub permissions...', 'info');
+    });
+  }
+
   async function loadGithubStatus() {
     try {
       if (ghStatusRepoText) ghStatusRepoText.textContent = 'Loading repository status...';
@@ -2419,19 +2525,85 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
-      // Commit history log
+      // Commit history log with diff viewer & GitHub links
       if (ghCommitHistoryList) {
         if (Array.isArray(data.commitLog) && data.commitLog.length > 0) {
+          const repoCleanUrl = (data.repoUrl || '').replace(/\.git$/i, '');
           ghCommitHistoryList.innerHTML = data.commitLog.map(c => `
-            <div class="gh-commit-entry">
+            <div class="gh-commit-entry" id="commit-entry-${c.hash}">
               <div class="gh-commit-top">
                 <span class="gh-commit-hash">${c.hash || ''}</span>
                 <span class="gh-commit-time"><i class="far fa-clock"></i> ${c.time || ''}</span>
               </div>
-              <div class="gh-commit-msg">${c.message || 'No commit message'}</div>
-              <div class="gh-commit-author"><i class="fas fa-user-circle"></i> ${c.author || 'User'}</div>
+              <div class="gh-commit-msg">${escapeHtml(c.message || 'No commit message')}</div>
+              <div class="gh-commit-author" style="display: flex; align-items: center; justify-content: space-between; margin-top: 6px; flex-wrap: wrap; gap: 6px;">
+                <span><i class="fas fa-user-circle"></i> ${escapeHtml(c.author || 'User')}</span>
+                <div style="display: flex; gap: 6px;">
+                  <button type="button" class="btn btn-secondary btn-sm gh-view-diff-btn" data-sha="${c.hash}" style="font-size: 11px; padding: 2px 7px;">
+                    <i class="fas fa-code-compare"></i> View diff
+                  </button>
+                  ${repoCleanUrl ? `<a href="${repoCleanUrl}/commit/${c.hash}" target="_blank" class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 2px 7px; text-decoration: none;"><i class="fas fa-external-link-alt"></i> Open on GitHub</a>` : ''}
+                </div>
+              </div>
+              <div class="gh-diff-container hidden" id="diff-box-${c.hash}" style="margin-top: 8px;"></div>
             </div>
           `).join('');
+
+          // Attach diff viewers
+          document.querySelectorAll('.gh-view-diff-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+              const sha = btn.getAttribute('data-sha');
+              const diffBox = document.getElementById(`diff-box-${sha}`);
+              if (!diffBox) return;
+
+              if (!diffBox.classList.contains('hidden')) {
+                diffBox.classList.add('hidden');
+                btn.innerHTML = '<i class="fas fa-code-compare"></i> View diff';
+                return;
+              }
+
+              diffBox.classList.remove('hidden');
+              diffBox.innerHTML = '<div style="padding: 8px; color: #94a3b8;"><i class="fas fa-spinner fa-spin"></i> Loading commit diff...</div>';
+              btn.innerHTML = '<i class="fas fa-chevron-up"></i> Hide diff';
+
+              try {
+                const res = await fetch(`/api/github/commit/${sha}`);
+                const diffData = await res.json();
+                if (diffData.ok && Array.isArray(diffData.files)) {
+                  if (diffData.files.length === 0) {
+                    diffBox.innerHTML = '<div style="padding: 8px; color: #94a3b8;">No file changes found in this commit.</div>';
+                  } else {
+                    diffBox.innerHTML = diffData.files.map(file => {
+                      const patchLines = (file.patch || '').split('\n').map(line => {
+                        const escaped = escapeHtml(line);
+                        if (line.startsWith('+') && !line.startsWith('+++')) {
+                          return `<span class="diff-add">${escaped}</span>`;
+                        } else if (line.startsWith('-') && !line.startsWith('---')) {
+                          return `<span class="diff-del">${escaped}</span>`;
+                        } else {
+                          return `<span class="diff-ctx">${escaped}</span>`;
+                        }
+                      }).join('');
+
+                      return `
+                        <div style="margin-bottom: 8px;">
+                          <div class="gh-diff-file-header">
+                            <span>📄 ${escapeHtml(file.filename)}</span>
+                            <span><strong style="color: #4ade80;">+${file.additions}</strong> <strong style="color: #f87171;">-${file.deletions}</strong></span>
+                          </div>
+                          ${patchLines ? `<pre class="gh-diff-patch">${patchLines}</pre>` : '<div style="font-size: 10.5px; color: #64748b; font-style: italic;">Binary or empty diff</div>'}
+                        </div>
+                      `;
+                    }).join('');
+                  }
+                } else {
+                  diffBox.innerHTML = `<div style="padding: 8px; color: #f87171;">Failed to load diff: ${diffData.error || 'Unknown error'}</div>`;
+                }
+              } catch (e) {
+                diffBox.innerHTML = `<div style="padding: 8px; color: #f87171;">Diff fetch error: ${e.message}</div>`;
+              }
+            });
+          });
         } else {
           ghCommitHistoryList.innerHTML = '<div style="padding: 24px; text-align: center; color: var(--text-muted); font-size: 13px;">No recent commit records found.</div>';
         }
@@ -2491,15 +2663,27 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const res = await fetch('/api/github/versions');
       const data = await res.json();
-      if (data.success && Array.isArray(data.versions)) {
+      if (data.ok && Array.isArray(data.versions)) {
         if (data.versions.length === 0) {
           githubVersionSelect.innerHTML = '<option value="">No remote versions found</option>';
           setGhFeedback(githubPullStatus, 'No branches or tags found. Verify repository URL and access token in Settings.', 'error');
         } else {
-          githubVersionSelect.innerHTML = data.versions.map(v => 
-            `<option value="${v.name}">${v.type === 'tag' ? '🏷️ Tag: ' : '🌿 Branch: '}${v.name}</option>`
-          ).join('');
-          setGhFeedback(githubPullStatus, `Found ${data.versions.length} remote branch/tag version${data.versions.length > 1 ? 's' : ''}.`, 'success');
+          const branches = data.versions.filter(v => v.type === 'branch');
+          const tags = data.versions.filter(v => v.type === 'tag');
+
+          let html = '<option value="">-- Choose Branch or Tag --</option>';
+          if (branches.length > 0) {
+            html += `<optgroup label="Branches">` +
+              branches.map(b => `<option value="${b.name}" data-type="branch">🌿 Branch: ${b.name}</option>`).join('') +
+              `</optgroup>`;
+          }
+          if (tags.length > 0) {
+            html += `<optgroup label="Tags (stable builds)">` +
+              tags.map(t => `<option value="${t.name}" data-type="tag">🏷️ Tag: ${t.name}</option>`).join('') +
+              `</optgroup>`;
+          }
+          githubVersionSelect.innerHTML = html;
+          setGhFeedback(githubPullStatus, `Found ${branches.length} branch(es) and ${tags.length} tag(s).`, 'success');
         }
       } else {
         throw new Error(data.error || 'Failed to fetch versions');
@@ -2510,9 +2694,62 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  if (githubVersionSelect) {
+    githubVersionSelect.addEventListener('change', () => {
+      const opt = githubVersionSelect.selectedOptions[0];
+      const isTag = opt && opt.getAttribute('data-type') === 'tag';
+      if (githubRollbackBtn) {
+        if (isTag) {
+          githubRollbackBtn.classList.remove('hidden');
+          githubRollbackBtn.innerHTML = `<i class="fas fa-history"></i> Rollback to ${opt.value}`;
+        } else {
+          githubRollbackBtn.classList.add('hidden');
+        }
+      }
+    });
+  }
+
+  if (githubRollbackBtn) {
+    githubRollbackBtn.addEventListener('click', async () => {
+      const selectedTag = githubVersionSelect ? githubVersionSelect.value : '';
+      if (!selectedTag) return;
+
+      const confirmed = confirm(
+        `Switch working tree to ${selectedTag}? Your local data/, reports/, and screenshots/ will be preserved. You will be in detached HEAD state.`
+      );
+      if (!confirmed) return;
+
+      setGhFeedback(githubPullStatus, `Rolling back repository working tree to tag '${selectedTag}'...`, 'info');
+      githubRollbackBtn.disabled = true;
+
+      try {
+        const res = await fetch('/api/github/rollback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tag: selectedTag })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          const msg = data.message || `Working tree is now at ${selectedTag}. To resume development, run: git checkout -b recover-${selectedTag}`;
+          setGhFeedback(githubPullStatus, msg, 'success');
+          showToast(`Rolled back to ${selectedTag}!`, 'success');
+          loadGithubStatus();
+        } else {
+          throw new Error(data.error || 'Rollback failed');
+        }
+      } catch (err) {
+        setGhFeedback(githubPullStatus, 'Rollback error: ' + err.message, 'error');
+        showToast('Rollback failed: ' + err.message, 'error');
+      } finally {
+        githubRollbackBtn.disabled = false;
+      }
+    });
+  }
+
   if (ghRefreshStatusBtn) {
     ghRefreshStatusBtn.addEventListener('click', () => {
       loadGithubStatus();
+      checkGithubPermission(true);
       showToast('GitHub status refreshed', 'info');
     });
   }
@@ -2533,6 +2770,7 @@ document.addEventListener('DOMContentLoaded', () => {
       setGhFeedback(githubSettingsStatus, '');
       loadGithubStatus();
       loadGithubConfig();
+      checkGithubPermission();
     }
   }
 
@@ -2572,26 +2810,39 @@ document.addEventListener('DOMContentLoaded', () => {
   if (githubPushSubmitBtn) {
     githubPushSubmitBtn.addEventListener('click', async () => {
       const msg = commitMessageInput ? commitMessageInput.value.trim() : '';
+      const targetBranch = ghPushBranchInput ? ghPushBranchInput.value.trim() : '';
       if (!msg) {
         setGhFeedback(githubPushStatus, 'Please enter a commit message before pushing.', 'error');
         showToast('Please enter a commit message.', 'warning');
         return;
       }
 
-      setGhFeedback(githubPushStatus, 'Staging changes, creating commit, and pushing to GitHub...', 'info');
+      setGhFeedback(githubPushStatus, `Staging changes, committing, and pushing to branch '${targetBranch || 'main'}'...`, 'info');
       githubPushSubmitBtn.disabled = true;
 
       try {
         const res = await fetch('/api/github/push', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ commitMessage: msg })
+          body: JSON.stringify({ commitMessage: msg, targetBranch })
         });
         const data = await res.json();
-        if (data.success) {
+        if (res.status === 403 || data.error === 'no_write_permission') {
+          let errorMsg = data.message || 'You do not have write permission to push to this branch.';
+          if (data.requestUrl) {
+            errorMsg += ` <a href="${data.requestUrl}" target="_blank" style="color: #2563eb; text-decoration: underline; font-weight: 600;">Request Access on GitHub</a>`;
+          }
+          setGhFeedback(githubPushStatus, errorMsg, 'error');
+          showToast('Push forbidden: No write access.', 'error');
+          checkGithubPermission(true);
+          return;
+        }
+
+        if (data.ok || data.success) {
           setGhFeedback(githubPushStatus, data.message || 'Successfully committed and pushed to GitHub!', 'success');
           showToast(data.message || 'Successfully pushed to GitHub!', 'success');
           loadGithubStatus();
+          checkGithubPermission();
         } else {
           throw new Error(data.error || 'Failed to push changes to GitHub');
         }
@@ -2599,7 +2850,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setGhFeedback(githubPushStatus, 'Push failed: ' + err.message, 'error');
         showToast('Push failed: ' + err.message, 'error');
       } finally {
-        githubPushSubmitBtn.disabled = false;
+        validateBranchInput();
       }
     });
   }
@@ -2703,8 +2954,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const genTabButtons = document.querySelectorAll('.gen-tab-btn');
   const genTabPanels = {
     builder: document.getElementById('genPanelBuilder'),
-    checkpoints: document.getElementById('genPanelCheckpoints'),
-    preview: document.getElementById('genPanelPreview'),
+    ai: document.getElementById('genPanelAi'),
     guide: document.getElementById('genPanelGuide')
   };
 
@@ -2758,6 +3008,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (tabKey === 'guide') {
       loadGeneratorGuide();
+    } else if (tabKey === 'ai') {
+      loadAiProviders();
     }
   }
 
@@ -2932,6 +3184,497 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // ── AI Models & Multi-Endpoint Manager State & Handlers ──
+  const genAiProviderSelect = document.getElementById('genAiProviderSelect');
+  const genActiveAiStatusBadge = document.getElementById('genActiveAiStatusBadge');
+  const genActiveAiStatusText = document.getElementById('genActiveAiStatusText');
+  const genCheckActiveConnectionBtn = document.getElementById('genCheckActiveConnectionBtn');
+  const genOpenAiTabBtn = document.getElementById('genOpenAiTabBtn');
+
+  const btnTestAllAiConnections = document.getElementById('btnTestAllAiConnections');
+  const btnToggleImportJson = document.getElementById('btnToggleImportJson');
+  const btnCloseImportJsonBtn = document.getElementById('btnCloseImportJsonBtn');
+  const aiImportJsonContainer = document.getElementById('aiImportJsonContainer');
+  const aiImportJsonTextarea = document.getElementById('aiImportJsonTextarea');
+  const btnApplyImportJson = document.getElementById('btnApplyImportJson');
+
+  const btnAddNewAiEndpoint = document.getElementById('btnAddNewAiEndpoint');
+  const btnCloseEndpointFormBtn = document.getElementById('btnCloseEndpointFormBtn');
+  const btnCancelEndpointForm = document.getElementById('btnCancelEndpointForm');
+  const aiAddEndpointContainer = document.getElementById('aiAddEndpointContainer');
+  const aiEndpointFormTitle = document.getElementById('aiEndpointFormTitle');
+  const editEndpointId = document.getElementById('editEndpointId');
+  const endpointNameInput = document.getElementById('endpointNameInput');
+  const endpointVendorSelect = document.getElementById('endpointVendorSelect');
+  const endpointUrlInput = document.getElementById('endpointUrlInput');
+  const endpointModelInput = document.getElementById('endpointModelInput');
+  const endpointApiKeyInput = document.getElementById('endpointApiKeyInput');
+  const btnSaveEndpointForm = document.getElementById('btnSaveEndpointForm');
+
+  const aiProvidersListContainer = document.getElementById('aiProvidersListContainer');
+
+  let cachedAiProviders = [];
+  let currentActiveAiId = 'builtin-sdet';
+
+  function updateStatusBadgeElement(elBadge, elText, statusObj) {
+    if (!elBadge || !elText) return;
+    const state = statusObj?.state || 'untested';
+    elBadge.className = `ai-status-badge ${state}`;
+    if (state === 'connected') {
+      const lat = statusObj?.latencyMs ? ` (${statusObj.latencyMs}ms)` : '';
+      elText.textContent = `Connected${lat}`;
+      elBadge.title = statusObj?.message || 'Connected successfully';
+    } else if (state === 'offline') {
+      elText.textContent = 'Offline';
+      elBadge.title = statusObj?.message || 'Server unreachable';
+    } else if (state === 'checking') {
+      elText.textContent = 'Testing...';
+      elBadge.title = 'Pinging server...';
+    } else {
+      elText.textContent = 'Untested';
+      elBadge.title = 'Click to test connectivity';
+    }
+  }
+
+  async function loadAiProviders() {
+    try {
+      const res = await fetch('/api/generator/ai-providers');
+      const data = await res.json();
+      if (data.success && Array.isArray(data.providers)) {
+        cachedAiProviders = data.providers;
+        currentActiveAiId = data.activeProviderId || 'builtin-sdet';
+
+        // Populate dropdown
+        if (genAiProviderSelect) {
+          genAiProviderSelect.innerHTML = data.providers.map(p => {
+            const extra = p.vendor === 'builtin' ? '100% Offline' : (p.model || p.url || p.vendor);
+            return `<option value="${p.id}" ${p.id === currentActiveAiId ? 'selected' : ''}>${escapeHtml(p.name)} (${escapeHtml(extra)})</option>`;
+          }).join('');
+        }
+
+        // Update active status badge
+        const activeProv = data.providers.find(p => p.id === currentActiveAiId) || data.providers[0];
+        if (activeProv) {
+          updateStatusBadgeElement(genActiveAiStatusBadge, genActiveAiStatusText, activeProv.status);
+        }
+
+        // Render cards
+        renderAiProviderCards(data.providers, currentActiveAiId);
+      }
+    } catch (err) {
+      console.error('[AI Provider] load error:', err);
+    }
+  }
+
+  function renderAiProviderCards(providers, activeId) {
+    if (!aiProvidersListContainer) return;
+    if (!providers || providers.length === 0) {
+      aiProvidersListContainer.innerHTML = '<div style="padding: 16px; text-align: center; color: var(--text-muted);">No AI models configured.</div>';
+      return;
+    }
+
+    aiProvidersListContainer.innerHTML = providers.map(p => {
+      const isActive = p.id === activeId;
+      const state = p.status?.state || 'untested';
+      const statusLabel = state === 'connected' ? `Connected (${p.status.latencyMs || 0}ms)` : (state === 'offline' ? 'Offline' : (state === 'checking' ? 'Testing...' : 'Untested'));
+      const statusTitle = p.status?.message || '';
+
+      const keyStatus = p.hasApiKey ? 'Configured' : (p.vendor === 'builtin' ? 'Not Required' : 'None');
+      const urlDisplay = p.url ? escapeHtml(p.url) : (p.vendor === 'gemini' ? 'api.google.com/genai' : (p.vendor === 'builtin' ? 'Local Memory' : 'Default'));
+      const modelDisplay = p.model ? escapeHtml(p.model) : (p.vendor === 'builtin' ? 'SDET Rule Engine' : 'N/A');
+
+      return `
+        <div class="ai-card ${isActive ? 'active-card' : ''}" data-id="${p.id}">
+          <div class="ai-card-info">
+            <div class="ai-card-title-row">
+              <span class="ai-card-title">${escapeHtml(p.name)}</span>
+              <span class="ai-vendor-pill ${p.vendor}">${p.vendor}</span>
+              ${isActive ? '<span style="font-size: 11px; font-weight: 700; color: #4f46e5; background: #e0e7ff; padding: 1px 6px; border-radius: 4px;"><i class="fas fa-check-circle"></i> ACTIVE</span>' : ''}
+            </div>
+            <div class="ai-card-meta">
+              <span>Endpoint: <code>${urlDisplay}</code></span>
+              <span>Model: <code>${modelDisplay}</code></span>
+              <span>API Key: <strong>${keyStatus}</strong></span>
+            </div>
+            ${p.description ? `<div style="font-size: 11px; color: #64748b; margin-top: 2px;">${escapeHtml(p.description)}</div>` : ''}
+            ${p.status?.message ? `<div style="font-size: 11px; color: ${state === 'connected' ? '#16a34a' : (state === 'offline' ? '#dc2626' : '#64748b')}; margin-top: 2px;">${escapeHtml(p.status.message)}</div>` : ''}
+          </div>
+          <div class="ai-card-actions">
+            <span class="ai-status-badge ${state}" title="${escapeHtml(statusTitle)}">
+              <span class="status-dot"></span> <span>${statusLabel}</span>
+            </span>
+            <button type="button" class="btn btn-secondary btn-sm btn-test-connection" data-id="${p.id}" title="Test Connection">
+              <i class="fas fa-bolt"></i> Ping
+            </button>
+            ${!isActive ? `
+              <button type="button" class="btn btn-primary btn-sm btn-set-active" data-id="${p.id}" title="Set as Active Engine">
+                Set Active
+              </button>
+            ` : ''}
+            ${p.vendor !== 'builtin' ? `
+              <button type="button" class="btn btn-secondary btn-sm btn-edit-endpoint" data-id="${p.id}" title="Edit Endpoint">
+                <i class="fas fa-edit"></i>
+              </button>
+              <button type="button" class="btn btn-danger btn-sm btn-delete-endpoint" data-id="${p.id}" title="Delete Endpoint">
+                <i class="fas fa-trash"></i>
+              </button>
+            ` : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Attach card event listeners
+    aiProvidersListContainer.querySelectorAll('.btn-test-connection').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-id');
+        if (id) testSingleAiConnection(id);
+      });
+    });
+
+    aiProvidersListContainer.querySelectorAll('.btn-set-active').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        if (id) {
+          await setActiveAiProvider(id);
+        }
+      });
+    });
+
+    aiProvidersListContainer.querySelectorAll('.btn-edit-endpoint').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-id');
+        const prov = cachedAiProviders.find(p => p.id === id);
+        if (prov) openEditEndpointForm(prov);
+      });
+    });
+
+    aiProvidersListContainer.querySelectorAll('.btn-delete-endpoint').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        if (!confirm('Are you sure you want to remove this AI Endpoint?')) return;
+        const filtered = cachedAiProviders.filter(p => p.id !== id);
+        const newActive = currentActiveAiId === id ? 'builtin-sdet' : currentActiveAiId;
+        await saveAiProvidersToServer(filtered, newActive);
+      });
+    });
+  }
+
+  async function setActiveAiProvider(id) {
+    try {
+      const res = await fetch('/api/generator/ai-providers/active', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ providerId: id })
+      });
+      const data = await res.json();
+      if (data.success) {
+        currentActiveAiId = id;
+        showToast('Active AI Model updated!', 'success');
+        await loadAiProviders();
+        // Ping immediately to show connectivity
+        testSingleAiConnection(id, true);
+      }
+    } catch (err) {
+      showToast('Error setting active provider: ' + err.message, 'error');
+    }
+  }
+
+  async function testSingleAiConnection(providerId, silent = false) {
+    const prov = cachedAiProviders.find(p => p.id === providerId);
+    if (!prov) return;
+
+    // Show checking state
+    prov.status = { state: 'checking', message: 'Testing...', latencyMs: 0 };
+    if (providerId === currentActiveAiId) {
+      updateStatusBadgeElement(genActiveAiStatusBadge, genActiveAiStatusText, prov.status);
+    }
+    renderAiProviderCards(cachedAiProviders, currentActiveAiId);
+
+    try {
+      const res = await fetch('/api/generator/ai-providers/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ providerId })
+      });
+      const data = await res.json();
+      prov.status = {
+        state: data.state || (data.ok ? 'connected' : 'offline'),
+        message: data.message || (data.ok ? 'Connected' : 'Offline'),
+        latencyMs: data.latencyMs || 0
+      };
+
+      if (!silent) {
+        if (data.ok) {
+          showToast(`🟢 ${prov.name}: ${prov.status.message}`, 'success');
+        } else {
+          showToast(`🔴 ${prov.name}: ${prov.status.message}`, 'warning');
+        }
+      }
+    } catch (err) {
+      prov.status = { state: 'offline', message: err.message, latencyMs: 0 };
+      if (!silent) showToast(`🔴 ${prov.name} connection error: ${err.message}`, 'error');
+    }
+
+    if (providerId === currentActiveAiId) {
+      updateStatusBadgeElement(genActiveAiStatusBadge, genActiveAiStatusText, prov.status);
+    }
+    renderAiProviderCards(cachedAiProviders, currentActiveAiId);
+  }
+
+  async function testAllAiConnections() {
+    if (btnTestAllAiConnections) {
+      btnTestAllAiConnections.disabled = true;
+      btnTestAllAiConnections.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing All...';
+    }
+
+    try {
+      const res = await fetch('/api/generator/ai-providers/test-all', { method: 'POST' });
+      const data = await res.json();
+      if (data.success && data.results) {
+        Object.keys(data.results).forEach(pid => {
+          const r = data.results[pid];
+          const prov = cachedAiProviders.find(p => p.id === pid);
+          if (prov) {
+            prov.status = {
+              state: r.state || (r.ok ? 'connected' : 'offline'),
+              message: r.message,
+              latencyMs: r.latencyMs || 0
+            };
+          }
+        });
+        const activeProv = cachedAiProviders.find(p => p.id === currentActiveAiId);
+        if (activeProv) {
+          updateStatusBadgeElement(genActiveAiStatusBadge, genActiveAiStatusText, activeProv.status);
+        }
+        renderAiProviderCards(cachedAiProviders, currentActiveAiId);
+        showToast('Tested all AI connections!', 'info');
+      }
+    } catch (err) {
+      showToast('Failed to test AI connections: ' + err.message, 'error');
+    } finally {
+      if (btnTestAllAiConnections) {
+        btnTestAllAiConnections.disabled = false;
+        btnTestAllAiConnections.innerHTML = '<i class="fas fa-satellite-dish"></i> Test All Connections';
+      }
+    }
+  }
+
+  function openEditEndpointForm(prov = null) {
+    if (!aiAddEndpointContainer) return;
+    aiAddEndpointContainer.style.display = 'block';
+    if (prov) {
+      if (aiEndpointFormTitle) aiEndpointFormTitle.innerHTML = '<i class="fas fa-edit"></i> Edit AI Endpoint';
+      if (editEndpointId) editEndpointId.value = prov.id;
+      if (endpointNameInput) endpointNameInput.value = prov.name || '';
+      if (endpointVendorSelect) endpointVendorSelect.value = prov.vendor || 'customendpoint';
+      if (endpointUrlInput) endpointUrlInput.value = prov.url || '';
+      if (endpointModelInput) endpointModelInput.value = prov.model || '';
+      if (endpointApiKeyInput) endpointApiKeyInput.value = '';
+    } else {
+      if (aiEndpointFormTitle) aiEndpointFormTitle.innerHTML = '<i class="fas fa-plus-circle"></i> Add New AI Endpoint';
+      if (editEndpointId) editEndpointId.value = '';
+      if (endpointNameInput) endpointNameInput.value = '';
+      if (endpointVendorSelect) endpointVendorSelect.value = 'customendpoint';
+      if (endpointUrlInput) endpointUrlInput.value = 'http://localhost:11434/v1';
+      if (endpointModelInput) endpointModelInput.value = 'qwen2.5-coder:14b';
+      if (endpointApiKeyInput) endpointApiKeyInput.value = '';
+    }
+  }
+
+  function closeEndpointForm() {
+    if (aiAddEndpointContainer) aiAddEndpointContainer.style.display = 'none';
+  }
+
+  async function saveEndpointForm() {
+    const id = editEndpointId ? editEndpointId.value.trim() : '';
+    const name = endpointNameInput ? endpointNameInput.value.trim() : '';
+    const vendor = endpointVendorSelect ? endpointVendorSelect.value : 'customendpoint';
+    const url = endpointUrlInput ? endpointUrlInput.value.trim() : '';
+    const model = endpointModelInput ? endpointModelInput.value.trim() : '';
+    const apiKey = endpointApiKeyInput ? endpointApiKeyInput.value.trim() : '';
+
+    if (!name || !model) {
+      showToast('Name and Model Name are required.', 'warning');
+      return;
+    }
+
+    const updated = [...cachedAiProviders];
+    let targetId = id;
+    if (id) {
+      const idx = updated.findIndex(p => p.id === id);
+      if (idx !== -1) {
+        updated[idx] = {
+          ...updated[idx],
+          name,
+          vendor,
+          url,
+          model,
+          apiKey: apiKey || updated[idx].apiKey
+        };
+      }
+    } else {
+      targetId = 'custom-' + Date.now();
+      updated.push({
+        id: targetId,
+        name,
+        vendor,
+        url,
+        model,
+        apiKey,
+        enabled: true
+      });
+    }
+
+    await saveAiProvidersToServer(updated);
+    closeEndpointForm();
+    testSingleAiConnection(targetId);
+  }
+
+  async function saveAiProvidersToServer(providers, activeId = null) {
+    try {
+      const res = await fetch('/api/generator/ai-providers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          providers,
+          activeProviderId: activeId || currentActiveAiId
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast('AI Endpoints updated successfully!', 'success');
+        await loadAiProviders();
+      }
+    } catch (err) {
+      showToast('Error saving AI endpoints: ' + err.message, 'error');
+    }
+  }
+
+  function parseAndImportJson() {
+    if (!aiImportJsonTextarea) return;
+    const raw = aiImportJsonTextarea.value.trim();
+    if (!raw) {
+      showToast('Please paste a JSON array first.', 'warning');
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) {
+        throw new Error('Root JSON must be an array of endpoint objects: [ { ... } ]');
+      }
+
+      const importedList = [];
+      const builtin = cachedAiProviders.find(p => p.vendor === 'builtin');
+      if (builtin) importedList.push(builtin);
+
+      parsed.forEach((item, idx) => {
+        const vendor = item.vendor || 'customendpoint';
+        const name = item.name || `Endpoint ${idx + 1}`;
+
+        if (Array.isArray(item.models) && item.models.length > 0) {
+          item.models.forEach(m => {
+            importedList.push({
+              id: `imported-${m.id || idx}-${Math.floor(Math.random() * 1000)}`.replace(/[^a-zA-Z0-9_-]/g, '-'),
+              name: `${name} - ${m.name || m.id}`,
+              vendor,
+              url: m.url || item.url || '',
+              model: m.id || m.name,
+              maxInputTokens: m.maxInputTokens || 128000,
+              maxOutputTokens: m.maxOutputTokens || 16000,
+              enabled: true
+            });
+          });
+        } else {
+          let modelName = item.model || '';
+          if (!modelName && item.settings) {
+            const firstSettingKey = Object.keys(item.settings)[0];
+            if (firstSettingKey) modelName = firstSettingKey;
+          }
+          importedList.push({
+            id: `imported-${vendor}-${idx}-${Math.floor(Math.random() * 1000)}`,
+            name,
+            vendor,
+            url: item.url || '',
+            model: modelName || (vendor === 'gemini' ? 'gemini-2.5-flash' : 'default'),
+            apiKey: item.apiKey || '',
+            settings: item.settings || {},
+            enabled: true
+          });
+        }
+      });
+
+      saveAiProvidersToServer(importedList);
+      if (aiImportJsonContainer) aiImportJsonContainer.style.display = 'none';
+      showToast(`Successfully imported ${importedList.length} AI configurations!`, 'success');
+      testAllAiConnections();
+
+    } catch (err) {
+      showToast('Invalid JSON syntax: ' + err.message, 'error');
+    }
+  }
+
+  // Wire AI toolbar buttons
+  if (genAiProviderSelect) {
+    genAiProviderSelect.addEventListener('change', async () => {
+      const val = genAiProviderSelect.value;
+      if (val) {
+        await setActiveAiProvider(val);
+      }
+    });
+  }
+
+  if (genCheckActiveConnectionBtn) {
+    genCheckActiveConnectionBtn.addEventListener('click', () => {
+      const activeId = genAiProviderSelect ? genAiProviderSelect.value : currentActiveAiId;
+      testSingleAiConnection(activeId);
+    });
+  }
+
+  if (genOpenAiTabBtn) {
+    genOpenAiTabBtn.addEventListener('click', () => {
+      switchGenTab('ai');
+    });
+  }
+
+  if (btnTestAllAiConnections) {
+    btnTestAllAiConnections.addEventListener('click', testAllAiConnections);
+  }
+
+  if (btnToggleImportJson && aiImportJsonContainer) {
+    btnToggleImportJson.addEventListener('click', () => {
+      const isVisible = aiImportJsonContainer.style.display === 'block';
+      aiImportJsonContainer.style.display = isVisible ? 'none' : 'block';
+    });
+  }
+
+  if (btnCloseImportJsonBtn && aiImportJsonContainer) {
+    btnCloseImportJsonBtn.addEventListener('click', () => {
+      aiImportJsonContainer.style.display = 'none';
+    });
+  }
+
+  if (btnApplyImportJson) {
+    btnApplyImportJson.addEventListener('click', parseAndImportJson);
+  }
+
+  if (btnAddNewAiEndpoint) {
+    btnAddNewAiEndpoint.addEventListener('click', () => openEditEndpointForm(null));
+  }
+
+  if (btnCloseEndpointFormBtn) {
+    btnCloseEndpointFormBtn.addEventListener('click', closeEndpointForm);
+  }
+
+  if (btnCancelEndpointForm) {
+    btnCancelEndpointForm.addEventListener('click', closeEndpointForm);
+  }
+
+  if (btnSaveEndpointForm) {
+    btnSaveEndpointForm.addEventListener('click', saveEndpointForm);
+  }
+
   // Load generator status & sync UI
   async function syncGeneratorStatus() {
     try {
@@ -3050,6 +3793,7 @@ document.addEventListener('DOMContentLoaded', () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             mode: selectedMode,
+            providerId: genAiProviderSelect ? genAiProviderSelect.value : (currentActiveAiId || 'builtin-sdet'),
             scriptName: selectedMode === 'update' ? genExistingScriptSelect.value : scriptName,
             targetUrl,
             scenario,
@@ -3077,6 +3821,13 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
+
+  if (stopGeneratorBtn) {
+    stopGeneratorBtn.addEventListener('click', async () => {
+      try {
+        const res = await fetch('/api/generator/stop', { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
           updateGenStatus('idle');
           showToast('Generator job stopped.', 'warning');
         }
@@ -3181,6 +3932,7 @@ document.addEventListener('DOMContentLoaded', () => {
       scriptGeneratorModal.classList.remove('hidden');
       syncGeneratorStatus();
       loadExistingSpecs();
+      loadAiProviders();
     }
   }
 
@@ -3213,6 +3965,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Initialize SSE event stream on page load
   initGeneratorEventStream();
   syncGeneratorStatus();
+  loadAiProviders();
 
   // Initial background check for GitHub updates & periodic sync
   setTimeout(() => {

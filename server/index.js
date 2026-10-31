@@ -9,20 +9,14 @@ const path = require('path');
 const fs = require('fs');
 
 // Ensure Playwright browser cache location is resolved
-const localBrowsersPath = path.join(process.cwd(), 'node_modules', 'playwright-core', '.local-browsers');
-if (fs.existsSync(localBrowsersPath)) {
-  process.env.PLAYWRIGHT_BROWSERS_PATH = process.env.PLAYWRIGHT_BROWSERS_PATH || '0';
-  try {
-    const rootCacheDir = '/root/.cache';
-    if (!fs.existsSync(rootCacheDir)) {
-      fs.mkdirSync(rootCacheDir, { recursive: true });
+if (!process.env.PLAYWRIGHT_BROWSERS_PATH) {
+  if (fs.existsSync('/ms-playwright')) {
+    process.env.PLAYWRIGHT_BROWSERS_PATH = '/ms-playwright';
+  } else {
+    const localBrowsersPath = path.join(process.cwd(), 'node_modules', 'playwright-core', '.local-browsers');
+    if (fs.existsSync(localBrowsersPath)) {
+      process.env.PLAYWRIGHT_BROWSERS_PATH = '0';
     }
-    const rootPlaywrightCache = '/root/.cache/ms-playwright';
-    if (!fs.existsSync(rootPlaywrightCache)) {
-      fs.symlinkSync(localBrowsersPath, rootPlaywrightCache, 'junction');
-    }
-  } catch (e) {
-    // Ignore symlink errors if permissions prevent it
   }
 }
 

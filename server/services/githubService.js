@@ -144,6 +144,9 @@ async function configureRemote() {
   }
 
   let remoteUrl = config.repoUrl;
+  if (!remoteUrl.endsWith('.git')) {
+    remoteUrl += '.git';
+  }
   if (config.token) {
     // Inject token into https URL: https://TOKEN@github.com/owner/repo.git
     if (remoteUrl.startsWith('https://')) {
@@ -160,17 +163,31 @@ async function configureRemote() {
 
   await runGit(`git remote add origin "${remoteUrl}"`);
   if (config.authorName && config.authorEmail) {
-    await runGit(`git config user.name "${config.authorName}"`);
-    await runGit(`git config user.email "${config.authorEmail}"`);
+    await runGit(`git config user.name "${config.authorName.replace(/"/g, '')}"`);
+    await runGit(`git config user.email "${config.authorEmail.replace(/"/g, '')}"`);
   }
 }
 
-async function pushChanges(commitMessage) {
+async function pushChanges(commitMessage, targetBranch) {
   if (!commitMessage || !commitMessage.trim()) {
     throw new Error('Commit message is required.');
   }
   const config = getConfig();
   await configureRemote();
+
+  const finalBranch = (targetBranch && targetBranch.trim()) ? targetBranch.trim() : (config.branch || 'main');
+
+  // If targetBranch is provided and differs from current branch, checkout -B targetBranch
+  let currentBranch = '';
+  try {
+    currentBranch = await runGit('git branch --show-current');
+  } catch (e) {
+    currentBranch = config.branch || 'main';
+  }
+
+  if (targetBranch && targetBranch.trim() && targetBranch.trim() !== currentBranch) {
+    await runGit(`git checkout -B ${finalBranch}`);
+  }
 
   // Stage changes
   await runGit('git add -A');
@@ -182,10 +199,37 @@ async function pushChanges(commitMessage) {
     await runGit(`git commit -m "${escapedMsg}"`);
   }
 
-  const branch = config.branch || 'main';
-  await runGit(`git push origin ${branch}`);
+  try {
+    await runGit(`git push -u origin ${finalBranch}`);
+  } catch (pushErr) {
+    // If push is rejected due to workflow scope, auto-untrack .github and retry
+    if (pushErr.message && pushErr.message.includes("without 'workflow' scope")) {
+      console.log('[githubService] Token lacks workflow scope. Automatically untracking .github/workflows and retrying push...');
+      try {
+        await runGit('git rm --cached -r .github/workflows 2>/dev/null || true');
+        let gitignore = fs.existsSync('.gitignore') ? fs.readFileSync('.gitignore', 'utf8') : '';
+        if (!gitignore.includes('.github/')) {
+          gitignore += '\n.github/\n';
+          fs.writeFileSync('.gitignore', gitignore, 'utf8');
+          await runGit('git add .gitignore');
+        }
+        await runGit('git commit --amend --no-edit || true');
+        await runGit(`git push -u origin ${finalBranch}`);
+        return {
+          ok: true,
+          success: true,
+          branch: finalBranch,
+          warning: 'workflow_excluded',
+          message: `Successfully pushed changes to branch '${finalBranch}'! (Workflow files were excluded because the token lacks the 'workflow' scope).`
+        };
+      } catch (retryErr) {
+        throw new Error(retryErr.message);
+      }
+    }
+    throw pushErr;
+  }
 
-  return { success: true, message: 'Successfully pushed changes to GitHub!' };
+  return { ok: true, success: true, branch: finalBranch, message: `Successfully pushed changes to branch '${finalBranch}' on GitHub!` };
 }
 
 async function parseGitHubRepoOwnerAndName(repoUrl) {
@@ -195,6 +239,108 @@ async function parseGitHubRepoOwnerAndName(repoUrl) {
     throw new Error('Invalid GitHub repository URL format.');
   }
   return { owner: match[1], repo: match[2] };
+}
+
+function buildAccessRequestUrl(owner, repo, username) {
+  const user = username || 'user';
+  const title = encodeURIComponent(`Request write access for ${user}`);
+  const body = encodeURIComponent(
+    `Hi, I need write access to contribute to this repository. Please add me as a collaborator. My GitHub username is ${user}.`
+  );
+  return `https://github.com/${owner}/${repo}/issues/new?title=${title}&body=${body}&labels=access-request`;
+}
+
+async function checkUserPermission() {
+  const config = getConfig();
+  if (!config.repoUrl) {
+    throw new Error('Repository URL not configured.');
+  }
+  if (!config.token) {
+    return {
+      canPush: false,
+      level: 'none',
+      username: config.authorName || 'guest',
+      hasToken: false,
+      error: 'no_token',
+      message: 'Personal Access Token required to check permissions.'
+    };
+  }
+  const { owner, repo } = await parseGitHubRepoOwnerAndName(config.repoUrl);
+
+  const headers = {
+    'User-Agent': 'Visa-Automation-Framework',
+    'Accept': 'application/vnd.github.v3+json',
+    'Authorization': `token ${config.token}`
+  };
+
+  // 1. Fetch user info to get username
+  let username = config.authorName || 'user';
+  try {
+    const userRes = await fetch('https://api.github.com/user', { headers });
+    if (userRes.status === 401 || userRes.status === 403) {
+      const err = new Error('invalid_token');
+      err.code = 'invalid_token';
+      throw err;
+    }
+    if (userRes.ok) {
+      const userData = await userRes.json();
+      if (userData && userData.login) {
+        username = userData.login;
+      }
+    }
+  } catch (e) {
+    if (e.code === 'invalid_token') throw e;
+    if (e.name === 'FetchError' || e.code === 'ENOTFOUND' || e.code === 'ECONNREFUSED') {
+      const netErr = new Error('network');
+      netErr.code = 'network';
+      throw netErr;
+    }
+  }
+
+  // 2. Fetch repo details to check permissions
+  let repoRes;
+  try {
+    repoRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers });
+  } catch (e) {
+    const netErr = new Error('network');
+    netErr.code = 'network';
+    throw netErr;
+  }
+
+  if (repoRes.status === 401 || repoRes.status === 403) {
+    const err = new Error('invalid_token');
+    err.code = 'invalid_token';
+    throw err;
+  }
+
+  if (!repoRes.ok) {
+    const errText = await repoRes.text();
+    throw new Error(`GitHub repo query failed (${repoRes.status}): ${errText}`);
+  }
+
+  const repoData = await repoRes.json();
+  const permissions = repoData.permissions || {};
+  const canPush = Boolean(permissions.push || permissions.admin || permissions.maintain);
+
+  let level = 'none';
+  if (permissions.admin) {
+    level = 'admin';
+  } else if (permissions.maintain) {
+    level = 'maintain';
+  } else if (permissions.push) {
+    level = 'push';
+  } else if (permissions.pull) {
+    level = 'pull';
+  }
+
+  return {
+    canPush,
+    level,
+    username,
+    owner,
+    repo,
+    permissions
+  };
 }
 
 async function getRemoteVersions() {
@@ -236,26 +382,122 @@ async function getRemoteVersions() {
 }
 
 async function pullVersion(versionName) {
-  if (!versionName) {
-    throw new Error('Version name (branch or tag) is required.');
-  }
+  const targetRef = versionName || 'main';
   const config = getConfig();
   await configureRemote();
 
-  // Fetch all remote branches and tags
-  await runGit('git fetch origin --prune');
-
-  // Checkout and pull/reset to version
+  // Check if targetRef is a tag
+  let isTag = false;
   try {
-    await runGit(`git checkout ${versionName}`);
+    const { versions } = await getRemoteVersions();
+    isTag = versions.some(v => v.type === 'tag' && v.name === targetRef);
   } catch (e) {
-    // If local branch doesn't exist, checkout tracking remote
-    await runGit(`git checkout -b ${versionName} origin/${versionName}`);
+    // ignore
   }
 
-  await runGit(`git pull origin ${versionName}`);
+  if (isTag) {
+    await runGit('git fetch origin --tags --prune');
+    await runGit(`git checkout ${targetRef}`);
+    return {
+      ok: true,
+      success: true,
+      detached: true,
+      ref: targetRef,
+      message: `Checked out tag '${targetRef}' in detached HEAD state.`
+    };
+  }
 
-  return { success: true, message: `Successfully updated framework to version '${versionName}'!` };
+  // Otherwise, branch pull
+  await runGit('git fetch origin --prune');
+  try {
+    await runGit(`git checkout ${targetRef}`);
+  } catch (e) {
+    await runGit(`git checkout -b ${targetRef} origin/${targetRef}`);
+  }
+  await runGit(`git pull origin ${targetRef}`);
+
+  return { ok: true, success: true, detached: false, ref: targetRef, message: `Successfully updated framework to version '${targetRef}'!` };
+}
+
+async function getCommitDiff(sha) {
+  const config = getConfig();
+  if (!config.repoUrl) {
+    throw new Error('Repository URL not configured.');
+  }
+  const { owner, repo } = await parseGitHubRepoOwnerAndName(config.repoUrl);
+  const headers = {
+    'User-Agent': 'Visa-Automation-Framework',
+    'Accept': 'application/vnd.github.v3+json'
+  };
+  if (config.token) {
+    headers['Authorization'] = `token ${config.token}`;
+  }
+
+  const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/commits/${sha}`, { headers });
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`GitHub API commit query failed: ${errText}`);
+  }
+  const data = await res.json();
+  const rawFiles = data.files || [];
+  const files = rawFiles.map(f => ({
+    filename: f.filename,
+    status: f.status,
+    additions: f.additions,
+    deletions: f.deletions,
+    patch: f.patch ? f.patch.substring(0, 2000) : ''
+  }));
+
+  return {
+    ok: true,
+    sha: data.sha || sha,
+    message: data.commit?.message || '',
+    author: data.commit?.author?.name || data.author?.login || 'Unknown',
+    date: data.commit?.author?.date || '',
+    files
+  };
+}
+
+async function rollbackToTag(tag) {
+  if (!tag || !tag.trim()) {
+    throw new Error('Tag name is required for rollback.');
+  }
+  const targetTag = tag.trim();
+  const config = getConfig();
+  if (!config.repoUrl) {
+    throw new Error('Repository URL not configured.');
+  }
+  const { owner, repo } = await parseGitHubRepoOwnerAndName(config.repoUrl);
+  const headers = {
+    'User-Agent': 'Visa-Automation-Framework',
+    'Accept': 'application/vnd.github.v3+json'
+  };
+  if (config.token) {
+    headers['Authorization'] = `token ${config.token}`;
+  }
+
+  // Validate tag exists via GitHub API
+  const tagsRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/tags`, { headers });
+  if (!tagsRes.ok) {
+    throw new Error('Failed to verify tags with remote repository.');
+  }
+  const tags = await tagsRes.json();
+  const exists = Array.isArray(tags) && tags.some(t => t.name === targetTag);
+  if (!exists) {
+    throw new Error(`Tag '${targetTag}' not found in remote repository.`);
+  }
+
+  await configureRemote();
+  await runGit('git fetch origin --tags --prune');
+  await runGit(`git checkout ${targetTag}`);
+
+  return {
+    ok: true,
+    success: true,
+    detached: true,
+    tag: targetTag,
+    message: `Working tree is now at ${targetTag}. To resume development, run: git checkout -b recover-${targetTag}`
+  };
 }
 
 async function checkForUpdates() {
@@ -314,5 +556,10 @@ module.exports = {
   pushChanges,
   getRemoteVersions,
   pullVersion,
-  checkForUpdates
+  checkForUpdates,
+  checkUserPermission,
+  buildAccessRequestUrl,
+  getCommitDiff,
+  rollbackToTag,
+  parseGitHubRepoOwnerAndName
 };

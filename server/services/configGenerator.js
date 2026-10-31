@@ -132,6 +132,11 @@ function generateSingleExecutionConfig({ testFile, browser, device, retries, hea
  */
 
 import { defineConfig, devices } from '@playwright/test';
+import * as fs from 'fs';
+
+if (!process.env.PLAYWRIGHT_BROWSERS_PATH && fs.existsSync('/ms-playwright')) {
+  process.env.PLAYWRIGHT_BROWSERS_PATH = '/ms-playwright';
+}
 
 export default defineConfig({
   testDir: '${normalizedTestDir}',
