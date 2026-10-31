@@ -144,6 +144,9 @@ async function configureRemote() {
   }
 
   let remoteUrl = config.repoUrl;
+  if (!remoteUrl.endsWith('.git')) {
+    remoteUrl += '.git';
+  }
   if (config.token) {
     // Inject token into https URL: https://TOKEN@github.com/owner/repo.git
     if (remoteUrl.startsWith('https://')) {
@@ -160,8 +163,8 @@ async function configureRemote() {
 
   await runGit(`git remote add origin "${remoteUrl}"`);
   if (config.authorName && config.authorEmail) {
-    await runGit(`git config user.name "${config.authorName}"`);
-    await runGit(`git config user.email "${config.authorEmail}"`);
+    await runGit(`git config user.name "${config.authorName.replace(/"/g, '')}"`);
+    await runGit(`git config user.email "${config.authorEmail.replace(/"/g, '')}"`);
   }
 }
 
@@ -196,7 +199,35 @@ async function pushChanges(commitMessage, targetBranch) {
     await runGit(`git commit -m "${escapedMsg}"`);
   }
 
-  await runGit(`git push -u origin ${finalBranch}`);
+  try {
+    await runGit(`git push -u origin ${finalBranch}`);
+  } catch (pushErr) {
+    // If push is rejected due to workflow scope, auto-untrack .github and retry
+    if (pushErr.message && pushErr.message.includes("without 'workflow' scope")) {
+      console.log('[githubService] Token lacks workflow scope. Automatically untracking .github/workflows and retrying push...');
+      try {
+        await runGit('git rm --cached -r .github/workflows 2>/dev/null || true');
+        let gitignore = fs.existsSync('.gitignore') ? fs.readFileSync('.gitignore', 'utf8') : '';
+        if (!gitignore.includes('.github/')) {
+          gitignore += '\n.github/\n';
+          fs.writeFileSync('.gitignore', gitignore, 'utf8');
+          await runGit('git add .gitignore');
+        }
+        await runGit('git commit --amend --no-edit || true');
+        await runGit(`git push -u origin ${finalBranch}`);
+        return {
+          ok: true,
+          success: true,
+          branch: finalBranch,
+          warning: 'workflow_excluded',
+          message: `Successfully pushed changes to branch '${finalBranch}'! (Workflow files were excluded because the token lacks the 'workflow' scope).`
+        };
+      } catch (retryErr) {
+        throw new Error(retryErr.message);
+      }
+    }
+    throw pushErr;
+  }
 
   return { ok: true, success: true, branch: finalBranch, message: `Successfully pushed changes to branch '${finalBranch}' on GitHub!` };
 }
@@ -224,39 +255,45 @@ async function checkUserPermission() {
   if (!config.repoUrl) {
     throw new Error('Repository URL not configured.');
   }
+  if (!config.token) {
+    return {
+      canPush: false,
+      level: 'none',
+      username: config.authorName || 'guest',
+      hasToken: false,
+      error: 'no_token',
+      message: 'Personal Access Token required to check permissions.'
+    };
+  }
   const { owner, repo } = await parseGitHubRepoOwnerAndName(config.repoUrl);
 
   const headers = {
     'User-Agent': 'Visa-Automation-Framework',
-    'Accept': 'application/vnd.github.v3+json'
+    'Accept': 'application/vnd.github.v3+json',
+    'Authorization': `token ${config.token}`
   };
-  if (config.token) {
-    headers['Authorization'] = `token ${config.token}`;
-  }
 
   // 1. Fetch user info to get username
   let username = config.authorName || 'user';
-  if (config.token) {
-    try {
-      const userRes = await fetch('https://api.github.com/user', { headers });
-      if (userRes.status === 401 || userRes.status === 403) {
-        const err = new Error('invalid_token');
-        err.code = 'invalid_token';
-        throw err;
+  try {
+    const userRes = await fetch('https://api.github.com/user', { headers });
+    if (userRes.status === 401 || userRes.status === 403) {
+      const err = new Error('invalid_token');
+      err.code = 'invalid_token';
+      throw err;
+    }
+    if (userRes.ok) {
+      const userData = await userRes.json();
+      if (userData && userData.login) {
+        username = userData.login;
       }
-      if (userRes.ok) {
-        const userData = await userRes.json();
-        if (userData && userData.login) {
-          username = userData.login;
-        }
-      }
-    } catch (e) {
-      if (e.code === 'invalid_token') throw e;
-      if (e.name === 'FetchError' || e.code === 'ENOTFOUND' || e.code === 'ECONNREFUSED') {
-        const netErr = new Error('network');
-        netErr.code = 'network';
-        throw netErr;
-      }
+    }
+  } catch (e) {
+    if (e.code === 'invalid_token') throw e;
+    if (e.name === 'FetchError' || e.code === 'ENOTFOUND' || e.code === 'ECONNREFUSED') {
+      const netErr = new Error('network');
+      netErr.code = 'network';
+      throw netErr;
     }
   }
 
