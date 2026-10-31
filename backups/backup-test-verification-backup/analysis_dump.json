@@ -1,0 +1,513 @@
+[
+  {
+    "file": "azerbaijan-visa.spec.ts",
+    "flowType": "Flow 2",
+    "hasDoc": "NO",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 24",
+    "clickLines": []
+  },
+  {
+    "file": "bahrain-visa.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 23",
+    "clickLines": []
+  },
+  {
+    "file": "benin-e-visa.spec.ts",
+    "flowType": "Flow 2",
+    "hasDoc": "NO",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 24",
+    "clickLines": []
+  },
+  {
+    "file": "brazil-evisa.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 29",
+    "clickLines": []
+  },
+  {
+    "file": "burkina-faso-evisa.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 24",
+    "clickLines": []
+  },
+  {
+    "file": "cambodia-evisa.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 23",
+    "clickLines": []
+  },
+  {
+    "file": "cameroon-visa.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 21",
+    "clickLines": []
+  },
+  {
+    "file": "congo-evisa.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 20",
+    "clickLines": []
+  },
+  {
+    "file": "djibouti-evisa.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 20",
+    "clickLines": []
+  },
+  {
+    "file": "e-visa-cambodia.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 23",
+    "clickLines": []
+  },
+  {
+    "file": "ecuador-evisa.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 23",
+    "clickLines": []
+  },
+  {
+    "file": "egypt-eta.spec.ts",
+    "flowType": "Flow 2",
+    "hasDoc": "NO",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 20",
+    "clickLines": []
+  },
+  {
+    "file": "esta-online.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 24",
+    "clickLines": []
+  },
+  {
+    "file": "eta-canada.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 20",
+    "clickLines": []
+  },
+  {
+    "file": "ethiopia-e-visa.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 20",
+    "clickLines": []
+  },
+  {
+    "file": "evisa-egypt.spec.ts",
+    "flowType": "Flow 2",
+    "hasDoc": "NO",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 25",
+    "clickLines": []
+  },
+  {
+    "file": "evisa-gabon.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 20",
+    "clickLines": []
+  },
+  {
+    "file": "evisa-iraq.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 23",
+    "clickLines": []
+  },
+  {
+    "file": "evisa-madagascar.spec.ts",
+    "flowType": "Flow 2",
+    "hasDoc": "NO",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 20",
+    "clickLines": []
+  },
+  {
+    "file": "evisa-mongolia.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 21",
+    "clickLines": []
+  },
+  {
+    "file": "evisa-myanmar.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 17",
+    "clickLines": []
+  },
+  {
+    "file": "evisa-rwanda.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 21",
+    "clickLines": []
+  },
+  {
+    "file": "evisa-tanzania.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "MISSING (WILL ADD)",
+    "initialUrlLoc": "After page.goto(...) at line 20",
+    "clickLines": []
+  },
+  {
+    "file": "fiji-evisa.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 25",
+    "clickLines": []
+  },
+  {
+    "file": "georgia-evisa.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 28",
+    "clickLines": []
+  },
+  {
+    "file": "indonesia-e-visa.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 28",
+    "clickLines": []
+  },
+  {
+    "file": "israel-evisa.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 24",
+    "clickLines": [
+      {
+        "lineNum": 90,
+        "text": "await page.getByRole('button', { name: 'Register' }).click();"
+      },
+      {
+        "lineNum": 130,
+        "text": "await page.getByRole('button', { name: 'Submit & Preview' }).click();"
+      },
+      {
+        "lineNum": 131,
+        "text": "await page.getByRole('button', { name: 'Confirm & Submit' }).click();"
+      },
+      {
+        "lineNum": 191,
+        "text": "await page.getByRole('button', { name: 'Save & Continue' }).click();"
+      }
+    ]
+  },
+  {
+    "file": "ivory-coast.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 21",
+    "clickLines": []
+  },
+  {
+    "file": "japan-e-visa.spec.ts",
+    "flowType": "Flow 2",
+    "hasDoc": "NO",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 23",
+    "clickLines": [
+      {
+        "lineNum": 48,
+        "text": "await page.getByRole('textbox', { name: 'Phone *' }).click();"
+      },
+      {
+        "lineNum": 136,
+        "text": "await page.getByRole('button', { name: 'Next' }).click();"
+      },
+      {
+        "lineNum": 151,
+        "text": "await page.getByRole('button', { name: 'Next' }).click();"
+      },
+      {
+        "lineNum": 163,
+        "text": "await page.getByRole('button', { name: 'Submit & Preview' }).click();"
+      },
+      {
+        "lineNum": 164,
+        "text": "await page.getByRole('button', { name: 'Submit & Preview' }).click();"
+      }
+    ]
+  },
+  {
+    "file": "jordan-evisa.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 34",
+    "clickLines": []
+  },
+  {
+    "file": "kazakhstan-evisa.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 28",
+    "clickLines": []
+  },
+  {
+    "file": "kenya-eta.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 26",
+    "clickLines": []
+  },
+  {
+    "file": "kuwait-evisa.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 26",
+    "clickLines": []
+  },
+  {
+    "file": "lao-evisa.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 25",
+    "clickLines": []
+  },
+  {
+    "file": "malawi-evisa.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 25",
+    "clickLines": []
+  },
+  {
+    "file": "moroccan-visa.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 26",
+    "clickLines": []
+  },
+  {
+    "file": "mozambique-evisa.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 21",
+    "clickLines": [
+      {
+        "lineNum": 68,
+        "text": "await page.getByRole('button', { name: 'Register' }).click();"
+      },
+      {
+        "lineNum": 110,
+        "text": "await page.getByRole('button', { name: 'Submit & Preview' }).click();"
+      },
+      {
+        "lineNum": 111,
+        "text": "await page.getByRole('button', { name: 'Confirm & Submit' }).click();"
+      },
+      {
+        "lineNum": 143,
+        "text": "await page.getByRole('button', { name: 'Save & Continue' }).click();"
+      }
+    ]
+  },
+  {
+    "file": "namibia-evisa.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 20",
+    "clickLines": []
+  },
+  {
+    "file": "nz-eta.spec.ts",
+    "flowType": "Flow 2",
+    "hasDoc": "NO",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 23",
+    "clickLines": []
+  },
+  {
+    "file": "oman-evisa.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 24",
+    "clickLines": []
+  },
+  {
+    "file": "russian-e-visa.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 26",
+    "clickLines": []
+  },
+  {
+    "file": "sa-evisa.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 23",
+    "clickLines": []
+  },
+  {
+    "file": "saudi-arabia-evisa.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 26",
+    "clickLines": []
+  },
+  {
+    "file": "seychelles-evisa.spec.ts",
+    "flowType": "Flow 2",
+    "hasDoc": "NO",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 25",
+    "clickLines": []
+  },
+  {
+    "file": "sri-lanka-evisa.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 20",
+    "clickLines": []
+  },
+  {
+    "file": "taiwan-evisa.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 28",
+    "clickLines": []
+  },
+  {
+    "file": "thai-evisa.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 195",
+    "clickLines": []
+  },
+  {
+    "file": "togo-evisa.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 25",
+    "clickLines": []
+  },
+  {
+    "file": "turkey-evisa.spec.ts",
+    "flowType": "Flow 2",
+    "hasDoc": "NO",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 39",
+    "clickLines": []
+  },
+  {
+    "file": "uae-evisa.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 28",
+    "clickLines": []
+  },
+  {
+    "file": "uganda-evisa.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 28",
+    "clickLines": []
+  },
+  {
+    "file": "united-kingdom-visa.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 26",
+    "clickLines": []
+  },
+  {
+    "file": "upload-fixing.spec.ts",
+    "flowType": "Flow 2",
+    "hasDoc": "NO",
+    "assertionStatus": "MISSING (WILL ADD)",
+    "initialUrlLoc": "After page.goto(...) at line 61",
+    "clickLines": []
+  },
+  {
+    "file": "visa-armenia.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 20",
+    "clickLines": []
+  },
+  {
+    "file": "visa-qatar.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 23",
+    "clickLines": []
+  },
+  {
+    "file": "zambia-visa.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 20",
+    "clickLines": []
+  },
+  {
+    "file": "zimbabwe-visa.spec.ts",
+    "flowType": "Flow 1",
+    "hasDoc": "YES",
+    "assertionStatus": "EXISTS",
+    "initialUrlLoc": "After page.goto(...) at line 20",
+    "clickLines": []
+  }
+]

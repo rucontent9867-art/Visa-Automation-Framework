@@ -1,0 +1,19 @@
+{
+  "folderName": "backup-test-verification-backup",
+  "relativePath": "backups/backup-test-verification-backup",
+  "createdAt": "2026-10-16T21:04:33.817Z",
+  "timestamp": "2026-10-16_21-04-33",
+  "sessionsCount": 7,
+  "executionsCount": 103,
+  "screenshotsCount": 1,
+  "totalFilesCount": 5,
+  "totalSizeBytes": 581928,
+  "totalSizeFormatted": "0.55 MB",
+  "filesIncluded": [
+    "data/store.json",
+    "reports/execution-report.html",
+    "screenshots/ (1 images)",
+    "final_report.json",
+    "analysis_dump.json"
+  ]
+}

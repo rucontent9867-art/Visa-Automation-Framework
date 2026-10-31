@@ -1,0 +1,1394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Playwright Test Automation Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+
+  <!-- ═══════════════ HEADER ═══════════════ -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="header-left">
+        <div class="logo">
+          <i class="fas fa-vial"></i>
+        </div>
+        <div>
+          <h1 id="appTitleHeading">Playwright Test Automation</h1>
+          <p class="subtitle">End-to-end test runner with HTML reporting</p>
+        </div>
+      </div>
+      <div class="header-right">
+        <button id="openScriptGeneratorBtn" class="btn btn-primary btn-sm header-generator-btn" type="button" title="AI Auto Script Generator & Self-Healing Agent">
+          <i class="fas fa-wand-magic-sparkles"></i> <span class="header-generator-text">Script Generator</span>
+          <span class="generator-active-dot hidden" id="headerGeneratorRunningDot" title="Generation in progress"></span>
+        </button>
+        <button id="openGithubModalBtn" class="btn btn-secondary btn-sm header-github-btn" type="button" title="GitHub Settings & Version Control (Push, Pull, Versions, Auth)">
+          <i class="fab fa-github"></i> <span class="header-github-text">GitHub</span>
+          <span class="gh-update-badge hidden" id="ghHeaderUpdateBadge" title="New version available on GitHub!"><i class="fas fa-circle-arrow-down"></i> Update</span>
+        </button>
+        <button id="helpGuideBtn" class="btn btn-secondary btn-sm header-help-btn" type="button" title="View Directory & File Locations Guide">
+          <i class="fas fa-folder-open"></i> <span class="header-help-text">File & Directory Guide</span>
+        </button>
+        <div class="status-badge clickable-status-badge" id="serverStatus" role="button" tabindex="0" title="Click to view System Health & Connection Status">
+          <span class="status-dot"></span>
+          <span id="serverStatusText">Connected</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ═══════════════ MAIN ═══════════════ -->
+  <main class="main">
+
+    <!-- ─── Configuration Panel ─── -->
+    <section class="card config-panel">
+      <div class="card-header">
+        <h2><i class="fas fa-sliders-h"></i> Configuration</h2>
+      </div>
+      <div class="card-body">
+        <div class="config-grid">
+
+          <!-- Browser Engines & Platforms -->
+          <div class="config-group">
+            <h3><i class="fas fa-layer-group"></i> Browser Engines</h3>
+            <div class="checkbox-group" id="browserGroup">
+              <label class="checkbox-label">
+                <input type="checkbox" name="browser" value="Chromium" id="browser-chromium" class="browser-checkbox" checked>
+                <span class="checkmark"></span>
+                <i class="fab fa-chrome browser-icon chrome"></i> Chromium
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" name="browser" value="Firefox" id="browser-firefox" class="browser-checkbox">
+                <span class="checkmark"></span>
+                <i class="fab fa-firefox-browser browser-icon firefox"></i> Firefox
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" name="browser" value="WebKit" id="browser-webkit" class="browser-checkbox">
+                <span class="checkmark"></span>
+                <i class="fab fa-safari browser-icon safari"></i> WebKit
+              </label>
+            </div>
+
+            <h3 class="section-subheading" style="margin-top: 6px;"><i class="fas fa-laptop-code"></i> Platforms</h3>
+            <div class="checkbox-group" id="deviceGroup">
+              <label class="checkbox-label">
+                <input type="checkbox" name="device" value="Desktop" id="device-desktop" class="device-checkbox" checked>
+                <span class="checkmark"></span>
+                <i class="fas fa-desktop"></i> Desktop
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" name="device" value="Android" id="device-android" class="device-checkbox">
+                <span class="checkmark"></span>
+                <i class="fab fa-android"></i> Android
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" name="device" value="iOS" id="device-ios" class="device-checkbox">
+                <span class="checkmark"></span>
+                <i class="fab fa-apple"></i> iOS
+              </label>
+            </div>
+          </div>
+
+          <!-- Options -->
+          <div class="config-group">
+            <h3><i class="fas fa-sliders"></i> Execution Parameters</h3>
+            <div class="option-group">
+              <label class="checkbox-label option-tile">
+                <input type="checkbox" id="headlessMode" checked>
+                <span class="checkmark"></span>
+                <div class="option-info">
+                  <span class="option-title"><i class="fas fa-ghost"></i> Headless Mode</span>
+                  <span class="option-desc">Run browser invisible in background</span>
+                </div>
+              </label>
+
+              <div class="input-card">
+                <div class="input-card-header">
+                  <label for="batchSize"><i class="fas fa-layer-group"></i> Batch Concurrency</label>
+                  <span class="input-badge" id="memoryGuardBadge">Auto-Detecting Specs...</span>
+                </div>
+                <div class="input-card-body">
+                  <input type="number" id="batchSize" value="2" min="1" max="10" title="Number of test scripts to execute simultaneously in batches (auto-calculated for your hardware)">
+                  <span class="input-hint" id="memoryGuardHint">Auto-calculated according to device CPU and RAM specifications</span>
+                </div>
+              </div>
+
+              <div class="input-card">
+                <div class="input-card-header">
+                  <label for="retryCount">
+                    <i class="fas fa-rotate-right"></i> Max Retries
+                    <span class="info-tooltip-container" tabindex="0">
+                      <i class="fas fa-info-circle tooltip-icon"></i>
+                      <span class="tooltip-popup tooltip-bottom align-left">
+                        <strong>Max Retries:</strong><br>
+                        Automatically re-executes test steps when failures occur (e.g., temporary network glitches, slow portal/API responses, missing or delayed DOM locators, CAPTCHA interceptions, or element timeouts).
+                      </span>
+                    </span>
+                  </label>
+                  <span class="input-badge">0 - 10 Retries</span>
+                </div>
+                <div class="input-card-body">
+                  <input type="number" id="retryCount" value="2" min="0" max="10">
+                  <span class="input-hint">Auto-retry attempts on step failure</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Timeout Settings -->
+          <div class="config-group">
+            <h3><i class="fas fa-stopwatch"></i> Timeout Settings</h3>
+            <div class="option-group">
+
+              <!-- Test Timeout -->
+              <div class="input-card timeout-card">
+                <div class="input-card-header">
+                  <label for="testTimeoutPreset">
+                    <i class="fas fa-hourglass-half"></i> Test Timeout
+                    <span class="info-tooltip-container" tabindex="0">
+                      <i class="fas fa-info-circle tooltip-icon"></i>
+                      <span class="tooltip-popup tooltip-bottom align-left">
+                        <strong>Test Timeout:</strong><br>
+                        Maximum total lifespan for a single test case (default: 1 minute / 60s). If a test takes longer than this total duration, Playwright forcefully aborts it.
+                      </span>
+                    </span>
+                  </label>
+                  <span class="input-badge" id="testTimeoutBadge">1 min</span>
+                </div>
+                <div class="input-card-body timeout-control-body">
+                  <select id="testTimeoutPreset" class="timeout-select">
+                    <option value="30000">30 sec</option>
+                    <option value="60000" selected>1 min (60s)</option>
+                    <option value="120000">2 min (120s)</option>
+                    <option value="180000">3 min (180s)</option>
+                    <option value="300000">5 min (300s)</option>
+                    <option value="600000">10 min (600s)</option>
+                    <option value="custom">Custom...</option>
+                  </select>
+                  <div class="custom-timeout-wrap hidden" id="testTimeoutCustomWrap">
+                    <input type="number" id="testTimeoutCustom" min="5" max="3600" value="60" placeholder="Sec" title="Custom timeout in seconds">
+                    <span class="timeout-unit">sec</span>
+                  </div>
+                </div>
+                <span class="input-hint">Maximum lifespan limit per single test spec</span>
+              </div>
+
+              <!-- Action Timeout -->
+              <div class="input-card timeout-card">
+                <div class="input-card-header">
+                  <label for="actionTimeoutPreset">
+                    <i class="fas fa-hand-pointer"></i> Action Timeout
+                    <span class="info-tooltip-container" tabindex="0">
+                      <i class="fas fa-info-circle tooltip-icon"></i>
+                      <span class="tooltip-popup tooltip-bottom align-left">
+                        <strong>Action Timeout:</strong><br>
+                        Maximum wait time for individual DOM element interactions like click(), fill(), check(), or selectOption() (default: 15 seconds).
+                      </span>
+                    </span>
+                  </label>
+                  <span class="input-badge" id="actionTimeoutBadge">15s</span>
+                </div>
+                <div class="input-card-body timeout-control-body">
+                  <select id="actionTimeoutPreset" class="timeout-select">
+                    <option value="5000">5 sec</option>
+                    <option value="10000">10 sec</option>
+                    <option value="15000" selected>15 sec</option>
+                    <option value="30000">30 sec</option>
+                    <option value="60000">60 sec</option>
+                    <option value="custom">Custom...</option>
+                  </select>
+                  <div class="custom-timeout-wrap hidden" id="actionTimeoutCustomWrap">
+                    <input type="number" id="actionTimeoutCustom" min="1" max="600" value="15" placeholder="Sec" title="Custom action timeout in seconds">
+                    <span class="timeout-unit">sec</span>
+                  </div>
+                </div>
+                <span class="input-hint">Wait time for click, fill, and locator operations</span>
+              </div>
+
+              <!-- Navigation Timeout -->
+              <div class="input-card timeout-card">
+                <div class="input-card-header">
+                  <label for="navigationTimeoutPreset">
+                    <i class="fas fa-compass"></i> Navigation Timeout
+                    <span class="info-tooltip-container" tabindex="0">
+                      <i class="fas fa-info-circle tooltip-icon"></i>
+                      <span class="tooltip-popup tooltip-bottom align-left">
+                        <strong>Navigation Timeout:</strong><br>
+                        Maximum wait time for page loading, goto(), and URL redirections (default: 30 seconds).
+                      </span>
+                    </span>
+                  </label>
+                  <span class="input-badge" id="navigationTimeoutBadge">30s</span>
+                </div>
+                <div class="input-card-body timeout-control-body">
+                  <select id="navigationTimeoutPreset" class="timeout-select">
+                    <option value="15000">15 sec</option>
+                    <option value="30000" selected>30 sec</option>
+                    <option value="60000">60 sec</option>
+                    <option value="90000">90 sec</option>
+                    <option value="120000">120 sec</option>
+                    <option value="custom">Custom...</option>
+                  </select>
+                  <div class="custom-timeout-wrap hidden" id="navigationTimeoutCustomWrap">
+                    <input type="number" id="navigationTimeoutCustom" min="1" max="600" value="30" placeholder="Sec" title="Custom navigation timeout in seconds">
+                    <span class="timeout-unit">sec</span>
+                  </div>
+                </div>
+                <span class="input-hint">Wait time for page goto, load, and URL redirects</span>
+              </div>
+
+              <!-- Assertion Timeout -->
+              <div class="input-card timeout-card">
+                <div class="input-card-header">
+                  <label for="assertionTimeoutPreset">
+                    <i class="fas fa-check-double"></i> Assertion Timeout
+                    <span class="info-tooltip-container" tabindex="0">
+                      <i class="fas fa-info-circle tooltip-icon"></i>
+                      <span class="tooltip-popup tooltip-bottom align-left">
+                        <strong>Assertion Timeout:</strong><br>
+                        Maximum wait time for expect() matchers like toBeVisible(), toHaveText(), or toBeEnabled() (default: 15 seconds).
+                      </span>
+                    </span>
+                  </label>
+                  <span class="input-badge" id="assertionTimeoutBadge">15s</span>
+                </div>
+                <div class="input-card-body timeout-control-body">
+                  <select id="assertionTimeoutPreset" class="timeout-select">
+                    <option value="5000">5 sec</option>
+                    <option value="10000">10 sec</option>
+                    <option value="15000" selected>15 sec</option>
+                    <option value="30000">30 sec</option>
+                    <option value="60000">60 sec</option>
+                    <option value="custom">Custom...</option>
+                  </select>
+                  <div class="custom-timeout-wrap hidden" id="assertionTimeoutCustomWrap">
+                    <input type="number" id="assertionTimeoutCustom" min="1" max="300" value="15" placeholder="Sec" title="Custom assertion timeout in seconds">
+                    <span class="timeout-unit">sec</span>
+                  </div>
+                </div>
+                <span class="input-hint">Wait time for expect() assertion validations</span>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Report Preferences -->
+          <div class="config-group">
+            <h3><i class="fas fa-filter"></i> Report Preferences</h3>
+            <div class="option-group">
+              <label class="checkbox-label option-tile">
+                <input type="checkbox" id="settingExcludeStopped" checked>
+                <span class="checkmark"></span>
+                <div class="option-info">
+                  <span class="option-title">
+                    <i class="fas fa-ban"></i> Exclude Stopped Runs
+                    <span class="info-tooltip-container" tabindex="0">
+                      <i class="fas fa-info-circle tooltip-icon"></i>
+                      <span class="tooltip-popup tooltip-bottom align-right">
+                        <strong>Exclude Stopped Runs:</strong><br>
+                        When enabled, test runs that were manually stopped or cancelled before finishing will be completely omitted from generated HTML & Excel reports.
+                      </span>
+                    </span>
+                  </span>
+                  <span class="option-desc">Do not show stopped runs in report</span>
+                </div>
+              </label>
+
+              <label class="checkbox-label option-tile">
+                <input type="checkbox" id="settingHideIncomplete" checked>
+                <span class="checkmark"></span>
+                <div class="option-info">
+                  <span class="option-title">
+                    <i class="fas fa-eye-slash"></i> Hide Incomplete Tests
+                    <span class="info-tooltip-container" tabindex="0">
+                      <i class="fas fa-info-circle tooltip-icon"></i>
+                      <span class="tooltip-popup tooltip-bottom align-right">
+                        <strong>Hide Incomplete Tests:</strong><br>
+                        When enabled, pending, halted, or non-executed test cases inside session runs are hidden from generated HTML & Excel reports, displaying only completed PASS/FAIL test items.
+                      </span>
+                    </span>
+                  </span>
+                  <span class="option-desc">Show only completed PASS/FAIL test items</span>
+                </div>
+              </label>
+            </div>
+
+            <h3 class="section-subheading" style="margin-top: 14px;"><i class="fas fa-camera"></i> Screenshot Capture</h3>
+            <div class="option-group">
+              <label class="checkbox-label option-tile">
+                <input type="checkbox" id="settingEnableScreenshot">
+                <span class="checkmark"></span>
+                <div class="option-info">
+                  <span class="option-title">
+                    <i class="fas fa-camera"></i> Screenshot Capture
+                    <span class="info-tooltip-container" tabindex="0">
+                      <i class="fas fa-info-circle tooltip-icon"></i>
+                      <span class="tooltip-popup tooltip-bottom align-right screenshot-tooltip">
+                        <strong>Screenshot Capture:</strong><br>
+                        Enable this option to capture screenshots defined inside test scripts.<br><br>
+                        <strong class="tooltip-subheading">How to use:</strong>
+                        <code class="tooltip-code">await captureScreenshot(page, 'payment-page');</code>
+                        <span class="tooltip-text-block">
+                          Add this line anywhere in your test where you want to capture a screenshot. Replace <em>payment-page</em> with your own screenshot name.
+                        </span>
+                        <hr class="tooltip-divider">
+                        <div class="tooltip-mode-status">
+                          <div><strong class="mode-off">OFF:</strong> Screenshot calls are ignored and no screenshots are created.</div>
+                          <div><strong class="mode-on">ON:</strong> Screenshot calls are executed and the screenshots are added to the report.</div>
+                        </div>
+                      </span>
+                    </span>
+                  </span>
+                  <span class="option-desc">Capture explicitly requested test screenshots</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── Test List Panel ─── -->
+    <section class="card test-list-panel">
+      <div class="card-header test-panel-header">
+        <div class="test-panel-title">
+          <h2><i class="fas fa-list-check"></i> Test Suites & Scripts</h2>
+          <div class="stats-pills">
+            <span class="stat-pill total" title="Total Available Tests">
+              <i class="fas fa-cubes"></i> <strong id="statTotal">0</strong> Total
+            </span>
+            <span class="stat-pill selected" title="Selected Tests">
+              <i class="fas fa-check-circle"></i> <strong id="statSelected">0</strong> Selected
+            </span>
+            <span class="stat-pill filtered hidden" id="statFilteredPill" title="Filtered Tests">
+              <i class="fas fa-filter"></i> <strong id="statFiltered">0</strong> Filtered
+            </span>
+          </div>
+        </div>
+
+        <div class="test-toolbar-actions">
+          <button class="btn btn-sm btn-ghost" id="selectAllBtn" title="Select all visible tests">
+            <i class="fas fa-check-double"></i> Select All
+          </button>
+          <button class="btn btn-sm btn-ghost" id="selectFailedBtn" title="Select tests that failed in the last run" style="display: none;">
+            <i class="fas fa-filter-circle-xmark"></i> Select Failed (<span id="selectFailedCount">0</span>)
+          </button>
+          <button class="btn btn-sm btn-ghost" id="deselectAllBtn" title="Clear test selection">
+            <i class="fas fa-times"></i> Clear
+          </button>
+        </div>
+      </div>
+
+      <div class="card-body test-panel-body">
+        <div class="test-search-wrapper">
+          <i class="fas fa-search search-icon"></i>
+          <input type="text" id="testSearch" placeholder="Search tests by country, name, or filename..." autocomplete="off">
+          <button class="clear-search-btn hidden" id="clearSearchBtn" title="Clear search">
+            <i class="fas fa-times-circle"></i>
+          </button>
+        </div>
+
+        <div class="test-grid-container" id="testListContainer">
+          <div class="test-grid" id="testList">
+            <!-- Populated dynamically by JS -->
+            <div class="loading-state">
+              <i class="fas fa-spinner fa-spin"></i>
+              <p>Loading test suites...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── Action Bar & Selection Summary ─── -->
+    <section class="action-bar-card" id="actionBar">
+      <div class="summary-details-grid">
+        <div class="summary-box">
+          <div class="summary-box-title"><i class="fas fa-file-code"></i> Selected Tests</div>
+          <div class="summary-box-value" id="summaryTests">0 Tests</div>
+        </div>
+        <div class="summary-box">
+          <div class="summary-box-title"><i class="fas fa-layer-group"></i> Selected Engines</div>
+          <div class="summary-box-value" id="summaryBrowsers">1 (Chromium)</div>
+        </div>
+        <div class="summary-box">
+          <div class="summary-box-title"><i class="fas fa-laptop-code"></i> Selected Platforms</div>
+          <div class="summary-box-value" id="summaryDevices">1 (Desktop)</div>
+        </div>
+      </div>
+
+      <div class="summary-target-container">
+        <div class="target-box">
+          <div class="target-title">Execution Target</div>
+          <div class="target-equation" id="summaryEquation">0 Tests × 1 Engine × 1 Platform = 0 Executions</div>
+        </div>
+      </div>
+
+      <div class="action-buttons">
+        <button class="btn btn-warning-dark btn-lg" id="rerunFailedBtn" title="Rerun all failed test cases from the latest run" disabled>
+          <i class="fas fa-rotate-right"></i> Rerun Failed (<span id="actionFailedCount">0</span>)
+        </button>
+        <button class="btn btn-primary btn-lg" id="runSelectedBtn" disabled>
+          <i class="fas fa-play"></i> Run Selected
+        </button>
+        <button class="btn btn-secondary btn-lg" id="runAllBtn">
+          <i class="fas fa-forward"></i> Run All
+        </button>
+      </div>
+    </section>
+
+    <!-- ─── Progress Panel ─── -->
+    <section class="card progress-panel" id="progressPanel" style="display: none;">
+      <div class="card-header" style="flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between;">
+        <div>
+          <h2 id="sessionHeader"><i class="fas fa-chart-bar"></i> Execution Session</h2>
+          <div class="session-subtext" id="sessionSubtext" style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">
+            Target: 0 Executions
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+          <div class="progress-stats">
+            <span class="stat pass" title="Passed"><i class="fas fa-check-circle"></i> <span id="passCount">0</span></span>
+            <span class="stat fail" title="Failed"><i class="fas fa-times-circle"></i> <span id="failCount">0</span></span>
+            <span class="stat pending" title="Pending"><i class="fas fa-clock"></i> <span id="pendingCount">0</span></span>
+            <span class="stat info" style="color: var(--accent);" title="Completed / Total"><i class="fas fa-tasks"></i> <span id="completedCount">0</span>/<span id="totalCombinationsCount">0</span></span>
+          </div>
+          <button class="btn btn-sm btn-warning" id="rerunFailedSessionBtn" title="Rerun all failed test cases from this session" style="display: none;">
+            <i class="fas fa-rotate-right"></i> Rerun Failed (<span id="sessionFailedCount">0</span>)
+          </button>
+          <button class="btn btn-sm btn-danger" id="stopExecutionBtn" disabled>
+            <i class="fas fa-stop-circle"></i> Stop Execution
+          </button>
+        </div>
+      </div>
+      <div class="card-body">
+        <!-- Progress bar -->
+        <div class="progress-bar-container">
+          <div class="progress-bar" id="progressBar">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+          <span class="progress-text" id="progressText">0%</span>
+        </div>
+
+        <!-- Live test results table -->
+        <div class="table-responsive-wrapper">
+          <table class="run-details-table">
+            <thead>
+              <tr>
+                <th>Test Script</th>
+                <th>Environment</th>
+                <th>Status</th>
+                <th>Attempts</th>
+                <th>Captured URL(s)</th>
+                <th>Screenshot</th>
+                <th>Duration</th>
+                <th>Error Details</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="resultsList">
+              <!-- Populated dynamically by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── Report Panel ─── -->
+    <section class="card report-panel" id="reportPanel">
+      <div class="card-header">
+        <h2><i class="fas fa-chart-line"></i> Test Automation Reports</h2>
+      </div>
+      <div class="card-body">
+        <div class="report-actions">
+          <button class="btn btn-primary btn-lg" id="openHtmlReportBtn">
+            <i class="fas fa-external-link-alt"></i> Open Full HTML Report
+          </button>
+          <button class="btn btn-outline btn-lg" id="openExcelReportBtn" title="Open or download Excel workbook audit log">
+            <i class="fas fa-file-excel" style="color: #107c41;"></i> Open Excel Report (.xlsx)
+          </button>
+          <button class="btn btn-outline btn-lg" id="viewBackupsBtn" title="Browse and view saved backup archives">
+            <i class="fas fa-box-archive" style="color: #4f46e5;"></i> View Backups
+          </button>
+          <button class="btn btn-danger-outline btn-lg" id="resetDataBtn">
+            <i class="fas fa-trash-alt"></i> Clear Reports / Reset Test Data
+          </button>
+        </div>
+        <p class="report-note" style="margin-top: 8px;">
+          <i class="fas fa-info-circle"></i>
+          HTML report includes execution history, screenshots, captured URLs, and modal error details. Automatically updated after every execution run.
+        </p>
+
+        <!-- Live Inline HTML Report Frame -->
+        <div class="report-viewer-container" id="reportViewerContainer" style="margin-top: 12px;">
+          <iframe id="reportFrame" src="/reports/execution-report.html" style="width: 100%; height: 500px; border: 1px solid #cbd5e1; border-radius: 10px; background: white;"></iframe>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ═══════════════ TOAST CONTAINER ═══════════════ -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- ═══════════════ CLEAR DATA & BACKUP CONFIRMATION MODAL ═══════════════ -->
+  <div class="modal-backdrop hidden" id="resetConfirmModal" role="dialog" aria-modal="true" aria-labelledby="resetModalTitle">
+    <div class="modal-container" style="max-width: 640px;">
+      <div class="modal-header" style="background: #fff1f2; border-bottom: 1px solid #fecdd3;">
+        <h3 class="modal-title" id="resetModalTitle" style="color: #9f1239; font-weight: 700;">
+          <i class="fas fa-trash-alt" style="color: #e11d48;"></i> Clear All Test Data & Reports
+        </h3>
+        <button type="button" class="modal-close-btn" id="closeResetModalBtn" aria-label="Close modal">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 22px; display: flex; flex-direction: column; gap: 16px;">
+        <div style="display: flex; gap: 14px; align-items: flex-start; padding: 14px 16px; background: #fff1f2; border: 1px solid #fecdd3; border-radius: 10px; color: #9f1239; font-size: 13.5px; line-height: 1.5;">
+          <i class="fas fa-exclamation-triangle" style="font-size: 20px; margin-top: 2px; flex-shrink: 0; color: #e11d48;"></i>
+          <div>
+            <strong style="font-size: 14px;">Confirm Data Deletion</strong><br>
+            You are about to clear all stored test execution records, HTML reports, Excel workbooks, and captured screenshot images.
+          </div>
+        </div>
+
+        <!-- Backup Option Card -->
+        <div style="background: #f8fafc; border: 1.5px solid #bfdbfe; border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 1px 3px rgba(37, 99, 235, 0.08);">
+          <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; user-select: none;">
+            <input type="checkbox" id="backupBeforeClearCheckbox" checked style="width: 18px; height: 18px; margin-top: 2px; cursor: pointer; accent-color: #2563eb;" />
+            <div>
+              <div style="font-size: 14px; font-weight: 700; color: #1e3a8a;">
+                <i class="fas fa-shield-alt" style="color: #2563eb;"></i> Create a full backup before clearing (Recommended)
+              </div>
+              <div style="font-size: 12.5px; color: #475569; margin-top: 3px; line-height: 1.45;">
+                Copies everything slated for deletion into a timestamped archive folder in <code>/backups</code> including all screenshots, HTML report, Excel file, and execution history.
+              </div>
+            </div>
+          </label>
+
+          <div id="backupOptionsWrap" style="margin-left: 30px; display: flex; flex-direction: column; gap: 6px;">
+            <label style="font-size: 12px; font-weight: 600; color: #475569;" for="backupFolderNameInput">
+              Backup Archive Folder Name:
+            </label>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <span style="font-size: 12px; color: #64748b; font-family: monospace;">backups/</span>
+              <input type="text" id="backupFolderNameInput" style="flex: 1; padding: 7px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: monospace; font-size: 12.5px;" placeholder="backup-YYYY-MM-DD_HH-mm-ss" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Items slated for deletion & backup -->
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; font-size: 12.5px; color: #475569;">
+          <div style="font-weight: 600; color: #1e293b; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+            <i class="fas fa-boxes-stacked" style="color: #2563eb;"></i> Items to be <span id="affectedActionLabel">backed up & deleted</span>:
+          </div>
+          <ul style="margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; line-height: 1.4;">
+            <li><strong>Execution Sessions & History</strong> &mdash; <code>data/store.json</code></li>
+            <li><strong>HTML Test Report</strong> &mdash; <code>reports/execution-report.html</code></li>
+            <li><strong>Excel Workbook</strong> &mdash; <code>reports/test-reports.xlsx</code></li>
+            <li><strong>All Screenshots</strong> &mdash; <code>screenshots/*</code> (failure, success & step captures)</li>
+          </ul>
+        </div>
+      </div>
+      <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px;">
+        <button type="button" class="btn btn-secondary" id="cancelResetModalBtn">
+          Cancel
+        </button>
+        <button type="button" class="btn btn-danger" id="confirmResetModalBtn" style="gap: 8px;">
+          <i class="fas fa-shield-alt" id="confirmResetBtnIcon"></i>
+          <span id="confirmResetBtnText">Create Backup & Clear Everything</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ BACKUP ARCHIVES LIST MODAL ═══════════════ -->
+  <div class="modal-backdrop hidden" id="backupsListModal" role="dialog" aria-modal="true" aria-labelledby="backupsModalTitle">
+    <div class="modal-container modal-lg">
+      <div class="modal-header">
+        <h3 class="modal-title" id="backupsModalTitle">
+          <i class="fas fa-box-archive" style="color: #4f46e5;"></i> Saved Backup Archives
+        </h3>
+        <button type="button" class="modal-close-btn" id="closeBackupsModalBtn" aria-label="Close modal">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 20px; display: flex; flex-direction: column; gap: 14px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+          <p style="margin: 0; font-size: 13px; color: var(--text-secondary);">
+            Complete archives created before clearing data. Each backup contains all screenshots, reports, and data from that point in time.
+          </p>
+          <button type="button" class="btn btn-secondary btn-sm" id="refreshBackupsBtn">
+            <i class="fas fa-sync-alt"></i> Refresh
+          </button>
+        </div>
+        <div id="backupsListContainer" style="display: flex; flex-direction: column; gap: 10px; max-height: 450px; overflow-y: auto;">
+          <!-- Loaded dynamically -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary btn-sm" id="closeBackupsModalFooterBtn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ ERROR DETAILS MODAL ═══════════════ -->
+  <div class="modal-backdrop hidden" id="errorModal" role="dialog" aria-modal="true" aria-labelledby="errorModalTitle">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3 class="modal-title" id="errorModalTitle">
+          <i class="fas fa-exclamation-triangle" style="color: var(--danger);"></i> Execution Error Details
+        </h3>
+        <button type="button" class="modal-close-btn" id="errorModalCloseBtn" aria-label="Close modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="error-meta" id="errorModalMeta"></div>
+        <div class="error-trace-container">
+          <pre class="error-stack-trace" id="errorModalTrace"></pre>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-sm btn-outline" id="errorModalCopyBtn">
+          <i class="fas fa-copy"></i> Copy Error
+        </button>
+        <button type="button" class="btn btn-sm btn-primary" id="errorModalOkBtn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ CAPTURED URLS HISTORY MODAL ═══════════════ -->
+  <div class="modal-backdrop hidden" id="urlsModal" role="dialog" aria-modal="true" aria-labelledby="urlsModalTitle">
+    <div class="modal-container" style="max-width: 760px;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="urlsModalTitle">
+          <i class="fas fa-link" style="color: var(--accent);"></i> Captured URLs History (<span id="urlsModalCount">0</span>)
+        </h3>
+        <button type="button" class="modal-close-btn" id="urlsModalCloseBtn" aria-label="Close modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="error-meta" id="urlsModalMeta" style="margin-bottom: 8px;"></div>
+        <div id="urlsModalList" style="display: flex; flex-direction: column; gap: 10px; max-height: 480px; overflow-y: auto;">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-sm btn-outline" id="urlsModalCopyAllBtn">
+          <i class="fas fa-copy"></i> Copy All URLs
+        </button>
+        <button type="button" class="btn btn-sm btn-primary" id="urlsModalOkBtn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ FILE & DIRECTORY GUIDE MODAL ═══════════════ -->
+  <div class="modal-backdrop hidden" id="helpGuideModal" role="dialog" aria-modal="true" aria-labelledby="helpGuideModalTitle">
+    <div class="modal-container modal-lg">
+      <div class="modal-header">
+        <h3 class="modal-title" id="helpGuideModalTitle">
+          <i class="fas fa-folder-open" style="color: var(--accent);"></i> Project File & Directory Reference
+        </h3>
+        <button type="button" class="modal-close-btn" id="helpGuideModalCloseBtn" aria-label="Close modal">&times;</button>
+      </div>
+      <div class="modal-body" style="display: flex; flex-direction: column; gap: 16px;">
+        <p style="margin: 0; color: var(--text-secondary); font-size: 13.5px; line-height: 1.5;">
+          Quick structural overview of all project directories, report storage, shared screenshot paths, test specs, and configuration files.
+        </p>
+
+        <div class="guide-grid">
+          
+          <!-- Reports Directory -->
+          <div class="guide-card">
+            <div class="guide-card-header">
+              <i class="fas fa-chart-line" style="color: #2563eb;"></i>
+              <span>/reports</span>
+            </div>
+            <p class="guide-card-desc">
+              Stores generated output report files created automatically after test executions.
+            </p>
+            <ul class="guide-card-list">
+              <li><code>reports/execution-report.html</code>: Standalone interactive dashboard for live test status, summary metrics, and image previews.</li>
+              <li><code>reports/test-reports.xlsx</code>: Auto-updated Excel workbook organized by execution date sheets with clickable image links.</li>
+            </ul>
+          </div>
+
+          <!-- Shared Screenshots Directory -->
+          <div class="guide-card">
+            <div class="guide-card-header">
+              <i class="fas fa-camera" style="color: #059669;"></i>
+              <span>/screenshots</span>
+            </div>
+            <p class="guide-card-desc">
+              Single shared directory for screenshots used by BOTH the HTML report and Excel report.
+            </p>
+            <ul class="guide-card-list">
+              <li><strong>Shared Storage:</strong> Prevents duplicate image files by serving both HTML and Excel reports from one place.</li>
+              <li><strong>Captured Screenshots:</strong> When Screenshot Capture mode is ON, calling <code>captureScreenshot()</code> creates timestamped subfolders: <code>/screenshots/&lt;timestamp&gt;/&lt;spec-name&gt;/&lt;step-name&gt;.png</code>.</li>
+              <li><strong>When Disabled:</strong> When Screenshot Capture is OFF, no screenshot files or folders are created.</li>
+            </ul>
+          </div>
+
+          <!-- Backup Archives Directory -->
+          <div class="guide-card">
+            <div class="guide-card-header">
+              <i class="fas fa-box-archive" style="color: #4f46e5;"></i>
+              <span>/backups</span>
+            </div>
+            <p class="guide-card-desc">
+              Stores complete timestamped archives created before clearing reports and data.
+            </p>
+            <ul class="guide-card-list">
+              <li><strong>Safe Retention:</strong> Preserves full copies of <code>data/store.json</code>, <code>reports/execution-report.html</code>, <code>reports/test-reports.xlsx</code>, and all screenshots.</li>
+              <li><strong>Viewable & Restorable:</strong> Browse historical HTML reports or inspect manifests via the "View Backups" dialog.</li>
+            </ul>
+          </div>
+
+          <!-- Test Specs Directory -->
+          <div class="guide-card">
+            <div class="guide-card-header">
+              <i class="fas fa-code" style="color: #7c3aed;"></i>
+              <span>/tests/spec</span>
+            </div>
+            <p class="guide-card-desc">
+              Directory containing all Playwright test specification files.
+            </p>
+            <ul class="guide-card-list">
+              <li>Contains end-to-end automation scripts that execute Playwright test flows and assertions.</li>
+              <li>Utilizes helper methods for screenshot capturing and custom assertions.</li>
+            </ul>
+          </div>
+
+          <!-- Assets Directory -->
+          <div class="guide-card">
+            <div class="guide-card-header">
+              <i class="fas fa-file-upload" style="color: #0284c7;"></i>
+              <span>/tests/assets</span>
+            </div>
+            <p class="guide-card-desc">
+              Storage for media and document assets required during test execution.
+            </p>
+            <ul class="guide-card-list">
+              <li>Contains sample applicant photos and document attachments uploaded during form submission tests.</li>
+            </ul>
+          </div>
+
+          <!-- Utilities Directory -->
+          <div class="guide-card">
+            <div class="guide-card-header">
+              <i class="fas fa-tools" style="color: #4f46e5;"></i>
+              <span>/utils</span>
+            </div>
+            <p class="guide-card-desc">
+              Test execution framework utilities and helper functions.
+            </p>
+            <ul class="guide-card-list">
+              <li><code>utils/urlTracker.ts</code>: Automatic URL change listener and explicit tracking utility capturing all navigations, redirects, and payment handoffs.</li>
+              <li><code>utils/screenshot.ts</code>: Helper utility providing <code>captureScreenshot()</code> for saving step-by-step test evidence.</li>
+              <li><code>utils/baseTest.ts</code>: Base Playwright test fixture wrapping execution state, retries, URL tracker, and error handling.</li>
+            </ul>
+          </div>
+
+          <!-- Configuration Files -->
+          <div class="guide-card">
+            <div class="guide-card-header">
+              <i class="fas fa-sliders-h" style="color: #d97706;"></i>
+              <span>Configuration Files</span>
+            </div>
+            <p class="guide-card-desc">
+              Project configuration and global settings files.
+            </p>
+            <ul class="guide-card-list">
+              <li><code>test-config.json</code>: Main configuration file controlling target form inputs, concurrency, retries, and screenshot capture toggles.</li>
+            </ul>
+          </div>
+
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-sm btn-primary" id="helpGuideOkBtn">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ SYSTEM HEALTH MODAL ═══════════════ -->
+  <div class="modal-backdrop hidden" id="healthStatusModal" role="dialog" aria-modal="true">
+    <div class="modal-container health-modal-container">
+      <div class="modal-header">
+        <h3 class="modal-title">
+          <i class="fas fa-heartbeat" style="color: #2563eb;"></i> System Health & Connection
+        </h3>
+        <button class="modal-close-btn" id="closeHealthModalBtn" title="Close Modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        
+        <!-- Health Status Header Banner -->
+        <div class="health-overall-banner" id="healthOverallBanner">
+          <div class="health-banner-status">
+            <span class="health-banner-dot" id="healthBannerDot"></span>
+            <span class="health-banner-text" id="healthBannerText">Checking status...</span>
+          </div>
+          <button class="btn btn-secondary btn-sm" id="recheckHealthBtn" type="button" title="Run manual health check">
+            <i class="fas fa-sync-alt" id="recheckIcon"></i> Re-check Status
+          </button>
+        </div>
+
+        <!-- Health Checklist Items -->
+        <div class="health-check-grid" id="healthCheckList">
+          <!-- Populated dynamically by app.js -->
+        </div>
+
+        <!-- Guidance Alert Box (shown if attention needed) -->
+        <div class="health-guidance-box hidden" id="healthGuidanceBox">
+          <div class="health-guidance-header">
+            <i class="fas fa-lightbulb"></i>
+            <span>Action Guidance</span>
+          </div>
+          <div class="health-guidance-content" id="healthGuidanceText">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" id="closeHealthModalFooterBtn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ RERUN FAILED SETTINGS CONFIRMATION MODAL ═══════════════ -->
+  <div class="modal-backdrop hidden" id="rerunSettingsModal" role="dialog" aria-modal="true" aria-labelledby="rerunSettingsTitle">
+    <div class="modal-container rerun-modal-container">
+      <div class="modal-header">
+        <h3 class="modal-title" id="rerunSettingsTitle">
+          <i class="fas fa-rotate-right" style="color: #d97706;"></i> Rerun Failed Tests Configuration
+        </h3>
+        <button class="modal-close-btn" id="closeRerunModalBtn" title="Close Modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        
+        <div class="rerun-notice-banner">
+          <i class="fas fa-info-circle"></i>
+          <div>
+            <strong>Dashboard settings have changed</strong> since the original test run.
+            Choose which configuration to apply when rerunning the <span id="rerunModalFailCount" class="rerun-fail-highlight">0 failed test cases</span>:
+          </div>
+        </div>
+
+        <div class="rerun-comparison-grid">
+          <!-- Original Settings Card -->
+          <div class="rerun-config-card" id="originalConfigCard">
+            <div class="rerun-card-header">
+              <span class="rerun-card-tag original-tag"><i class="fas fa-history"></i> Original Session Settings</span>
+              <p class="rerun-card-sub">Configuration from the original run</p>
+            </div>
+            <div class="rerun-specs-list" id="origSpecsList">
+              <div class="rerun-spec-row" id="origRowHeadless">
+                <span class="rerun-spec-label"><i class="fas fa-desktop"></i> Headless Mode</span>
+                <span class="rerun-spec-val" id="origValHeadless">Enabled</span>
+              </div>
+              <div class="rerun-spec-row" id="origRowBatch">
+                <span class="rerun-spec-label"><i class="fas fa-tachometer-alt"></i> Batch Concurrency</span>
+                <span class="rerun-spec-val" id="origValBatch">5 Workers</span>
+              </div>
+              <div class="rerun-spec-row" id="origRowRetries">
+                <span class="rerun-spec-label"><i class="fas fa-redo-alt"></i> Retries on Fail</span>
+                <span class="rerun-spec-val" id="origValRetries">2 Retries</span>
+              </div>
+            </div>
+            <div class="rerun-card-footer">
+              <button type="button" class="btn btn-secondary btn-block rerun-action-btn" id="useOriginalSettingsBtn">
+                <i class="fas fa-history"></i> Run with Original Settings
+              </button>
+            </div>
+          </div>
+
+          <!-- Current / Updated Settings Card -->
+          <div class="rerun-config-card active-card" id="updatedConfigCard">
+            <div class="rerun-card-header">
+              <span class="rerun-card-tag updated-tag"><i class="fas fa-sliders-h"></i> Current (Updated) Settings</span>
+              <p class="rerun-card-sub">Currently selected settings on dashboard</p>
+            </div>
+            <div class="rerun-specs-list" id="updatedSpecsList">
+              <div class="rerun-spec-row" id="updatedRowHeadless">
+                <span class="rerun-spec-label"><i class="fas fa-desktop"></i> Headless Mode</span>
+                <span class="rerun-spec-val" id="updatedValHeadless">Disabled</span>
+              </div>
+              <div class="rerun-spec-row" id="updatedRowBatch">
+                <span class="rerun-spec-label"><i class="fas fa-tachometer-alt"></i> Batch Concurrency</span>
+                <span class="rerun-spec-val" id="updatedValBatch">2 Workers</span>
+              </div>
+              <div class="rerun-spec-row" id="updatedRowRetries">
+                <span class="rerun-spec-label"><i class="fas fa-redo-alt"></i> Retries on Fail</span>
+                <span class="rerun-spec-val" id="updatedValRetries">0 Retries</span>
+              </div>
+            </div>
+            <div class="rerun-card-footer">
+              <button type="button" class="btn btn-warning-dark btn-block rerun-action-btn" id="useCurrentSettingsBtn">
+                <i class="fas fa-play"></i> Run with Current Settings
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" id="cancelRerunModalBtn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ UNIFIED GITHUB VERSION CONTROL & SYNC MODAL ═══════════════ -->
+  <div class="modal-backdrop hidden" id="githubUnifiedModal" role="dialog" aria-modal="true">
+    <div class="modal-container" style="max-width: 680px; width: 100%;">
+      <div class="modal-header">
+        <h3 class="modal-title">
+          <i class="fab fa-github" style="color: #24292e; font-size: 18px;"></i>
+          GitHub Version Control & Settings
+        </h3>
+        <button type="button" class="modal-close-btn" id="githubUnifiedCloseBtn" title="Close">&times;</button>
+      </div>
+
+      <div class="modal-body" style="padding: 16px 20px; display: flex; flex-direction: column; gap: 14px;">
+        <!-- New Version Update Notification Alert Banner -->
+        <div class="gh-update-alert hidden" id="ghUpdateAlertBanner">
+          <div class="gh-update-alert-content">
+            <i class="fas fa-bell-ring" style="font-size: 16px; color: #b45309;"></i>
+            <div>
+              <strong style="color: #92400e;">Update Available on GitHub!</strong>
+              <div id="ghUpdateAlertText" style="font-size: 12px; color: #78350f; margin-top: 2px;">A newer version has been pushed to the remote repository.</div>
+            </div>
+          </div>
+          <button type="button" class="btn btn-warning btn-sm" id="ghQuickPullBtn" style="white-space: nowrap; font-size: 12px; padding: 6px 12px; font-weight: 600;">
+            <i class="fas fa-cloud-arrow-down"></i> Pull Update Now
+          </button>
+        </div>
+
+        <!-- Repository Status Banner -->
+        <div class="gh-status-banner" id="ghStatusBanner">
+          <div class="gh-status-info">
+            <div class="gh-status-repo" id="ghStatusRepoDisplay">
+              <i class="fas fa-book-bookmark"></i> <span id="ghStatusRepoText">Loading repository status...</span>
+            </div>
+            <div class="gh-status-chips">
+              <span class="gh-chip" id="ghStatusBranchChip"><i class="fas fa-code-branch"></i> <span id="ghStatusBranchText">main</span></span>
+              <span class="gh-chip" id="ghStatusChangesChip"><i class="fas fa-file-pen"></i> <span id="ghStatusChangesText">Checking changes...</span></span>
+            </div>
+          </div>
+          <button type="button" class="btn btn-secondary btn-sm" id="ghRefreshStatusBtn" title="Refresh Git Status">
+            <i class="fas fa-rotate"></i> Refresh
+          </button>
+        </div>
+
+        <!-- Segmented Tab Navigation -->
+        <div class="gh-tabs-nav" role="tablist">
+          <button type="button" class="gh-tab-btn active" data-tab="push" id="tabBtnPush">
+            <i class="fas fa-cloud-arrow-up"></i> Push Changes
+          </button>
+          <button type="button" class="gh-tab-btn" data-tab="pull" id="tabBtnPull">
+            <i class="fas fa-cloud-arrow-down"></i> Pull & Update
+          </button>
+          <button type="button" class="gh-tab-btn" data-tab="settings" id="tabBtnSettings">
+            <i class="fas fa-gear"></i> Settings
+          </button>
+          <button type="button" class="gh-tab-btn" data-tab="history" id="tabBtnHistory">
+            <i class="fas fa-clock-rotate-left"></i> Commit Log
+          </button>
+        </div>
+
+        <!-- Tab 1: Push Changes -->
+        <div class="gh-tab-panel active" id="ghPanelPush">
+          <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;">
+            Stage all local test scripts and configurations, commit with your message, and push directly to your GitHub repository.
+          </div>
+
+          <!-- Permission Status & Access Request Helper -->
+          <div id="ghPermissionContainer" style="margin-bottom: 12px; padding: 10px 12px; border-radius: var(--radius-sm); background: #f8fafc; border: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span id="ghPermissionChip" class="gh-chip" style="font-weight: 600; font-size: 11.5px; background: #f1f5f9; color: #475569;">
+                <i class="fas fa-spinner fa-spin"></i> Checking permission...
+              </span>
+              <span id="ghPermissionUserHint" style="font-size: 12px; color: var(--text-muted);"></span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <a id="ghRequestAccessBtn" href="#" target="_blank" class="btn btn-warning btn-sm hidden" style="font-size: 11px; padding: 4px 10px; text-decoration: none; font-weight: 600;">
+                <i class="fas fa-hand-holding-hand"></i> Request Write Access
+              </a>
+              <button type="button" id="ghRefreshPermissionBtn" class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 4px 9px;" title="Re-check permissions">
+                <i class="fas fa-rotate"></i> Refresh Permission
+              </button>
+            </div>
+            <div id="ghPermissionRequestHint" class="hidden" style="width: 100%; font-size: 11.5px; color: #b45309; margin-top: 4px; padding-top: 4px; border-top: 1px dashed #e2e8f0;">
+              After the repository owner adds you as a collaborator, click <strong>Refresh Permission</strong>.
+            </div>
+          </div>
+
+          <!-- Push to Branch Input -->
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label for="ghPushBranchInput" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">
+              Push to Branch: <span style="color: var(--danger);">*</span>
+            </label>
+            <input type="text" id="ghPushBranchInput" class="form-control" placeholder="e.g. dev-bob" value="dev-user" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px;" />
+            <div id="ghBranchWarning" class="hidden" style="margin-top: 4px; font-size: 11.5px; color: var(--danger); font-weight: 600;">
+              <i class="fas fa-triangle-exclamation"></i> You have read-only access. Direct push to protected main/master branch is restricted.
+            </div>
+          </div>
+
+          <div id="ghModifiedFilesContainer" style="display: none; margin-bottom: 12px;">
+            <label style="font-size: 11.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px; display: block;">
+              <i class="fas fa-list-check"></i> Modified Files to Commit:
+            </label>
+            <div id="ghModifiedFilesList" class="gh-files-box"></div>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label for="commitMessageInput" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 6px;">
+              Commit Message: <span style="color: var(--danger);">*</span>
+            </label>
+            <textarea id="commitMessageInput" class="form-control" rows="3" placeholder="e.g., Update test automation framework & test suites..." style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-family: inherit; font-size: 13px;"></textarea>
+          </div>
+
+          <div class="gh-quick-templates" style="margin-bottom: 12px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+            <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">Quick templates:</span>
+            <button type="button" class="gh-template-btn" data-template="Update test automation test suites">Test Suites Update</button>
+            <button type="button" class="gh-template-btn" data-template="Sync framework configurations & reports">Framework Config</button>
+            <button type="button" class="gh-template-btn" data-template="Fix visa application automated selectors">Selector Fixes</button>
+          </div>
+
+          <button type="button" class="btn btn-primary btn-block" id="githubPushSubmitBtn" style="width: 100%; padding: 10px; font-size: 13.5px;">
+            <i class="fas fa-upload"></i> Commit & Push Changes
+          </button>
+          <div id="githubPushStatus" class="gh-feedback-msg" style="margin-top: 8px;"></div>
+        </div>
+
+        <!-- Tab 2: Pull / Version Manager -->
+        <div class="gh-tab-panel" id="ghPanelPull" style="display: none;">
+          <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 10px;">
+            Select a branch or release tag from your remote repository to pull and update your framework to that exact version.
+          </div>
+
+          <div class="form-group" style="margin-bottom: 12px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+              <label for="githubVersionSelect" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block;">
+                Target Branch or Release Tag:
+              </label>
+              <button type="button" class="btn btn-secondary btn-sm" id="githubRefreshVersionsBtn" style="padding: 2px 8px; font-size: 11px;">
+                <i class="fas fa-sync-alt"></i> Fetch Versions
+              </button>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <select id="githubVersionSelect" class="form-control" style="flex: 1; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-family: inherit; font-size: 13px; background: white;">
+                <option value="">-- Click Fetch Versions or open settings --</option>
+              </select>
+              <button type="button" class="btn btn-danger btn-sm hidden" id="githubRollbackBtn" style="white-space: nowrap; padding: 8px 12px; font-size: 12px; font-weight: 600;" title="Rollback working tree to this tag">
+                <i class="fas fa-history"></i> Rollback to build
+              </button>
+            </div>
+          </div>
+
+          <div class="gh-safety-box" style="padding: 10px 14px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: var(--radius-sm); margin-bottom: 14px; font-size: 12px; color: #1e40af; display: flex; align-items: flex-start; gap: 8px;">
+            <i class="fas fa-shield-halved" style="font-size: 15px; margin-top: 2px; color: #2563eb;"></i>
+            <div>
+              <strong>Safety Guard:</strong> Pulling updates your test scripts and application codebase. Historical execution sessions, reports, and screenshots in <code>data/</code> and <code>reports/</code> are safeguarded and preserved.
+            </div>
+          </div>
+
+          <button type="button" class="btn btn-primary btn-block" id="githubPullSubmitBtn" style="width: 100%; padding: 10px; font-size: 13.5px;">
+            <i class="fas fa-download"></i> Pull & Update Framework
+          </button>
+          <div id="githubPullStatus" class="gh-feedback-msg" style="margin-top: 8px;"></div>
+        </div>
+
+        <!-- Tab 3: Settings & Authentication -->
+        <div class="gh-tab-panel" id="ghPanelSettings" style="display: none;">
+          <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">
+            Configure repository credentials and Personal Access Token (PAT) for authenticated GitHub pushes and pulls without interactive web logins.
+          </div>
+
+          <div class="form-group" style="margin-bottom: 10px;">
+            <label for="ghRepoUrlInput" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">
+              Repository URL: <span style="color: var(--danger);">*</span>
+            </label>
+            <input type="text" id="ghRepoUrlInput" class="form-control" placeholder="https://github.com/username/repository.git" style="width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px;" />
+          </div>
+
+          <div class="form-group" style="margin-bottom: 10px;">
+            <label for="ghBranchInput" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">
+              Default Branch:
+            </label>
+            <input type="text" id="ghBranchInput" class="form-control" placeholder="main" style="width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px;" />
+          </div>
+
+          <div class="form-group" style="margin-bottom: 10px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+              <label for="ghTokenInput" style="font-size: 12px; font-weight: 700; color: var(--text-muted);">
+                Personal Access Token (PAT):
+              </label>
+              <a href="https://github.com/settings/tokens" target="_blank" style="font-size: 11px; color: var(--accent); text-decoration: none;">
+                <i class="fas fa-external-link-alt"></i> Generate Token on GitHub
+              </a>
+            </div>
+            <div style="position: relative; display: flex; align-items: center;">
+              <input type="password" id="ghTokenInput" class="form-control" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" style="width: 100%; padding: 9px 38px 9px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px;" />
+              <button type="button" id="ghTokenToggleBtn" style="position: absolute; right: 10px; background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 13px;" title="Show / Hide Token">
+                <i class="fas fa-eye"></i>
+              </button>
+            </div>
+            <small style="font-size: 11px; color: var(--text-muted); margin-top: 3px; display: block;">
+              Token requires <code>repo</code> scope to push commits and pull remote repository versions.
+            </small>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;">
+            <div class="form-group">
+              <label for="ghAuthorNameInput" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">Git Author Name:</label>
+              <input type="text" id="ghAuthorNameInput" class="form-control" placeholder="Your Name" style="width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px;" />
+            </div>
+            <div class="form-group">
+              <label for="ghAuthorEmailInput" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">Git Author Email:</label>
+              <input type="text" id="ghAuthorEmailInput" class="form-control" placeholder="dm443790@gmail.com" style="width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px;" />
+            </div>
+          </div>
+
+          <button type="button" class="btn btn-primary btn-block" id="githubSettingsSaveBtn" style="width: 100%; padding: 10px; font-size: 13.5px;">
+            <i class="fas fa-save"></i> Save Repository Settings
+          </button>
+          <div id="githubSettingsStatus" class="gh-feedback-msg" style="margin-top: 8px;"></div>
+        </div>
+
+        <!-- Tab 4: Commit History -->
+        <div class="gh-tab-panel" id="ghPanelHistory" style="display: none;">
+          <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 10px;">
+            Recent Git commit history for this repository:
+          </div>
+          <div id="ghCommitHistoryList" class="gh-history-list">
+            <div style="text-align: center; padding: 24px; color: var(--text-muted); font-size: 13px;">
+              <i class="fas fa-spinner fa-spin"></i> Loading commit history...
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer" style="padding: 12px 20px; background: var(--bg-tertiary); display: flex; justify-content: flex-end;">
+        <button type="button" class="btn btn-secondary" id="githubUnifiedFooterCloseBtn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ AI AUTO SCRIPT GENERATOR WORKSPACE MODAL ═══════════════ -->
+  <div class="modal-backdrop hidden" id="scriptGeneratorModal" role="dialog" aria-modal="true">
+    <div class="modal-container" style="max-width: 860px; width: 100%; max-height: 92vh; display: flex; flex-direction: column;">
+      <div class="modal-header" style="display: flex; align-items: center; justify-content: space-between; padding: 14px 20px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div class="generator-icon-wrap" style="width: 34px; height: 34px; border-radius: 8px; background: #e0e7ff; color: #4f46e5; display: flex; align-items: center; justify-content: center; font-size: 16px;">
+            <i class="fas fa-wand-magic-sparkles"></i>
+          </div>
+          <div>
+            <h3 class="modal-title" style="font-size: 16px; margin: 0; display: flex; align-items: center; gap: 8px;">
+              Playwright Automated Script Generator
+            </h3>
+            <span style="font-size: 11.5px; color: var(--text-muted);">Generate & update resilient test scripts with Direct URL Verification (no test execution)</span>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span class="gen-status-badge idle" id="genStatusBadge">
+            <span class="gen-status-dot"></span> <span id="genStatusBadgeText">Ready</span>
+          </span>
+          <button type="button" class="modal-close-btn" id="closeGeneratorModalBtn" title="Close modal">&times;</button>
+        </div>
+      </div>
+
+      <!-- Clean 2-Tab Navigation -->
+      <div class="gen-modal-tabs" role="tablist">
+        <button type="button" class="gen-tab-btn active" data-tab="builder" id="genTabBuilder">
+          <i class="fas fa-code"></i> Script Generator & Spec
+        </button>
+        <button type="button" class="gen-tab-btn" data-tab="guide" id="genTabGuide">
+          <i class="fas fa-book-open"></i> Guidelines (.md)
+        </button>
+      </div>
+
+      <div class="modal-body" style="padding: 16px 20px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 14px;">
+
+        <!-- ── TAB 1: SCRIPT GENERATOR & SPEC PREVIEW ── -->
+        <div class="gen-tab-panel active" id="genPanelBuilder">
+          <!-- Mode Selector Pill -->
+          <div class="gen-mode-toggle" style="margin-bottom: 12px;">
+            <label class="gen-mode-label">
+              <input type="radio" name="genMode" value="update" id="genModeUpdate" checked>
+              <span><i class="fas fa-wrench"></i> Update Existing Script (e.g. bahrain-visa, azerbaijan-visa)</span>
+            </label>
+            <label class="gen-mode-label">
+              <input type="radio" name="genMode" value="create" id="genModeCreate">
+              <span><i class="fas fa-file-circle-plus"></i> Create Brand New Script</span>
+            </label>
+          </div>
+
+          <!-- Mode B: Update Existing Script Selector (Default) -->
+          <div id="genUpdateScriptContainer" style="margin-bottom: 12px;">
+            <div class="form-group">
+              <label for="genExistingScriptSelect" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">
+                Select Script from <code>tests/spec/</code>: <span style="color: var(--danger);">*</span>
+              </label>
+              <div style="display: flex; gap: 8px;">
+                <select id="genExistingScriptSelect" class="form-control" style="flex: 1; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; background: white;">
+                  <option value="">-- Choose an existing test script --</option>
+                </select>
+                <button type="button" class="btn btn-secondary btn-sm" id="genRefreshSpecsBtn" title="Refresh Specs List">
+                  <i class="fas fa-rotate"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mode A: New Script Inputs -->
+          <div id="genNewScriptContainer" style="display: none; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+            <div class="form-group">
+              <label for="genScriptNameInput" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">
+                Script Filename: <span style="color: var(--danger);">*</span>
+              </label>
+              <input type="text" id="genScriptNameInput" class="form-control" placeholder="e.g. morocco-evisa.spec.ts" value="custom-visa-application.spec.ts" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px;" />
+            </div>
+            <div class="form-group">
+              <label for="genTargetUrlInput" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">
+                Target Start URL: <span style="color: var(--danger);">*</span>
+              </label>
+              <input type="url" id="genTargetUrlInput" class="form-control" placeholder="https://portal.example.com/apply" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px;" />
+            </div>
+          </div>
+
+          <!-- Direct URL Verification Settings Card (Default Enabled) -->
+          <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px 14px; margin-bottom: 12px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-shield-halved" style="color: #0284c7;"></i>
+                <span style="font-size: 12.5px; font-weight: 700; color: #1e293b;">Direct URL Verification</span>
+                <span style="font-size: 11px; background: #e0f2fe; color: #0369a1; padding: 2px 7px; border-radius: 4px; font-weight: 600;">Default</span>
+              </div>
+              <button type="button" class="btn btn-secondary btn-sm" id="genToggleCustomizerBtn" style="padding: 2px 8px; font-size: 11px;">
+                <i class="fas fa-sliders"></i> Customize Settings
+              </button>
+            </div>
+
+            <!-- Summary Bar -->
+            <div style="font-size: 11.5px; color: #475569; display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
+              <span><i class="fas fa-check text-success"></i> Email: <code>dm443790@gmail.com</code></span>
+              <span><i class="fas fa-check text-success"></i> Stages: <strong>Upload, Preview, Payment</strong></span>
+              <span><i class="fas fa-check text-success"></i> Auto-verify before each Submit</span>
+            </div>
+
+            <!-- Collapsible Settings Panel -->
+            <div id="genCustomizerPanel" style="display: none; margin-top: 12px; border-top: 1px solid #e2e8f0; padding-top: 12px;">
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                <div>
+                  <label style="font-size: 11.5px; font-weight: 600; color: #475569; display: block; margin-bottom: 3px;">
+                    Status & Resume URL Paths:
+                  </label>
+                  <input type="text" id="customDirectUrlsInput" class="form-control" value="/visa-status/, /complete-partially/" placeholder="/visa-status/, /complete-partially/" style="width: 100%; font-size: 12px; padding: 6px 9px;" />
+                  <span style="font-size: 10.5px; color: #64748b;">Relative paths or full URLs to check</span>
+                </div>
+                <div>
+                  <label style="font-size: 11.5px; font-weight: 600; color: #475569; display: block; margin-bottom: 3px;">
+                    Order ID Locator / Selector:
+                  </label>
+                  <input type="text" id="customOrderIdSelectorInput" class="form-control" value="#order_id_spn, #order_id, [data-order-id]" style="width: 100%; font-size: 12px; padding: 6px 9px;" />
+                  <span style="font-size: 10.5px; color: #64748b;">Selector to extract Order ID from page</span>
+                </div>
+              </div>
+
+              <div style="margin-bottom: 10px;">
+                <label style="font-size: 11.5px; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">
+                  Applicable Application Stages:
+                </label>
+                <div style="display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: #334155;">
+                  <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                    <input type="checkbox" id="stageDocumentUploadCheck" checked />
+                    <span>1. Document Upload Page</span>
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                    <input type="checkbox" id="stagePreviewCheck" checked />
+                    <span>2. Preview Page</span>
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                    <input type="checkbox" id="stagePaymentCheck" checked />
+                    <span>3. Payment Page</span>
+                  </label>
+                </div>
+              </div>
+
+              <div style="display: flex; justify-content: flex-end; gap: 6px; padding-top: 6px;">
+                <button type="button" class="btn btn-secondary btn-sm" id="btnResetDirectUrlDefaults" style="padding: 3px 8px; font-size: 11px;">Reset Defaults</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Scenario Instructions (Optional) -->
+          <div class="form-group" style="margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <label for="genScenarioPrompt" style="font-size: 12px; font-weight: 700; color: var(--text-muted);">
+                Test Scenario Instructions / Custom Requirements (Optional):
+              </label>
+            </div>
+            <textarea id="genScenarioPrompt" class="form-control" rows="2" placeholder="e.g. Standard visa application with Direct URL Verification at Preview, Document Upload, and Payment stages." style="width: 100%; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 12px; font-family: inherit;"></textarea>
+          </div>
+
+          <!-- Primary Action Button -->
+          <div style="margin-bottom: 12px;">
+            <button type="button" class="btn btn-primary" id="startGeneratorBtn" style="width: 100%; padding: 11px 18px; font-size: 14px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px;">
+              <i class="fas fa-bolt"></i> Generate & Apply Script (No Test Execution)
+            </button>
+          </div>
+
+          <!-- Generated Playwright Test Spec Output (Unified & Immediate) -->
+          <div style="background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 8px; padding: 12px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <i class="fas fa-file-code" style="color: #4f46e5;"></i>
+                <span style="font-size: 12.5px; font-weight: 700; color: var(--text-primary);">Generated Test Spec:</span>
+                <span id="genCurrentSpecNameLabel" style="font-size: 11px; color: var(--text-muted); font-family: monospace;"></span>
+              </div>
+              <div style="display: flex; gap: 6px;">
+                <button type="button" class="btn btn-secondary btn-sm" id="genCopySpecBtn" style="padding: 3px 8px; font-size: 11px;">
+                  <i class="fas fa-copy"></i> Copy Code
+                </button>
+                <button type="button" class="btn btn-primary btn-sm" id="genSaveSpecBtn" style="padding: 3px 10px; font-size: 11px;">
+                  <i class="fas fa-save"></i> Save to tests/spec/
+                </button>
+              </div>
+            </div>
+            <textarea id="genSpecCodeViewer" readonly style="width: 100%; height: 320px; background: #0f172a; color: #38bdf8; font-family: 'Fira Code', 'Cascadia Code', monospace; font-size: 11.5px; padding: 12px; border-radius: var(--radius-sm); border: 1px solid #1e293b; resize: vertical; line-height: 1.45; white-space: pre;" placeholder="Select an existing script above or click 'Generate & Apply Script' to view the synthesized Playwright test code..."></textarea>
+          </div>
+
+          <!-- Compact Activity Log -->
+          <div style="margin-top: 10px; background: #0f172a; border-radius: 6px; padding: 8px 12px; font-family: monospace; font-size: 11px; color: #94a3b8; max-height: 80px; overflow-y: auto;" id="genConsoleLogsContainer">
+            <div class="gen-log-entry info"><span class="log-time">[Ready]</span> Select a script or enter details, then click "Generate & Apply Script".</div>
+          </div>
+        </div>
+
+        <!-- ── TAB 2: GUIDELINES & UTILITIES (.MD) ── -->
+        <div class="gen-tab-panel" id="genPanelGuide" style="display: none;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+            <span style="font-size: 13px; color: var(--text-secondary);">
+              Review the master guidelines in <code>SCRIPT_GENERATOR_GUIDE.md</code>:
+            </span>
+            <button type="button" class="btn btn-primary btn-sm" id="genSaveGuideBtn">
+              <i class="fas fa-save"></i> Save Guide Changes
+            </button>
+          </div>
+          <textarea id="genGuideContentTextarea" style="width: 100%; height: 420px; font-family: monospace; font-size: 12px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); resize: vertical; line-height: 1.45;"></textarea>
+        </div>
+
+      </div>
+
+      <div class="modal-footer" style="padding: 12px 20px; background: var(--bg-tertiary); display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--border);">
+        <div style="font-size: 11.5px; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
+          <i class="fas fa-shield-check" style="color: #10b981;"></i>
+          <span>Execution-Free: Generates & updates Playwright test code without running tests.</span>
+        </div>
+        <button type="button" class="btn btn-secondary" id="generatorFooterCloseBtn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
