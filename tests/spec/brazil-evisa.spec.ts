@@ -2,9 +2,10 @@
  * Brazil Visa Application - E2E Test
  *
  * Refactored to use shared baseTest and captcha helper.
+ * Standardized with 3-stage dual URL verification (Preview -> Document Upload -> Payment).
  */
 
-import { test, expect, getUploadFile, capturescreenshot } from '../../utils/baseTest';
+import { test, expect, getUploadFile, capturescreenshot, verifyDirectUrls } from '../../utils/baseTest';
 import {
     getArrivalDate,
     getDepartureDate,
@@ -28,11 +29,10 @@ test('Brazil Visa Application', async ({ page, waitForCaptcha }) => {
 
     await page.goto('https://brazil-evisa.info/apply-evisa/');
     try {
-  await page.waitForLoadState('networkidle', { timeout: 5000 });
-} catch {
-  console.log('Network never went idle, continuing anyway');
-}
-
+        await page.waitForLoadState('networkidle', { timeout: 5000 });
+    } catch {
+        console.log('Network never went idle, continuing anyway');
+    }
 
 
     // =====================================
@@ -163,7 +163,7 @@ test('Brazil Visa Application', async ({ page, waitForCaptcha }) => {
 
 
     // =====================================
-    // PREVIEW
+    // PREVIEW STAGE & CHECKPOINT
     // =====================================
 
     await page.getByRole('button', { name: 'Next' })
@@ -209,6 +209,18 @@ test('Brazil Visa Application', async ({ page, waitForCaptcha }) => {
     }
     await page.waitForTimeout(1000);
     await capturescreenshot(page, 'preview');
+
+    // =========================================================================
+    // DIRECT URL VERIFICATION - STAGE 1: PREVIEW STAGE
+    // =========================================================================
+    await verifyDirectUrls(page, {
+        stageName: 'preview',
+        orderIdSelector: '#order_id_spn, #order_id, [data-order-id]',
+        urls: ['/visa-status/', '/complete-partially/'],
+        waitForCaptcha: true,
+        networkIdleTimeoutMs: 5000,
+    });
+
     await page.getByRole('button', { name: 'Submit & Preview' })
         .click();
     try {
@@ -222,7 +234,7 @@ test('Brazil Visa Application', async ({ page, waitForCaptcha }) => {
 
 
     // =====================================
-    // UPLOAD FILE
+    // UPLOAD FILE & CHECKPOINT
     // =====================================
 
     const uploadFile = getUploadFile();
@@ -245,9 +257,20 @@ test('Brazil Visa Application', async ({ page, waitForCaptcha }) => {
         console.log('Network never went idle, continuing anyway');
     }
 
+    // =========================================================================
+    // DIRECT URL VERIFICATION - STAGE 2: DOCUMENT UPLOAD STAGE
+    // =========================================================================
+    await verifyDirectUrls(page, {
+        stageName: 'document-upload',
+        orderIdSelector: '#order_id_spn, #order_id, [data-order-id]',
+        urls: ['/visa-status/', '/complete-partially/'],
+        waitForCaptcha: true,
+        networkIdleTimeoutMs: 5000,
+    });
+
 
     // =====================================
-    // PAYMENT
+    // PAYMENT STAGE & CHECKPOINT
     // =====================================
 
     await page.waitForTimeout(1000);
@@ -265,6 +288,17 @@ test('Brazil Visa Application', async ({ page, waitForCaptcha }) => {
             name: 'Pay Application Processing Fee'
         })
     ).toBeVisible({ timeout: 30000 });
+
+    // =========================================================================
+    // DIRECT URL VERIFICATION - STAGE 3: PAYMENT STAGE
+    // =========================================================================
+    await verifyDirectUrls(page, {
+        stageName: 'payment',
+        orderIdSelector: '#order_id_spn, #order_id, [data-order-id]',
+        urls: ['/visa-status/', '/complete-partially/'],
+        waitForCaptcha: true,
+        networkIdleTimeoutMs: 5000,
+    });
 
     await page.waitForTimeout(1000);
     await capturescreenshot(page, 'payment-page');

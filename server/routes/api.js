@@ -738,8 +738,9 @@ router.post('/generator/stop', (req, res) => {
 
 router.get('/generator/guide', (req, res) => {
   try {
-    const content = scriptGeneratorService.getGuide();
-    res.json({ success: true, content });
+    const file = req.query.file || 'SCRIPT_GENERATOR_GUIDE.md';
+    const content = scriptGeneratorService.getGuide(file);
+    res.json({ success: true, file, content });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -747,8 +748,8 @@ router.get('/generator/guide', (req, res) => {
 
 router.post('/generator/guide', (req, res) => {
   try {
-    const { content } = req.body;
-    const result = scriptGeneratorService.updateGuide(content);
+    const { content, file } = req.body;
+    const result = scriptGeneratorService.updateGuide(content, file || 'SCRIPT_GENERATOR_GUIDE.md');
     res.json(result);
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

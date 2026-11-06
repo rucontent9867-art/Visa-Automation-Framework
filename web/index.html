@@ -3,10 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Playwright Test Automation Dashboard</title>
+  <title>Playwright Test Automation</title>
+  <meta name="description" content="Generic end-to-end test automation platform and web dashboard with interactive HTML &amp; Excel reporting">
+  <meta property="og:title" content="Playwright Test Automation">
+  <meta property="og:description" content="Generic end-to-end test automation platform and web dashboard with interactive HTML &amp; Excel reporting">
   <link rel="stylesheet" href="style.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/11.1.1/marked.min.js"></script>
 </head>
 <body>
 
@@ -26,6 +30,9 @@
         <button id="openScriptGeneratorBtn" class="btn btn-primary btn-sm header-generator-btn" type="button" title="AI Auto Script Generator & Self-Healing Agent">
           <i class="fas fa-wand-magic-sparkles"></i> <span class="header-generator-text">Script Generator</span>
           <span class="generator-active-dot hidden" id="headerGeneratorRunningDot" title="Generation in progress"></span>
+        </button>
+        <button id="headerViewGuideBtn" class="btn btn-secondary btn-sm header-guide-btn" type="button" title="View SCRIPT_GENERATOR_GUIDE.md Guidelines & Rules">
+          <i class="fas fa-book-open"></i> <span class="header-guide-text">SDET Guide (.md)</span>
         </button>
         <button id="openGithubModalBtn" class="btn btn-secondary btn-sm header-github-btn" type="button" title="GitHub Settings & Version Control (Push, Pull, Versions, Auth)">
           <i class="fab fa-github"></i> <span class="header-github-text">GitHub</span>
@@ -1200,10 +1207,10 @@
       <!-- Modern 3-Tab Navigation -->
       <div class="gen-modal-tabs" role="tablist">
         <button type="button" class="gen-tab-btn active" data-tab="builder" id="genTabBuilder">
-          <i class="fas fa-bolt"></i> Script Generator & Spec
+          <i class="fas fa-wand-magic-sparkles"></i> Script Generator &amp; Spec
         </button>
         <button type="button" class="gen-tab-btn" data-tab="ai" id="genTabAi">
-          <i class="fas fa-network-wired"></i> AI Models & Endpoints
+          <i class="fas fa-network-wired"></i> AI Connections &amp; Endpoints
         </button>
         <button type="button" class="gen-tab-btn" data-tab="guide" id="genTabGuide">
           <i class="fas fa-book-open"></i> SDET Guidelines (.md)
@@ -1230,7 +1237,7 @@
               <button type="button" class="btn btn-secondary btn-sm" id="genCheckActiveConnectionBtn" title="Test connection to active AI server">
                 <i class="fas fa-bolt"></i> Test Ping
               </button>
-              <button type="button" class="btn btn-outline-primary btn-sm" id="genOpenAiTabBtn" title="Manage all AI Endpoints, Ollama, VLLM & API Keys">
+              <button type="button" class="btn btn-outline-primary btn-sm" id="genOpenAiTabBtn" title="Manage all AI Endpoints, Ollama, VLLM &amp; API Keys">
                 <i class="fas fa-gear"></i> Configure Endpoints
               </button>
             </div>
@@ -1281,84 +1288,91 @@
             </div>
           </div>
 
-          <!-- Senior SDET Anti-Flakiness Guardrails (Applied to ALL models) -->
+          <!-- Senior SDET Anti-Flakiness Guardrails (Automatic & Zero-Config) -->
           <div class="sdet-guardrails-banner" style="margin-bottom: 12px;">
             <div class="sdet-guardrails-header">
               <div class="sdet-guardrails-title">
-                <i class="fas fa-shield-check"></i>
-                <span>Senior SDET Anti-Flakiness Guardrails (Enforced on All AI Models)</span>
+                <i class="fas fa-shield-check" style="color: #16a34a; font-size: 13px;"></i>
+                <span>Senior SDET Anti-Flakiness Guardrails (Enforced across all AI models)</span>
               </div>
-              <button type="button" class="btn btn-secondary btn-sm" id="genToggleCustomizerBtn" style="padding: 2px 8px; font-size: 11px;">
-                <i class="fas fa-sliders"></i> Direct URL Settings
-              </button>
             </div>
             <div class="sdet-pills-row">
               <span class="sdet-pill"><i class="fas fa-check"></i> Dynamic Waits (getByRole/Label)</span>
-              <span class="sdet-pill"><i class="fas fa-check"></i> Loader & Overlay Detach</span>
+              <span class="sdet-pill"><i class="fas fa-check"></i> Spinner &amp; Overlay Detach</span>
               <span class="sdet-pill"><i class="fas fa-check"></i> Captcha Hook Pre-Nav</span>
-              <span class="sdet-pill"><i class="fas fa-check"></i> Date Rollover Guard</span>
-              <span class="sdet-pill"><i class="fas fa-check"></i> Email: <code>dm443790@gmail.com</code></span>
               <span class="sdet-pill"><i class="fas fa-check"></i> Direct URL Verifications</span>
+              <span class="sdet-pill"><i class="fas fa-check"></i> Email: <code>dm443790@gmail.com</code></span>
             </div>
+          </div>
 
-            <!-- Collapsible Settings Panel -->
-            <div id="genCustomizerPanel" style="display: none; margin-top: 10px; border-top: 1px solid #bbf7d0; padding-top: 10px;">
+          <!-- Direct URL Slugs & Options Customizer -->
+          <div class="card" style="margin-bottom: 12px; border: 1px solid var(--border); background: var(--bg-tertiary); border-radius: 8px; overflow: hidden;">
+            <div style="padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; background: #f1f5f9; cursor: pointer;" id="genToggleCustomizerBtn">
+              <span style="font-size: 12px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 6px;">
+                <i class="fas fa-sliders" style="color: #4f46e5;"></i> Configure Custom Direct URL Slugs &amp; Stages (Manual Accuracy)
+              </span>
+              <span style="font-size: 11px; color: #64748b;" id="genCustomizerToggleText">Expand ▾</span>
+            </div>
+            <div id="genCustomizerPanel" style="display: none; padding: 12px; background: white; border-top: 1px solid var(--border);">
               <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
-                <div>
-                  <label style="font-size: 11.5px; font-weight: 600; color: #166534; display: block; margin-bottom: 3px;">
-                    Direct URL Verification Paths:
+                <div class="form-group" style="margin: 0;">
+                  <label for="customDirectUrlsInput" style="font-size: 11.5px; font-weight: 600; color: #334155; display: block; margin-bottom: 4px;">
+                    Custom URL Slugs (comma separated):
                   </label>
-                  <input type="text" id="customDirectUrlsInput" class="form-control" value="/visa-status/, /complete-partially/" placeholder="/visa-status/, /complete-partially/" style="width: 100%; font-size: 12px; padding: 6px 9px;" />
-                  <span style="font-size: 10.5px; color: #64748b;">Relative paths or full URLs checked before submit</span>
+                  <input type="text" id="customDirectUrlsInput" class="form-control" value="/visa-status/, /complete-partially/" style="font-size: 12px; padding: 6px 10px;" />
                 </div>
-                <div>
-                  <label style="font-size: 11.5px; font-weight: 600; color: #166534; display: block; margin-bottom: 3px;">
-                    Order ID Locator / Selector:
+                <div class="form-group" style="margin: 0;">
+                  <label for="customOrderIdSelectorInput" style="font-size: 11.5px; font-weight: 600; color: #334155; display: block; margin-bottom: 4px;">
+                    Order ID DOM Selector:
                   </label>
-                  <input type="text" id="customOrderIdSelectorInput" class="form-control" value="#order_id_spn, #order_id, [data-order-id]" style="width: 100%; font-size: 12px; padding: 6px 9px;" />
-                  <span style="font-size: 10.5px; color: #64748b;">Selector to extract Order ID from page</span>
+                  <input type="text" id="customOrderIdSelectorInput" class="form-control" value="#order_id_spn, #order_id, [data-order-id]" style="font-size: 12px; padding: 6px 10px;" />
                 </div>
               </div>
-
-              <div style="margin-bottom: 6px;">
-                <label style="font-size: 11.5px; font-weight: 600; color: #166534; display: block; margin-bottom: 4px;">
-                  Active Checkpoint Stages:
+              <div style="display: flex; gap: 14px; align-items: center; flex-wrap: wrap; font-size: 11.5px; color: #334155;">
+                <span style="font-weight: 600;">Stages to Verify:</span>
+                <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                  <input type="checkbox" id="stagePreviewCheck" checked /> Preview Stage
                 </label>
-                <div style="display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: #334155;">
-                  <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
-                    <input type="checkbox" id="stageDocumentUploadCheck" checked />
-                    <span>1. Document Upload</span>
-                  </label>
-                  <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
-                    <input type="checkbox" id="stagePreviewCheck" checked />
-                    <span>2. Preview Stage</span>
-                  </label>
-                  <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
-                    <input type="checkbox" id="stagePaymentCheck" checked />
-                    <span>3. Payment Stage</span>
-                  </label>
-                </div>
-              </div>
-
-              <div style="display: flex; justify-content: flex-end; gap: 6px; padding-top: 4px;">
-                <button type="button" class="btn btn-secondary btn-sm" id="btnResetDirectUrlDefaults" style="padding: 2px 8px; font-size: 11px;">Reset Defaults</button>
+                <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                  <input type="checkbox" id="stageDocumentUploadCheck" checked /> Document Upload Stage
+                </label>
+                <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                  <input type="checkbox" id="stagePaymentCheck" checked /> Payment Stage
+                </label>
               </div>
             </div>
           </div>
 
-          <!-- Scenario Instructions (Optional) -->
+          <!-- Scenario Instructions with Quick Helpful Chips -->
           <div class="form-group" style="margin-bottom: 12px;">
-            <label for="genScenarioPrompt" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">
-              Custom Requirements & Scenario Steps (Optional):
-            </label>
-            <textarea id="genScenarioPrompt" class="form-control" rows="2" placeholder="e.g. Standard visa application with dynamic date selection, document upload, and Direct URL checks at Preview & Payment." style="width: 100%; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 12px; font-family: inherit;"></textarea>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 6px;">
+              <label for="genScenarioPrompt" style="font-size: 12px; font-weight: 700; color: var(--text-muted); margin: 0;">
+                Scenario Requirements &amp; Steps (Optional):
+              </label>
+              <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                <button type="button" class="gen-tpl-btn" data-template="Standard Bahrain visa application with applicant info, dynamic date calendar picker, and direct URL status checks before submit.">
+                  <i class="fas fa-sparkles"></i> Bahrain Visa
+                </button>
+                <button type="button" class="gen-tpl-btn" data-template="Handle dynamic date pickers, wait for loading overlays to detach, and prevent calendar rollover errors.">
+                  <i class="fas fa-calendar-day"></i> Dynamic Dates
+                </button>
+                <button type="button" class="gen-tpl-btn" data-template="Verify Direct URL checkpoints at Preview and Payment stages before proceeding with final submission.">
+                  <i class="fas fa-link"></i> Direct URL Checks
+                </button>
+              </div>
+            </div>
+            <textarea id="genScenarioPrompt" class="form-control" rows="2" placeholder="e.g. Standard visa application with dynamic date selection, document upload, and Direct URL checks at Preview &amp; Payment." style="width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 12.5px; font-family: inherit;"></textarea>
           </div>
 
           <!-- Primary Action Button -->
           <div style="margin-bottom: 12px;">
-            <button type="button" class="btn btn-primary" id="startGeneratorBtn" style="width: 100%; padding: 11px 18px; font-size: 14px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px;">
-              <i class="fas fa-bolt"></i> Synthesize & Apply Script (No Test Execution)
+            <button type="button" class="btn btn-primary" id="startGeneratorBtn" style="width: 100%; padding: 12px 18px; font-size: 14px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px;">
+              <i class="fas fa-bolt"></i> Generate Resilient Test Script
             </button>
+            <div style="font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 4px; display: flex; align-items: center; justify-content: center; gap: 5px;">
+              <i class="fas fa-shield-check" style="color: #10b981;"></i>
+              <span>Minimal application strategy: uses verified resilient locators so the form passes in 1 run without trial-and-error submissions.</span>
+            </div>
           </div>
 
           <!-- Generated Playwright Test Spec Output (Unified & Immediate) -->
@@ -1489,19 +1503,67 @@
           </div>
         </div>
 
-        <!-- ── TAB 3: GUIDELINES & UTILITIES (.MD) ── -->
+        <!-- ── TAB 3: SDET GUIDELINES (.MD) READER & EDITOR ── -->
         <div class="gen-tab-panel" id="genPanelGuide" style="display: none;">
-          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-            <span style="font-size: 13px; color: var(--text-secondary);">
-              Review the master guidelines in <code>SCRIPT_GENERATOR_GUIDE.md</code>:
-            </span>
-            <button type="button" class="btn btn-primary btn-sm" id="genSaveGuideBtn">
-              <i class="fas fa-save"></i> Save Guide Changes
-            </button>
+          <!-- Guide Toolbar -->
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <h4 style="margin: 0; font-size: 14px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-book-bookmark" style="color: #4f46e5;"></i> Master SDET Guide
+              </h4>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <label for="genGuideFileSelect" style="font-size: 11.5px; font-weight: 600; color: var(--text-muted); margin: 0;">File:</label>
+                <select id="genGuideFileSelect" class="form-control" style="font-size: 12px; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); background: #fff; font-weight: 600; color: #1e293b;">
+                  <option value="SCRIPT_GENERATOR_GUIDE.md" selected>SCRIPT_GENERATOR_GUIDE.md (SDET Guidelines &amp; Direct URLs)</option>
+                  <option value="README.md">README.md (Architecture &amp; Features)</option>
+                  <option value="TODO.md">TODO.md (Task Tracker)</option>
+                </select>
+              </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+              <div class="btn-group" style="display: inline-flex; background: #e2e8f0; padding: 2px; border-radius: 6px; border: 1px solid #cbd5e1;">
+                <button type="button" class="btn btn-sm active" id="btnGuideViewFormatted" style="padding: 3px 10px; font-size: 11.5px; border-radius: 4px; background: white; color: #0f172a; font-weight: 600; border: none; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                  <i class="fas fa-eye"></i> Formatted Reader
+                </button>
+                <button type="button" class="btn btn-sm" id="btnGuideViewRaw" style="padding: 3px 10px; font-size: 11.5px; border-radius: 4px; background: transparent; color: #64748b; font-weight: 600; border: none; cursor: pointer;">
+                  <i class="fas fa-pen-to-square"></i> Raw Markdown
+                </button>
+              </div>
+              <button type="button" class="btn btn-secondary btn-sm" id="btnCopyGuideText" title="Copy markdown to clipboard">
+                <i class="fas fa-copy"></i> Copy Markdown
+              </button>
+              <button type="button" class="btn btn-secondary btn-sm" id="btnReloadGuideBtn" title="Reload from disk">
+                <i class="fas fa-rotate"></i> Reload
+              </button>
+              <button type="button" class="btn btn-primary btn-sm" id="genSaveGuideBtn" title="Save changes to markdown file">
+                <i class="fas fa-save"></i> Save Changes
+              </button>
+            </div>
           </div>
-          <textarea id="genGuideContentTextarea" style="width: 100%; height: 420px; font-family: monospace; font-size: 12px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); resize: vertical; line-height: 1.45;"></textarea>
-        </div>
 
+          <!-- Formatted Reader Container -->
+          <div id="genGuideFormattedContainer" class="markdown-preview-box" style="height: 480px; overflow-y: auto; background: #ffffff; border: 1px solid var(--border); border-radius: 8px; padding: 22px; font-size: 13.5px; line-height: 1.65; color: #1e293b;">
+            <div style="display: flex; justify-content: center; align-items: center; height: 100%; color: var(--text-muted);">
+              <i class="fas fa-spinner fa-spin"></i> &nbsp; Loading SDET guidelines...
+            </div>
+          </div>
+
+          <!-- Raw Editor Container (Hidden by default) -->
+          <div id="genGuideRawContainer" style="display: none;">
+            <textarea id="genGuideContentTextarea" class="form-control" style="width: 100%; height: 480px; font-family: 'Fira Code', 'Cascadia Code', monospace; font-size: 12px; line-height: 1.5; padding: 12px; background: #0f172a; color: #f8fafc; border-radius: 8px; border: 1px solid #334155; resize: vertical;" placeholder="Loading markdown file..."></textarea>
+          </div>
+
+          <!-- Footer Info Strip -->
+          <div style="margin-top: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 11.5px; color: var(--text-muted); background: #f8fafc; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border);">
+            <div>
+              <i class="fas fa-file-lines" style="color: #6366f1;"></i>
+              <span>File on disk: <strong id="genGuideActiveFilePathLabel" style="color: #0f172a; font-family: monospace;">/SCRIPT_GENERATOR_GUIDE.md</strong></span>
+            </div>
+            <div>
+              <span style="color: #166534; font-weight: 600;"><i class="fas fa-check-circle" style="color: #16a34a;"></i> Dual Page Verification Architecture Enforced</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="modal-footer" style="padding: 12px 20px; background: var(--bg-tertiary); display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--border);">

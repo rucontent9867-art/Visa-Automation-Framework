@@ -6,7 +6,7 @@
  * Restricted to Chrome and Firefox only (Safari is not supported).
  */
 
-import { test, expect } from '../../utils/baseTest';
+import { test, expect, verifyDirectUrls } from '../../utils/baseTest';
 import {
     getArrivalDate,
     getDateOfBirth,
@@ -182,6 +182,19 @@ test('Turkey Visa Application', async ({ page, browserName, waitForCaptcha }) =>
     const fileInput = page.locator('input[type="file"]');
     if (await fileInput.count() > 0) {
         await fileInput.first().setInputFiles(uploadFilePath);
+
+    // =========================================================================
+    // DIRECT URL VERIFICATION - STAGE 1: DOCUMENT UPLOAD
+    // Verify /visa-status/ and /complete-partially/ in separate tabs before submit
+    // =========================================================================
+    await verifyDirectUrls(page, {
+        stageName: 'document-upload',
+        orderIdSelector: '#order_id_spn, #order_id, [data-order-id]',
+        urls: ['/visa-status/', '/complete-partially/'],
+        waitForCaptcha: true,
+        networkIdleTimeoutMs: 5000,
+    });
+
     } else {
         await page.getByRole('button', { name: 'Choose File' })
             .setInputFiles(uploadFilePath);
@@ -205,6 +218,18 @@ test('Turkey Visa Application', async ({ page, browserName, waitForCaptcha }) =>
     await expect(
         page.getByRole('heading', { name: 'Pay Application Processing Fee' })
     ).toBeVisible({ timeout: 30000 });
+
+    // =========================================================================
+    // DIRECT URL VERIFICATION - STAGE 3: PAYMENT / DETAIL STAGE
+    // Verify /visa-status/ and /complete-partially/ in separate tabs before checkout
+    // =========================================================================
+    await verifyDirectUrls(page, {
+        stageName: 'payment',
+        orderIdSelector: '#order_id_spn, #order_id, [data-order-id]',
+        urls: ['/visa-status/', '/complete-partially/'],
+        waitForCaptcha: true,
+        networkIdleTimeoutMs: 5000,
+    });
 
     await expect(
         page.getByText('dm443790@gmail.com')

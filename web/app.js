@@ -2484,6 +2484,10 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       if (ghStatusRepoText) ghStatusRepoText.textContent = 'Loading repository status...';
       const res = await fetch('/api/github/status');
+      const contentType = res.headers.get('content-type') || '';
+      if (!res.ok || !contentType.includes('application/json')) {
+        return;
+      }
       const data = await res.json();
 
       if (ghStatusRepoText) {
@@ -2642,6 +2646,10 @@ document.addEventListener('DOMContentLoaded', () => {
   async function loadGithubConfig() {
     try {
       const res = await fetch('/api/github/config');
+      const contentType = res.headers.get('content-type') || '';
+      if (!res.ok || !contentType.includes('application/json')) {
+        return;
+      }
       const data = await res.json();
       if (data.success && data.config) {
         if (ghRepoUrlInput) ghRepoUrlInput.value = data.config.repoUrl || '';
@@ -2662,6 +2670,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
       const res = await fetch('/api/github/versions');
+      const contentType = res.headers.get('content-type') || '';
+      if (!res.ok || !contentType.includes('application/json')) {
+        return;
+      }
       const data = await res.json();
       if (data.ok && Array.isArray(data.versions)) {
         if (data.versions.length === 0) {
@@ -2985,8 +2997,17 @@ document.addEventListener('DOMContentLoaded', () => {
   const genSpecCodeViewer = document.getElementById('genSpecCodeViewer');
   const genCopySpecBtn = document.getElementById('genCopySpecBtn');
   const genSaveSpecBtn = document.getElementById('genSaveSpecBtn');
+  const headerViewGuideBtn = document.getElementById('headerViewGuideBtn');
   const genGuideContentTextarea = document.getElementById('genGuideContentTextarea');
   const genSaveGuideBtn = document.getElementById('genSaveGuideBtn');
+  const genGuideFileSelect = document.getElementById('genGuideFileSelect');
+  const btnGuideViewFormatted = document.getElementById('btnGuideViewFormatted');
+  const btnGuideViewRaw = document.getElementById('btnGuideViewRaw');
+  const btnCopyGuideText = document.getElementById('btnCopyGuideText');
+  const btnReloadGuideBtn = document.getElementById('btnReloadGuideBtn');
+  const genGuideFormattedContainer = document.getElementById('genGuideFormattedContainer');
+  const genGuideRawContainer = document.getElementById('genGuideRawContainer');
+  const genGuideActiveFilePathLabel = document.getElementById('genGuideActiveFilePathLabel');
 
   let currentCheckpoints = [];
 
@@ -3854,35 +3875,152 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Markdown renderer with marked.js support + robust offline fallback
+  function renderMarkdownSafely(text) {
+    if (!text) return '<p style="color: #94a3b8; font-style: italic;">(Empty markdown document)</p>';
+    if (typeof window !== 'undefined' && window.marked && typeof window.marked.parse === 'function') {
+      try {
+        return window.marked.parse(text);
+      } catch (e) {
+        console.warn('marked.parse error, using fallback:', e);
+      }
+    }
+    // Offline / fallback regex parser
+    let html = text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+
+    // Fenced code blocks ```lang ... ```
+    html = html.replace(/```([a-z0-9_-]*)\n([\s\S]*?)```/gm, (match, lang, code) => {
+      return `<pre><code class="language-${lang}">${code}</code></pre>`;
+    });
+
+    // Inline code `...`
+    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+    // Headers
+    html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+    html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+    html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+
+    // Bold & italic
+    html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+
+    // Blockquotes
+    html = html.replace(/^\> (.*$)/gim, '<blockquote>$1</blockquote>');
+
+    // Unordered lists
+    html = html.replace(/^\s*[-*]\s+(.*$)/gim, '<li>$1</li>');
+
+    // Paragraphs for remaining text
+    html = html.split('\n\n').map(p => {
+      if (p.startsWith('<h') || p.startsWith('<pre') || p.startsWith('<block') || p.startsWith('<li>')) return p;
+      return `<p>${p.replace(/\n/g, '<br>')}</p>`;
+    }).join('\n');
+
+    return html;
+  }
+
   // Guide loading & saving
-  async function loadGeneratorGuide() {
-    if (!genGuideContentTextarea) return;
+  async function loadGeneratorGuide(fileName) {
+    const targetFile = fileName || (genGuideFileSelect ? genGuideFileSelect.value : 'SCRIPT_GENERATOR_GUIDE.md');
     try {
-      const res = await fetch('/api/generator/guide');
+      if (genGuideFormattedContainer) {
+        genGuideFormattedContainer.innerHTML = `<div style="display: flex; justify-content: center; align-items: center; height: 100%; color: var(--text-muted);"><i class="fas fa-spinner fa-spin"></i> &nbsp; Loading ${targetFile}...</div>`;
+      }
+      const res = await fetch(`/api/generator/guide?file=${encodeURIComponent(targetFile)}`);
       const data = await res.json();
-      if (data.success && data.content) {
-        genGuideContentTextarea.value = data.content;
+      if (data.success && typeof data.content === 'string') {
+        if (genGuideContentTextarea) genGuideContentTextarea.value = data.content;
+        if (genGuideFormattedContainer) genGuideFormattedContainer.innerHTML = renderMarkdownSafely(data.content);
+        if (genGuideActiveFilePathLabel) genGuideActiveFilePathLabel.textContent = `/${data.file || targetFile}`;
       }
     } catch (err) {
       console.error('[Generator] load guide error:', err);
+      if (genGuideFormattedContainer) {
+        genGuideFormattedContainer.innerHTML = `<p style="color: #ef4444;"><i class="fas fa-triangle-exclamation"></i> Error loading guide: ${err.message}</p>`;
+      }
     }
   }
 
+  // Switch between Formatted Reader and Raw Markdown
+  if (btnGuideViewFormatted && btnGuideViewRaw) {
+    btnGuideViewFormatted.addEventListener('click', () => {
+      if (genGuideFormattedContainer) genGuideFormattedContainer.style.display = 'block';
+      if (genGuideRawContainer) genGuideRawContainer.style.display = 'none';
+      btnGuideViewFormatted.classList.add('active');
+      btnGuideViewFormatted.style.background = 'white';
+      btnGuideViewFormatted.style.color = '#0f172a';
+      btnGuideViewRaw.classList.remove('active');
+      btnGuideViewRaw.style.background = 'transparent';
+      btnGuideViewRaw.style.color = '#64748b';
+    });
+
+    btnGuideViewRaw.addEventListener('click', () => {
+      if (genGuideFormattedContainer) genGuideFormattedContainer.style.display = 'none';
+      if (genGuideRawContainer) genGuideRawContainer.style.display = 'block';
+      btnGuideViewRaw.classList.add('active');
+      btnGuideViewRaw.style.background = 'white';
+      btnGuideViewRaw.style.color = '#0f172a';
+      btnGuideViewFormatted.classList.remove('active');
+      btnGuideViewFormatted.style.background = 'transparent';
+      btnGuideViewFormatted.style.color = '#64748b';
+    });
+  }
+
+  // Copy Markdown button
+  if (btnCopyGuideText) {
+    btnCopyGuideText.addEventListener('click', () => {
+      const text = genGuideContentTextarea ? genGuideContentTextarea.value : '';
+      if (!text) {
+        showToast('No markdown content to copy.', 'warning');
+        return;
+      }
+      navigator.clipboard.writeText(text)
+        .then(() => showToast('Markdown copied to clipboard!', 'info'))
+        .catch(() => showToast('Failed to copy markdown', 'warning'));
+    });
+  }
+
+  // Reload button
+  if (btnReloadGuideBtn) {
+    btnReloadGuideBtn.addEventListener('click', () => {
+      const targetFile = genGuideFileSelect ? genGuideFileSelect.value : 'SCRIPT_GENERATOR_GUIDE.md';
+      loadGeneratorGuide(targetFile);
+      showToast(`Reloaded ${targetFile} from disk`, 'info');
+    });
+  }
+
+  // File selector dropdown change
+  if (genGuideFileSelect) {
+    genGuideFileSelect.addEventListener('change', () => {
+      loadGeneratorGuide(genGuideFileSelect.value);
+    });
+  }
+
+  // Save Guide button
   if (genSaveGuideBtn) {
     genSaveGuideBtn.addEventListener('click', async () => {
       const content = genGuideContentTextarea ? genGuideContentTextarea.value : '';
+      const file = genGuideFileSelect ? genGuideFileSelect.value : 'SCRIPT_GENERATOR_GUIDE.md';
       try {
         const res = await fetch('/api/generator/guide', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content })
+          body: JSON.stringify({ content, file })
         });
         const data = await res.json();
         if (data.success) {
-          showToast('SCRIPT_GENERATOR_GUIDE.md saved successfully!', 'success');
+          showToast(`${file} saved successfully!`, 'success');
+          // Re-render formatted view
+          if (genGuideFormattedContainer) genGuideFormattedContainer.innerHTML = renderMarkdownSafely(content);
+        } else {
+          throw new Error(data.error || 'Failed to save');
         }
       } catch (err) {
-        showToast('Failed to save guide: ' + err.message, 'error');
+        showToast('Failed to save: ' + err.message, 'error');
       }
     });
   }
@@ -3944,6 +4082,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (openScriptGeneratorBtn) {
     openScriptGeneratorBtn.addEventListener('click', openGeneratorModal);
+  }
+
+  if (headerViewGuideBtn) {
+    headerViewGuideBtn.addEventListener('click', () => {
+      openGeneratorModal();
+      switchGenTab('guide');
+    });
   }
 
   if (closeGeneratorModalBtn) {

@@ -5,7 +5,7 @@
  * Starts directly from the application page URL.
  */
 
-import { test, expect, capturescreenshot } from '../../utils/baseTest';
+import { test, expect, capturescreenshot, verifyDirectUrls } from '../../utils/baseTest';
 import {
     getArrivalDate,
     getPassportExpiryDate,
@@ -140,6 +140,19 @@ test('Egypt Visa Application', async ({ page, waitForCaptcha }) => {
     const fileInput = page.locator('input[type="file"]');
     if (await fileInput.count() > 0) {
         await fileInput.first().setInputFiles(uploadFilePath);
+
+    // =========================================================================
+    // DIRECT URL VERIFICATION - STAGE 1: DOCUMENT UPLOAD
+    // Verify /visa-status/ and /complete-partially/ in separate tabs before submit
+    // =========================================================================
+    await verifyDirectUrls(page, {
+        stageName: 'document-upload',
+        orderIdSelector: '#order_id_spn, #order_id, [data-order-id]',
+        urls: ['/visa-status/', '/complete-partially/'],
+        waitForCaptcha: true,
+        networkIdleTimeoutMs: 5000,
+    });
+
     } else {
         await page.getByRole('button', { name: 'Choose File' })
             .setInputFiles(uploadFilePath);
@@ -177,6 +190,18 @@ test('Egypt Visa Application', async ({ page, waitForCaptcha }) => {
     await expect(
         page.getByRole('heading', { name: 'Pay Application Processing Fee' })
     ).toBeVisible({ timeout: 30000 });
+
+    // =========================================================================
+    // DIRECT URL VERIFICATION - STAGE 3: PAYMENT / DETAIL STAGE
+    // Verify /visa-status/ and /complete-partially/ in separate tabs before checkout
+    // =========================================================================
+    await verifyDirectUrls(page, {
+        stageName: 'payment',
+        orderIdSelector: '#order_id_spn, #order_id, [data-order-id]',
+        urls: ['/visa-status/', '/complete-partially/'],
+        waitForCaptcha: true,
+        networkIdleTimeoutMs: 5000,
+    });
 
     await page.waitForTimeout(1000);
     await capturescreenshot(page, 'payment-page');

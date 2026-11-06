@@ -41,8 +41,12 @@ function saveConfig(newConfig) {
 }
 
 function runGit(command) {
+  let cmd = command;
+  if (cmd.startsWith('git ') && !cmd.includes('safe.directory')) {
+    cmd = cmd.replace(/^git\s+/, 'git -c safe.directory=* ');
+  }
   return new Promise((resolve, reject) => {
-    exec(command, { cwd: process.cwd(), maxBuffer: 1024 * 1024 * 10 }, (error, stdout, stderr) => {
+    exec(cmd, { cwd: process.cwd(), maxBuffer: 1024 * 1024 * 10 }, (error, stdout, stderr) => {
       if (error) {
         return reject(new Error(stderr || error.message));
       }

@@ -76,10 +76,12 @@ function addLog(message, level = 'info') {
   broadcastEvent('log', logEntry);
 }
 
-function getGuide() {
+function getGuide(fileName = 'SCRIPT_GENERATOR_GUIDE.md') {
   try {
-    if (fs.existsSync(GUIDE_PATH)) {
-      return fs.readFileSync(GUIDE_PATH, 'utf8');
+    const safeName = path.basename(fileName);
+    const targetPath = path.join(process.cwd(), safeName);
+    if (fs.existsSync(targetPath)) {
+      return fs.readFileSync(targetPath, 'utf8');
     }
   } catch (err) {
     console.error('[ScriptGenerator] Error reading guide:', err.message);
@@ -87,9 +89,11 @@ function getGuide() {
   return '# Script Generator Guide\nStandard Playwright automated script guidelines.';
 }
 
-function updateGuide(content) {
-  fs.writeFileSync(GUIDE_PATH, content, 'utf8');
-  return { success: true, message: 'Script Generator Guide updated.' };
+function updateGuide(content, fileName = 'SCRIPT_GENERATOR_GUIDE.md') {
+  const safeName = path.basename(fileName);
+  const targetPath = path.join(process.cwd(), safeName);
+  fs.writeFileSync(targetPath, content, 'utf8');
+  return { success: true, message: `${safeName} updated successfully.` };
 }
 
 function getExistingSpecs() {

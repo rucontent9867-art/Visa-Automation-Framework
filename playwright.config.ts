@@ -20,18 +20,10 @@ if (!process.env.PLAYWRIGHT_BROWSERS_PATH && fs.existsSync('/ms-playwright')) {
 }
 
 const isLinux = process.platform === 'linux';
-const isContainer = isLinux && (
-  process.env.CONTAINER === 'true' ||
-  process.env.DOCKER === 'true' ||
-  Boolean(process.env.KUBERNETES_SERVICE_HOST) ||
-  Boolean(process.env.CI) ||
-  fs.existsSync('/.dockerenv') ||
-  fs.existsSync('/run/.containerenv')
-);
 
 const getContainerLaunchArgs = () => {
-  if (isContainer) {
-    return ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'];
+  if (isLinux) {
+    return ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'];
   }
   return [];
 };

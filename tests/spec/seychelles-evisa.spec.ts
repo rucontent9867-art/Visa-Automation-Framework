@@ -5,7 +5,7 @@
  * Starts directly from the application page URL.
  */
 
-import { test, expect } from '../../utils/baseTest';
+import { test, expect, verifyDirectUrls } from '../../utils/baseTest';
 import {
     getArrivalDate,
     getPassportExpiryDate,
@@ -201,6 +201,18 @@ test('Seychelles Visa Application', async ({ page, waitForCaptcha }) => {
     await expect(
         page.getByRole('heading', { name: 'Application Detail' })
     ).toBeVisible({ timeout: 30000 });
+
+    // =========================================================================
+    // DIRECT URL VERIFICATION - STAGE 3: PAYMENT / DETAIL STAGE
+    // Verify /visa-status/ and /complete-partially/ in separate tabs before checkout
+    // =========================================================================
+    await verifyDirectUrls(page, {
+        stageName: 'payment',
+        orderIdSelector: '#order_id_spn, #order_id, [data-order-id]',
+        urls: ['/visa-status/', '/complete-partially/'],
+        waitForCaptcha: true,
+        networkIdleTimeoutMs: 5000,
+    });
 
     await expect(
         page.getByText('dm443790@gmail.com')

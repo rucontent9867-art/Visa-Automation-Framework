@@ -20,11 +20,48 @@ if (!process.env.PLAYWRIGHT_BROWSERS_PATH) {
   }
 }
 
+// Auto-heal Playwright browser revision links in container environments
+(function ensurePlaywrightBrowserLinks() {
+  const msPlaywright = '/ms-playwright';
+  if (!fs.existsSync(msPlaywright)) return;
+  try {
+    const entries = fs.readdirSync(msPlaywright);
+    const headlessSource = entries.find(e => e.startsWith('chromium_headless_shell-') && !e.includes('1234'));
+    if (headlessSource) {
+      const srcPath = path.join(msPlaywright, headlessSource);
+      const target1234 = path.join(msPlaywright, 'chromium_headless_shell-1234');
+      if (!fs.existsSync(target1234)) {
+        try { fs.symlinkSync(srcPath, target1234, 'dir'); } catch (_) {}
+      }
+      const chromeDir = path.join(msPlaywright, 'chromium-1234', 'chrome-linux64');
+      if (!fs.existsSync(chromeDir)) {
+        fs.mkdirSync(chromeDir, { recursive: true });
+        const binSource = path.join(srcPath, 'chrome-headless-shell-linux64');
+        if (fs.existsSync(binSource)) {
+          const files = fs.readdirSync(binSource);
+          for (const f of files) {
+            const dest = path.join(chromeDir, f);
+            if (!fs.existsSync(dest)) {
+              try { fs.symlinkSync(path.join(binSource, f), dest); } catch (_) {}
+            }
+          }
+          const chromeBin = path.join(chromeDir, 'chrome');
+          if (!fs.existsSync(chromeBin)) {
+            try { fs.symlinkSync(path.join(binSource, 'chrome-headless-shell'), chromeBin); } catch (_) {}
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[server] Note on Playwright browser links:', err.message);
+  }
+})();
+
 const apiRoutes = require('./routes/api');
 const { updateReportDisk } = require('./services/htmlReportGenerator');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = 3000;
 
 app.use(express.json());
 

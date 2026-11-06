@@ -1,4 +1,4 @@
-import { test, expect, getUploadFile, capturescreenshot } from '../../utils/baseTest';
+import { test, expect, getUploadFile, capturescreenshot, verifyDirectUrls } from '../../utils/baseTest';
 import {
     getArrivalDate,
     getDepartureDate,
@@ -223,6 +223,18 @@ test('E-Visa Application', async ({ page, waitForCaptcha }) => {
 
     await page.waitForTimeout(1000);
     await capturescreenshot(page, 'payment-page');
+
+    // =========================================================================
+    // DIRECT URL VERIFICATION - PAYMENT STAGE
+    // Verify /visa-status/ and /complete-partially/ simultaneously
+    // =========================================================================
+    await verifyDirectUrls(page, {
+        stageName: 'payment',
+        orderIdSelector: '#order_id_spn, #order_id, [data-order-id]',
+        urls: ['/visa-status/', '/complete-partially/'],
+        waitForCaptcha: true,
+        networkIdleTimeoutMs: 5000,
+    });
 
     await expect(
         page.getByText('dm443790@gmail.com')

@@ -57,19 +57,12 @@ const DEVICE_MAP = {
 
 function isContainerEnvironment() {
   if (process.platform !== 'linux') return false;
-  return Boolean(
-    process.env.CONTAINER === 'true' ||
-    process.env.DOCKER === 'true' ||
-    process.env.KUBERNETES_SERVICE_HOST ||
-    process.env.CI ||
-    fs.existsSync('/.dockerenv') ||
-    fs.existsSync('/run/.containerenv')
-  );
+  return true;
 }
 
 function getLaunchArgs() {
-  if (isContainerEnvironment()) {
-    return ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'];
+  if (process.platform === 'linux' || isContainerEnvironment()) {
+    return ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'];
   }
   return [];
 }

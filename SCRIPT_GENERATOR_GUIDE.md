@@ -1,236 +1,259 @@
-# Playwright Test Automation - Master Script Generator Guide
+# Playwright Test Automation - Master Script Generator & Verification Guide
 
-This master knowledge base defines the exact architectural conventions, utility methods, locator strategies, email standards, and checkpoint-based recovery mechanisms used by the AI Auto Script Generator.
-
----
-
-## 1. Layman's Explanation: How It Handles Complex Scenarios
-
-### 🔹 Dynamic Elements (AJAX, Changing IDs, Delayed DOMs)
-Web forms frequently load elements asynchronously or generate random IDs (e.g., `id="passport_form_94827"`). 
-- **The Solution**: The generator uses **semantic user-facing locators** (`getByRole`, `getByLabel`, `getByPlaceholder`) and **prefix-based attribute locators** (`locator('[id^="passport_form_"]')`).
-- **Explicit Waits**: Instead of fixed sleeps, steps wait for the element's actual visibility: `await page.getByRole('textbox', { name: 'Name as per Passport', exact: true }).waitFor({ state: 'visible', timeout: 15000 });`.
-
-### 🔹 Popups, Modals & Native Dialogs
-- **HTML Modals & Cookie Overlays**: Handled by conditional dismissal before interacting:
-  ```typescript
-  const modalClose = page.locator('#modal-close, button:has-text("Accept"), button:has-text("Close")');
-  if (await modalClose.isVisible({ timeout: 2000 }).catch(() => false)) await modalClose.click();
-  ```
-- **Browser Dialogs (Alert, Confirm)**: Auto-accepted using event listeners:
-  ```typescript
-  page.on('dialog', async dialog => await dialog.accept());
-  ```
-
-### 🔹 Iframes (Embedded Forms & Payment Gateways)
-- Uses Playwright's `frameLocator` to target elements nested inside iframes without losing page context:
-  ```typescript
-  const paymentFrame = page.frameLocator('iframe#payment-iframe');
-  await paymentFrame.getByRole('textbox', { name: 'Card Number' }).fill('4242424242424242');
-  ```
-
-### 🔹 Smart Date & Time Filling
-Multi-step government portals reject invalid dates, past arrival dates, or expired passports.
-- Built-in helpers in `utils/date.ts` dynamically calculate valid dates:
-  - `getArrivalDate()`: Generates an arrival date exactly **9 months in the future** (avoids month-end rollover bugs).
-  - `getPassportExpiryDate()`: Generates a passport expiry date **5 years in the future**.
-  - `getFutureDate(months)`: Allows customizable future windows.
+This master knowledge base defines the architectural standards, code patterns, locator strategies, email standards, and direct URL verification mechanisms used by the AI Auto Script Generator.
 
 ---
 
-## 2. Core Mandatory Standards
+## 1. Capabilities Overview: What the Generator Can Handle
 
-1. **Mandatory Email Address**:
-   - **`dm443790@gmail.com`** is the ONLY authorized email to be used for all test email fields.
-   - Never use placeholder emails (`test@test.com`, `user@example.com`).
+The generator is fully capable of synthesizing and updating **all 3 primary testing archetypes**:
 
-2. **Stateful Checkpointing (No-Restart Rule)**:
-   - When generating or healing multi-page test scripts, tests are split into discrete **Page Stages** / Checkpoints.
-   - If an error occurs on Page 3, the engine **must NOT restart from Page 1**.
-   - The browser remains alive on Page 3, re-inspects the live DOM elements, heals the broken selector or interaction on that page, verifies it, and continues forward.
-   - All passed and healed checkpoints are then synthesized into a single cohesive end-to-end `.spec.ts` test script.
+| Test Archetype | Purpose | Behavior & End State |
+| :--- | :--- | :--- |
+| **Archetype 1: Full E2E with Dual Page Verification** *(Azerbaijan & Bahrain standard)* | Validates the complete application flow while simultaneously verifying status & partial resumption pages at each stage. | At **Document Upload**, **Preview**, and **Payment** stages, extracts Order ID and opens `/visa-status/` and `/complete-partially/` in separate browser tabs, solves captchas, captures stage screenshots, closes tabs, and lands on Payment screen. |
+| **Archetype 2: Up-to-Payment-Page Only** | Validates form fields, dynamic dates, and file uploads through to payment screen without opening secondary tabs. | Navigates through Registration → Personal Details → Document Upload → Preview → Payment page. Asserts payment fee header and `dm443790@gmail.com` visibility, captures payment screenshot, and concludes test. |
+| **Archetype 3: Verification-Only / Status Resumption** | Tests existing or partially completed applications directly on status or resume pages. | Bypasses registration completely. Navigates directly to `/visa-status/` or `/complete-partially/` with a specified Order ID, verifies tracking info or partial data restore, and captures verification screenshots. |
 
 ---
 
-## 3. Standard Imports & Shared Utilities
+## 2. Core Senior SDET Anti-Flakiness Rules
 
-Every test script in `tests/spec/` must import fixtures from `utils/`:
+1. **Mandatory Email Convention**:
+   - **`dm443790@gmail.com`** is the ONLY authorized email for all test forms.
+   - Assert its presence on the final review/payment screen:
+     ```typescript
+     await expect(page.getByText('dm443790@gmail.com')).toBeVisible();
+     ```
+
+2. **Captcha Hook Pre-Navigation**:
+   - Always initialize the captcha listener **before** calling `page.goto()` so background API triggers are never missed:
+     ```typescript
+     const captchaPromise = waitForCaptcha(page);
+     await page.goto('https://portal-example.com/apply/');
+     ```
+
+3. **Dynamic Elements & Async Overlays**:
+   - Prefer user-facing semantic locators: `getByRole('textbox', { name: '...' })`, `getByRole('button', { name: '...' })`.
+   - Wait for loading overlays and spinners to detach:
+     ```typescript
+     const spinner = page.locator('.loading-overlay, .spinner-border, #loading_indicator');
+     if (await spinner.isVisible().catch(() => false)) {
+         await spinner.waitFor({ state: 'detached', timeout: 15000 });
+     }
+     ```
+
+4. **Date Rollover Prevention**:
+   - Use dynamic helpers from `../../utils/date`:
+     - `getArrivalDate()`: 9 months in future (avoids month-end rollover errors).
+     - `getPassportExpiryDate()`: 5 years in future.
+
+5. **Direct URL Dual Page Verification**:
+   - Opens `/visa-status/` and `/complete-partially/` in separate tabs simultaneously using `verifyDirectUrls`.
+   - Never loses page context: tabs are closed in `finally` blocks, returning focus to main application page.
+
+---
+
+## 3. Pattern 1: Complete E2E Flow with Simultaneous Dual Page Verification
+
+*(Exact pattern used in `azerbaijan-visa.spec.ts` and `bahrain-visa.spec.ts`)*
 
 ```typescript
-import { test, expect, getUploadFile, capturescreenshot } from '../../utils/baseTest';
-import { getArrivalDate, getPassportExpiryDate, getFutureDate } from '../../utils/date';
-import { uploadAndWaitForSuccess } from '../../utils/apiUpload';
+import { test, expect, getUploadFile, capturescreenshot, verifyDirectUrls } from '../../utils/baseTest';
+import { getArrivalDate, getPassportExpiryDate } from '../../utils/date';
 import path from 'path';
-```
 
----
+test('Country Visa Application with Simultaneous Verification', async ({ page, waitForCaptcha, getUploadFile }) => {
 
-## 4. Battle-Tested Portal Interaction Patterns
-
-### A. Navigation & Captcha Synchronization
-Captchas are solved in the background while general details are filled:
-
-```typescript
-test('Country Visa Application', async ({ page, waitForCaptcha }) => {
-    // 1. Attach Captcha listener before navigation triggers the background request
+    // 1. Set up Captcha listener before navigation
     const captchaPromise = waitForCaptcha(page);
 
     // 2. Navigate to portal
-    await page.goto('https://portal-example.com/apply/');
+    await page.goto('https://country-visa.example.com/apply/');
     try {
         await page.waitForLoadState('networkidle', { timeout: 5000 });
     } catch {
-        console.log('Network never went idle, continuing anyway');
+        console.log('Network did not go idle, continuing');
     }
 
-    // 3. Fill General Details while Captcha resolves
+    // 3. General Information
     await page.getByRole('textbox', { name: 'name' }).fill('testing');
     await page.getByRole('textbox', { name: 'email' }).fill('dm443790@gmail.com');
+    await page.getByRole('textbox', { name: 'phone' }).fill('9876543210');
 
-    // 4. Fill Captcha when ready
+    const arrival = getArrivalDate();
+    await page.getByLabel('Year').selectOption(arrival.year);
+    await page.getByLabel('Mon').selectOption(arrival.month);
+
+    // 4. Solve Captcha & Register
     const captcha = await captchaPromise;
     await page.getByRole('textbox', { name: 'Captcha' }).fill(captcha);
-});
-```
 
-### B. Searchable Country Comboboxes
-Custom searchable dropdowns require clicking the container, typing in the search box, and clicking the matched item:
+    await page.waitForTimeout(1000);
+    await capturescreenshot(page, 'registration-page');
+    await page.getByRole('button', { name: 'Register' }).click();
+    await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {});
 
-```typescript
-await page.getByRole('combobox', { name: 'Selected country' }).locator('div').nth(1).click();
-await page.getByRole('combobox', { name: 'Search' }).fill('ind');
-await page.getByRole('option', { name: 'India +' }).click();
-```
+    // 5. Passport & Applicant Form
+    await page.getByRole('textbox', { name: 'Name as per Passport', exact: true }).waitFor();
+    await page.getByRole('textbox', { name: 'Name as per Passport', exact: true }).fill('testing');
 
-### C. Dynamic Date Selectors
-```typescript
-const arrival = getArrivalDate();
-await page.getByLabel('Year').selectOption(arrival.year);
-await page.getByLabel('Mon').selectOption(arrival.month);
-await page.getByLabel('Day', { exact: true }).selectOption(arrival.day);
+    const expiry = getPassportExpiryDate();
+    await page.locator('#yr_pass_exp_0').selectOption(expiry.year);
+    await page.locator('#mon_pass_exp_0').selectOption(expiry.month);
+    await page.locator('#pass_no_0').fill('A12345678');
 
-const expiry = getPassportExpiryDate();
-await page.locator('#yr_pass_exp_0').selectOption(expiry.year);
-await page.locator('#mon_pass_exp_0').selectOption(expiry.month);
-```
-
-### D. File Uploads (Passports & Photos)
-Uses the `getUploadFile` fixture with `uploadAndWaitForSuccess` helper:
-
-```typescript
-const uploadFile = getUploadFile();
-const fileInput = page.locator('input[type="file"]').first();
-
-if (await fileInput.count() > 0) {
+    // 6. File Upload
+    const uploadFile = getUploadFile();
+    const fileInput = page.locator('input[type="file"]').first();
     await fileInput.setInputFiles(uploadFile);
-} else {
-    await page.getByRole('button', { name: 'Choose File' }).setInputFiles(uploadFile);
-}
 
-// Or using resilient upload API listener
-await uploadAndWaitForSuccess(page, fileInput, uploadFile);
-```
+    // ══════════════════════════════════════════════════════════════════════════
+    // VERIFICATION CHECKPOINT 1: DOCUMENT UPLOAD STAGE
+    // ══════════════════════════════════════════════════════════════════════════
+    let orderId = (await page.locator('#order_id_spn, #order_id, input[name="order_id"]').textContent().catch(() => ''))?.trim() || '';
+    await verifyDirectUrls(page, {
+        orderId,
+        stageName: 'document-upload',
+        urls: [
+            '/visa-status/',
+            '/complete-partially/'
+        ],
+        waitForCaptcha
+    });
 
-### E. Step Screenshots & Payment Verification
-```typescript
-await page.waitForTimeout(1000);
-await capturescreenshot(page, 'applicant-detail');
+    // 7. Preview Stage
+    await page.waitForTimeout(1000);
+    await capturescreenshot(page, 'applicant-detail');
+    await page.getByRole('button', { name: 'Submit & Preview' }).click();
+    await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {});
 
-await page.getByRole('button', { name: 'Confirm & Submit' }).click();
-await page.waitForURL('**/payment**', { timeout: 15000 }).catch(() => {});
+    orderId = (await page.locator('#order_id_spn').textContent().catch(() => ''))?.trim() || orderId;
 
-// Verify applicant email is displayed on final review/payment screen
-await expect(page.getByText('dm443790@gmail.com')).toBeVisible();
-await capturescreenshot(page, 'payment-page');
-```
+    // ══════════════════════════════════════════════════════════════════════════
+    // VERIFICATION CHECKPOINT 2: PREVIEW STAGE
+    // ══════════════════════════════════════════════════════════════════════════
+    await verifyDirectUrls(page, {
+        orderId,
+        stageName: 'preview',
+        urls: [
+            '/visa-status/',
+            '/complete-partially/'
+        ],
+        waitForCaptcha
+    });
 
-### F. Direct URL Verification Pattern (/visa-status/ & /complete-partially/)
+    // 8. Payment Stage
+    await page.waitForTimeout(1000);
+    await capturescreenshot(page, 'preview');
+    await page.getByRole('button', { name: 'Confirm & Submit' }).click();
+    await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {});
 
-At each key stage (1. Preview page, 2. Document upload page, 3. Payment page), copy the Order ID into a variable. **Before clicking any Submit, Continue, or Save and Continue button**, open both status/resume URLs in separate tabs:
-- `${baseUrl}/visa-status/`
-- `${baseUrl}/complete-partially/`
+    await expect(page.getByRole('heading', { name: /Pay|Payment/i })).toBeVisible();
+    await expect(page.getByText('dm443790@gmail.com')).toBeVisible();
 
-```typescript
-/**
- * Direct URL Verification Helper
- * Opens /visa-status/ and /complete-partially/ in separate tabs, fills Order ID,
- * completes Captcha if required, waits with 5s networkidle fallback, and captures screenshots.
- */
-async function verifyDirectUrls(
-    page: Page,
-    orderId: string,
-    stageName: 'preview' | 'document-upload' | 'payment',
-    waitForCaptcha?: (p: Page) => Promise<string>
-) {
-    const origin = new URL(page.url()).origin;
-    const targets = [
-        { slug: 'visa-status', url: `${origin}/visa-status/` },
-        { slug: 'complete-partially', url: `${origin}/complete-partially/` }
-    ];
+    await page.waitForTimeout(1000);
+    await capturescreenshot(page, 'payment-page');
 
-    for (const target of targets) {
-        const verifyTab = await page.context().newPage();
-        try {
-            const tabCaptchaPromise = waitForCaptcha ? waitForCaptcha(verifyTab) : null;
-            await verifyTab.goto(target.url);
-            try {
-                await verifyTab.waitForLoadState('networkidle', { timeout: 5000 });
-            } catch {
-                console.log(`[DirectURL] Network not idle on ${target.slug}, continuing`);
-            }
-
-            // Fill Order ID
-            const orderInput = verifyTab.locator('#order_id, input[name="order_id"], input[placeholder*="Order"]');
-            if (await orderInput.isVisible({ timeout: 4000 }).catch(() => false)) {
-                await orderInput.fill(orderId);
-            }
-
-            // Handle Captcha if present
-            if (tabCaptchaPromise) {
-                const captchaCode = await tabCaptchaPromise.catch(() => '');
-                const captchaInput = verifyTab.locator('input[name="captcha"], #captcha, input[placeholder*="Captcha"]');
-                if (captchaCode && await captchaInput.isVisible({ timeout: 2000 }).catch(() => false)) {
-                    await captchaInput.fill(captchaCode);
-                }
-            }
-
-            // Submit check/resume form
-            const submitBtn = verifyTab.locator('button:has-text("Submit"), button:has-text("Check"), button:has-text("Search"), input[type="submit"]');
-            if (await submitBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-                await submitBtn.click();
-                try {
-                    await verifyTab.waitForLoadState('networkidle', { timeout: 5000 });
-                } catch {}
-            }
-
-            // Capture screenshot with stage & slug name
-            await verifyTab.waitForTimeout(1000);
-            await capturescreenshot(verifyTab, `${stageName}-${target.slug}`);
-
-        } finally {
-            // Close tab and return focus to main application page
-            await verifyTab.close();
-        }
-    }
-}
+    // ══════════════════════════════════════════════════════════════════════════
+    // VERIFICATION CHECKPOINT 3: PAYMENT STAGE
+    // ══════════════════════════════════════════════════════════════════════════
+    await verifyDirectUrls(page, {
+        orderId,
+        stageName: 'payment',
+        urls: [
+            '/visa-status/',
+            '/complete-partially/'
+        ],
+        waitForCaptcha
+    });
+});
 ```
 
 ---
 
-## 5. Universal Prompt for the Generator UI
+## 4. Pattern 2: Flow Up-To-Payment-Page Only
 
-Copy and paste this prompt into the **Test Scenario Details & Form Instructions** field in the Generator popup for any application:
+For portals or scenarios where only the checkout landing page is tested without secondary tab verification:
 
-```text
-Follow SCRIPT_GENERATOR_GUIDE.md standards:
-1. Set up Captcha listener with `const captchaPromise = waitForCaptcha(page);` before navigation.
-2. Navigate to portal URL and wait for networkidle with fallback catch.
-3. For all email fields, strictly use "dm443790@gmail.com". Use phone "9876543210".
-4. For Country/Nationality, select India using searchable combobox or select option.
-5. For arrival date, use `getArrivalDate()` ({ day, month, year }). For passport expiry, use `getPassportExpiryDate()`.
-6. Attach passport document using `getUploadFile()` and `uploadAndWaitForSuccess`.
-7. Direct URL Verification: At Preview, Document Upload, and Payment stages, extract the Order ID, open `${origin}/visa-status/` and `${origin}/complete-partially/` in separate tabs before submitting, complete forms, capture stage screenshots, close the tabs, and proceed.
-8. Page Checkpoints: If an element fails on Page 2 or Page 3, DO NOT restart from Page 1. Inspect the live DOM on that page, heal the selector, and continue forward.
-9. Capture screenshots at each major step with `capturescreenshot(page, '<step-name>')` and verify final review/payment screen displays dm443790@gmail.com.
+```typescript
+import { test, expect, getUploadFile, capturescreenshot } from '../../utils/baseTest';
+import { getArrivalDate, getPassportExpiryDate } from '../../utils/date';
+
+test('Country Visa Application (Up to Payment Page)', async ({ page, waitForCaptcha, getUploadFile }) => {
+    const captchaPromise = waitForCaptcha(page);
+    await page.goto('https://country-visa.example.com/apply/');
+    await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {});
+
+    // Fill form
+    await page.getByRole('textbox', { name: 'name' }).fill('testing');
+    await page.getByRole('textbox', { name: 'email' }).fill('dm443790@gmail.com');
+
+    const arrival = getArrivalDate();
+    await page.getByLabel('Year').selectOption(arrival.year);
+    await page.getByLabel('Mon').selectOption(arrival.month);
+
+    const captcha = await captchaPromise;
+    await page.getByRole('textbox', { name: 'Captcha' }).fill(captcha);
+    await page.getByRole('button', { name: 'Register' }).click();
+
+    // Documents & Preview
+    const uploadFile = getUploadFile();
+    await page.locator('input[type="file"]').first().setInputFiles(uploadFile);
+    await page.getByRole('button', { name: 'Submit & Preview' }).click();
+
+    // Confirm & navigate to payment
+    await page.getByRole('button', { name: 'Confirm & Submit' }).click();
+
+    // Assert payment screen and email presence
+    await expect(page.getByRole('heading', { name: /Payment|Pay Visa Processing Fee/i })).toBeVisible();
+    await expect(page.getByText('dm443790@gmail.com')).toBeVisible();
+    await capturescreenshot(page, 'payment-page');
+});
 ```
 
+---
+
+## 5. Pattern 3: Standalone Verification-Only Test Case
+
+For standalone testing of `/visa-status/` and `/complete-partially/`:
+
+```typescript
+import { test, expect, capturescreenshot, verifyDirectUrls } from '../../utils/baseTest';
+
+test('Standalone Status and Resume Page Verification', async ({ page, waitForCaptcha }) => {
+    const testOrderId = 'TEST-ORDER-12345';
+
+    await verifyDirectUrls(page, {
+        orderId: testOrderId,
+        stageName: 'standalone-check',
+        urls: [
+            'https://country-visa.example.com/visa-status/',
+            'https://country-visa.example.com/complete-partially/'
+        ],
+        waitForCaptcha
+    });
+});
+```
+
+---
+
+## 6. Best Approach to Update All 57 Scripts
+
+To update all remaining test scripts to verify both pages simultaneously as done in Azerbaijan and Bahrain:
+
+### Approach A: One-Click Generator in Dashboard UI (Interactive & Selective)
+1. Open the **Script Generator** modal in the web dashboard.
+2. Select **"Update Existing Script"**.
+3. Choose the target script from the dropdown (e.g. `egypt-eta.spec.ts`).
+4. Click **"Synthesize & Apply Script"**.
+5. The engine automatically inspects the code, inserts `verifyDirectUrls` with `/visa-status/` and `/complete-partially/` before Preview, Upload, and Payment submissions, and writes the updated spec to `tests/spec/`.
+
+### Approach B: Automated Batch Migration Script (Fast & Safe for All Scripts)
+Run the automated migration tool:
+```bash
+node server/scripts/batchUpdateDirectUrls.js
+```
+- Creates a timestamped backup of all spec files in `.backups/`.
+- Scans all 57 `.spec.ts` files.
+- Automatically inserts `verifyDirectUrls` imports and stage verifications.
+- Produces a summary report of modified scripts.

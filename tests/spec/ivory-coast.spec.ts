@@ -1,4 +1,4 @@
-import { test, expect, capturescreenshot } from '../../utils/baseTest';
+import { test, expect, capturescreenshot, verifyDirectUrls } from '../../utils/baseTest';
 import {
     getArrivalDate,
     getPassportExpiryDate,
@@ -139,6 +139,18 @@ test('Ivory Coast Visa Application', async ({ page, waitForCaptcha, getUploadFil
 
     await page.waitForTimeout(1000);
     await capturescreenshot(page, 'applicant-detail');
+    // =========================================================================
+    // DIRECT URL VERIFICATION - STAGE 2: PREVIEW / RESUME STAGE
+    // Verify /visa-status/ and /complete-partially/ in separate tabs before submit
+    // =========================================================================
+    await verifyDirectUrls(page, {
+        stageName: 'preview',
+        orderIdSelector: '#order_id_spn, #order_id, [data-order-id]',
+        urls: ['/visa-status/', '/complete-partially/'],
+        waitForCaptcha: true,
+        networkIdleTimeoutMs: 5000,
+    });
+
     await page.getByRole('button', {
         name: 'Submit & Preview'
     }).click();
@@ -257,6 +269,18 @@ test('Ivory Coast Visa Application', async ({ page, waitForCaptcha, getUploadFil
             name: 'Application Detail'
         })
     ).toBeVisible({ timeout: 30000 });
+
+    // =========================================================================
+    // DIRECT URL VERIFICATION - STAGE 3: PAYMENT / DETAIL STAGE
+    // Verify /visa-status/ and /complete-partially/ in separate tabs before checkout
+    // =========================================================================
+    await verifyDirectUrls(page, {
+        stageName: 'payment',
+        orderIdSelector: '#order_id_spn, #order_id, [data-order-id]',
+        urls: ['/visa-status/', '/complete-partially/'],
+        waitForCaptcha: true,
+        networkIdleTimeoutMs: 5000,
+    });
 
     await page.waitForTimeout(1000);
     await capturescreenshot(page, 'payment-page');
