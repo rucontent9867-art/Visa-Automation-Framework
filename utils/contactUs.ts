@@ -979,18 +979,14 @@ async function fillAndSubmit(page: Page, site: ContactUsSiteConfig, isGridRetry 
           captchaBlocked = true;
         } else {
           successVisible =
-            ajaxConfirmedSuccess ||
             (await expect(site.successMessage(page).first()).toBeVisible({ timeout: 6_000 }).then(() => true).catch(() => false)) ||
-            (await expect(genericSuccess).toBeVisible({ timeout: 4_000 }).then(() => true).catch(() => false)) ||
-            ajaxConfirmedSuccess;
+            (await expect(genericSuccess).toBeVisible({ timeout: 4_000 }).then(() => true).catch(() => false));
         }
       } else {
-        // Give async AJAX a bit more time
+        // Give async AJAX a bit more time for DOM confirmation
         successVisible =
-          ajaxConfirmedSuccess ||
           (await expect(site.successMessage(page).first()).toBeVisible({ timeout: 5_000 }).then(() => true).catch(() => false)) ||
-          (await expect(genericSuccess).toBeVisible({ timeout: 3_000 }).then(() => true).catch(() => false)) ||
-          ajaxConfirmedSuccess;
+          (await expect(genericSuccess).toBeVisible({ timeout: 3_000 }).then(() => true).catch(() => false));
       }
     }
   } finally {
