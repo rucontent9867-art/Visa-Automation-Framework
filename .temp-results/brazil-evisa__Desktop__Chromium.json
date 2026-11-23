@@ -1,0 +1,89 @@
+{
+  "testScript": "brazil-evisa.spec.ts",
+  "testName": "Brazil Visa Application",
+  "device": "Desktop",
+  "deviceType": "Desktop",
+  "browser": "Chromium",
+  "viewport": "1920 x 1080",
+  "status": "PASS",
+  "retries": 0,
+  "duration": 60.2,
+  "paymentUrl": "https://brazil-evisa.info/visa-payment/QlIwMTEwNTIxWURY/",
+  "capturedUrls": [
+    "https://brazil-evisa.info/apply-evisa/",
+    "https://brazil-evisa.info/visa-status/",
+    "https://brazil-evisa.info/complete-partially/",
+    "https://brazil-evisa.info/document-upload/QlIwMTEwNTIxWURY/",
+    "https://brazil-evisa.info/visa-payment/QlIwMTEwNTIxWURY/"
+  ],
+  "urlHistory": [
+    {
+      "url": "https://brazil-evisa.info/apply-evisa/",
+      "timestamp": "2026-11-23 20:24:24",
+      "label": "Initial Navigation"
+    },
+    {
+      "url": "https://brazil-evisa.info/visa-status/",
+      "timestamp": "2026-11-23 20:28:37",
+      "label": "Direct Verification (preview): visa-status"
+    },
+    {
+      "url": "https://brazil-evisa.info/complete-partially/",
+      "timestamp": "2026-11-23 20:28:40",
+      "label": "Direct Verification (preview): complete-partially"
+    },
+    {
+      "url": "https://brazil-evisa.info/document-upload/QlIwMTEwNTIxWURY/",
+      "timestamp": "2026-11-23 20:28:48",
+      "label": "Redirect / Step 4"
+    },
+    {
+      "url": "https://brazil-evisa.info/visa-status/",
+      "timestamp": "2026-11-23 20:28:56",
+      "label": "Direct Verification (document-upload): visa-status"
+    },
+    {
+      "url": "https://brazil-evisa.info/complete-partially/",
+      "timestamp": "2026-11-23 20:28:59",
+      "label": "Direct Verification (document-upload): complete-partially"
+    },
+    {
+      "url": "https://brazil-evisa.info/visa-payment/QlIwMTEwNTIxWURY/",
+      "timestamp": "2026-11-23 20:29:06",
+      "label": "Redirect / Step 7"
+    },
+    {
+      "url": "https://brazil-evisa.info/visa-status/",
+      "timestamp": "2026-11-23 20:29:10",
+      "label": "Direct Verification (payment): visa-status"
+    },
+    {
+      "url": "https://brazil-evisa.info/complete-partially/",
+      "timestamp": "2026-11-23 20:29:13",
+      "label": "Direct Verification (payment): complete-partially"
+    },
+    {
+      "url": "https://brazil-evisa.info/visa-payment/QlIwMTEwNTIxWURY/",
+      "timestamp": "2026-11-23 20:29:19",
+      "label": "Final / Payment Page"
+    }
+  ],
+  "screenshotPath": "/screenshots/2026-11-23_20-29-19/brazil-evisa/brazil-evisa-desktop-chromium-captured-url.png",
+  "error": "",
+  "failedStep": "",
+  "startTime": "2026-11-23 20:28:19",
+  "endTime": "2026-11-23 20:29:19",
+  "testBlocks": [
+    {
+      "title": "Brazil Visa Application",
+      "status": "PASS",
+      "duration": 60.2,
+      "error": "",
+      "failedStep": "",
+      "screenshotPath": "/screenshots/2026-11-23_20-29-19/brazil-evisa/brazil-evisa-desktop-chromium-captured-url.png"
+    }
+  ],
+  "passCount": 1,
+  "failCount": 0,
+  "skipCount": 0
+}

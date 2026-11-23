@@ -37,11 +37,11 @@ function readResultJsonForExecution(testKey, device, browser) {
   }
 }
 
-async function runSingleExecution({ testFile, browser, device, retries = 2, headless = true, enableScreenshotCapture = false, sessionTimestamp, timeouts }, onEvent) {
+async function runSingleExecution({ testFile, browser, device, retries = 2, headless = true, enableScreenshotCapture = false, contactUsEnabled = false, sessionTimestamp, timeouts, disabledSections, enabledSections }, onEvent) {
   const testKey = path.basename(testFile).replace(/\.(spec|test)\.(ts|js)$/, '');
   cleanTempResultForExecution(testKey, device, browser);
 
-  const configStr = generateSingleExecutionConfig({ testFile, browser, device, retries, headless, timeouts });
+  const configStr = generateSingleExecutionConfig({ testFile, browser, device, retries, headless, timeouts, disabledSections, enabledSections });
   const configFilename = `.temp-run-${Date.now()}-${Math.floor(Math.random() * 10000)}.mjs`;
   const configPath = writeConfig(configStr, configFilename);
 
@@ -88,8 +88,11 @@ async function runSingleExecution({ testFile, browser, device, retries = 2, head
           PLAYWRIGHT_BROWSERS_PATH: process.env.PLAYWRIGHT_BROWSERS_PATH || (fs.existsSync('/ms-playwright') ? '/ms-playwright' : undefined),
           NODE_ENV: 'test',
           ENABLE_SCREENSHOT_CAPTURE: enableScreenshotCapture ? 'true' : 'false',
+          CONTACT_US_ENABLED: contactUsEnabled ? 'true' : 'false',
           SESSION_TIMESTAMP: sessionTimestamp || new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19),
           CURRENT_SPEC_KEY: testKey,
+          DISABLED_SECTIONS: Array.isArray(disabledSections) ? disabledSections.join('|||') : (disabledSections || ''),
+          ENABLED_SECTIONS: Array.isArray(enabledSections) ? enabledSections.join('|||') : (enabledSections || ''),
           PLAYWRIGHT_TEST_TIMEOUT: String(timeouts?.testTimeout || 60000),
           PLAYWRIGHT_ACTION_TIMEOUT: String(timeouts?.actionTimeout || 15000),
           PLAYWRIGHT_NAVIGATION_TIMEOUT: String(timeouts?.navigationTimeout || 30000),

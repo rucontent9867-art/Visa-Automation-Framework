@@ -12,6 +12,13 @@ export interface DateParts {
 }
 
 /**
+ * Formats DateParts as DD-MM-YYYY (used by jQuery UI datepicker inputs).
+ */
+export function formatDDMMYYYY(parts: DateParts): string {
+    return `${parts.day}-${parts.month}-${parts.year}`;
+}
+
+/**
  * Safe helper to add/subtract months without day-of-month rollover bugs
  * (e.g., Jan 31 + 1 month -> Feb 28/29 instead of Mar 3).
  */

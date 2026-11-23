@@ -60,7 +60,7 @@ function updateSpecCode(code, filename) {
   let modifiedCount = 0;
 
   // 4. Inject Document Upload Stage Checkpoint
-  const fileInputRegex = /(await\s+(?:expect\(\s*(?:fileInput\.first\(\)|sectionLocator)[\s\S]*?\)\.toHaveValue\([^)]+\);|uploadAndWaitForSuccess\([^)]+\);|(?:fileInput|page\.locator\(['"]input\[type=["']file["']\]['"]\))\.first\(\)\.setInputFiles\([^)]+\);))/;
+  const fileInputRegex = /(await\s+(?:expect\(\s*(?:fileInput\.first\(\)|sectionLocator)[\s\S]*?\)\.toHaveValue\([^)]+\);|uploadAndWaitForSuccess\([^)]+\);|(?:sectionLocator|fileInput|page\.locator\(['"]input\[type=["']file["']\]['"]\))(?:\.locator\(['"]input\[type=["']file["']\]['"]\))?\.first\(\)\.setInputFiles\([^)]+\);|sectionLocator\s*\.locator\(['"]input\[type=["']file["']\]['"]\)\s*\.setInputFiles\([^)]+\);))/;
   if (fileInputRegex.test(updated) && !updated.includes("stageName: 'document-upload'")) {
     const uploadCheckBlock = `$1
 
@@ -81,7 +81,7 @@ function updateSpecCode(code, filename) {
   }
 
   // 5. Inject Preview / Save & Continue Stage Checkpoint
-  const previewRegex = /((\s*)await\s+page\.getByRole\(['"]button['"],\s*\{\s*name:\s*['"](?:Submit & Preview|Preview|Save and Continue|Save & Continue)['"][^}]*\}\)\.click\(\);)/;
+  const previewRegex = /((\s*)await\s+page\.getByRole\(['"]button['"],\s*\{\s*name:\s*['"](?:Submit & Preview|Preview|Save and Continue|Save & Continue|Confirm & Submit)['"][^}]*\}\)\.click\(\);)/;
   if (previewRegex.test(updated) && !updated.includes("stageName: 'preview'")) {
     const previewCheckBlock = `
     // =========================================================================
@@ -101,7 +101,7 @@ $1`;
   }
 
   // 6. Inject Payment Stage Checkpoint
-  const paymentRegex = /(await\s+expect\(\s*page\.getByRole\(['"]heading['"],\s*\{\s*name:\s*['"](?:Pay Visa Processing Fee|Pay Application Processing Fee|Payment|Pay Fee|Application Detail)['"][^}]*\}\)\s*\)\.toBeVisible\([^)]*\);)/;
+  const paymentRegex = /(await\s+expect\(\s*page\.getByRole\(['"]heading['"],\s*\{\s*name:\s*(?:['"](?:Pay Visa Processing Fee|Pay Application Processing Fee|Pay Application Fee|Payment|Pay Fee|Application Detail)['"]|\/Pay|Payment\/i)[\s\S]*?\}\)\s*\)\.toBeVisible\([^)]*\);)/;
   if (paymentRegex.test(updated) && !updated.includes("stageName: 'payment'")) {
     const paymentCheckBlock = `$1
 

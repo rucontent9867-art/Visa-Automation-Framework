@@ -289,3 +289,16 @@ test('Russia eVisa Application', async ({ page, waitForCaptcha }) => {
     );
 
 });
+
+// =====================================
+// SECTION: Contact Us
+// =====================================
+test.describe('Russian E Visa contact form', () => {
+    test.describe.configure({ retries: 0 });
+
+    test('sends one inquiry and displays confirmation', async ({ page }) => {
+        const { submitContactUsForm } = await import('../../utils/contactUs');
+        const result = await submitContactUsForm(page, 'russian-e-visa');
+        expect(result.status, result.reason || 'Russian E Visa Contact Us submission failed').toBe('PASS');
+    });
+});

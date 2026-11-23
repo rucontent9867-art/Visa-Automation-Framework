@@ -301,3 +301,16 @@ test('Ivory Coast Visa Application', async ({ page, waitForCaptcha, getUploadFil
     );
 
 });
+
+// =====================================
+// SECTION: Contact Us
+// =====================================
+test.describe('Ivory Coast contact form', () => {
+    test.describe.configure({ retries: 0 });
+
+    test('sends one inquiry and displays confirmation', async ({ page }) => {
+        const { submitContactUsForm } = await import('../../utils/contactUs');
+        const result = await submitContactUsForm(page, 'ivory-coast');
+        expect(result.status, result.reason || 'Ivory Coast Contact Us submission failed').toBe('PASS');
+    });
+});

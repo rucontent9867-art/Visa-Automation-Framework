@@ -274,3 +274,16 @@ test('Bahrain Visa Application', async ({ page, waitForCaptcha }) => {
     );
 
 });
+
+// =====================================
+// SECTION: Contact Us
+// =====================================
+test.describe('Bahrain visa contact form', () => {
+    test.describe.configure({ retries: 0 });
+
+    test('sends one inquiry and displays confirmation', async ({ page }) => {
+        const { submitContactUsForm } = await import('../../utils/contactUs');
+        const result = await submitContactUsForm(page, 'bahrain-visa');
+        expect(result.status, result.reason || 'Bahrain Contact Us submission failed').toBe('PASS');
+    });
+});

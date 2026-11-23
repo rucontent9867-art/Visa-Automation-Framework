@@ -1,0 +1,88 @@
+{
+  "testScript": "benin-e-visa.spec.ts",
+  "testName": "Benin Visa Application",
+  "device": "Desktop",
+  "deviceType": "Desktop",
+  "browser": "Chromium",
+  "viewport": "1920 x 1080",
+  "status": "PASS",
+  "retries": 0,
+  "duration": 37.1,
+  "paymentUrl": "https://benin-e-visa.com/visa-payment/Qko3NjM0MzM3Sk9H/",
+  "capturedUrls": [
+    "https://benin-e-visa.com/application/",
+    "https://benin-e-visa.com/visa-status/",
+    "https://benin-e-visa.com/complete-partially/",
+    "https://benin-e-visa.com/visa-payment/Qko3NjM0MzM3Sk9H/"
+  ],
+  "urlHistory": [
+    {
+      "url": "https://benin-e-visa.com/application/",
+      "timestamp": "2026-11-12 17:12:42",
+      "label": "Initial Navigation"
+    },
+    {
+      "url": "https://benin-e-visa.com/visa-status/",
+      "timestamp": "2026-11-12 17:12:54",
+      "label": "Direct Verification (preview): visa-status"
+    },
+    {
+      "url": "https://benin-e-visa.com/complete-partially/",
+      "timestamp": "2026-11-12 17:12:56",
+      "label": "Direct Verification (preview): complete-partially"
+    },
+    {
+      "url": "https://benin-e-visa.com/visa-status/",
+      "timestamp": "2026-11-12 17:13:00",
+      "label": "Direct Verification (document-upload): visa-status"
+    },
+    {
+      "url": "https://benin-e-visa.com/complete-partially/",
+      "timestamp": "2026-11-12 17:13:03",
+      "label": "Direct Verification (document-upload): complete-partially"
+    },
+    {
+      "url": "https://benin-e-visa.com/application/",
+      "timestamp": "2026-11-12 17:13:35",
+      "label": "Page URL at finish"
+    },
+    {
+      "url": "https://benin-e-visa.com/visa-payment/Qko3NjM0MzM3Sk9H/",
+      "timestamp": "2026-11-23 20:23:12",
+      "label": "Redirect / Step 6"
+    },
+    {
+      "url": "https://benin-e-visa.com/visa-status/",
+      "timestamp": "2026-11-23 20:23:14",
+      "label": "Direct Verification (payment): visa-status"
+    },
+    {
+      "url": "https://benin-e-visa.com/complete-partially/",
+      "timestamp": "2026-11-23 20:23:17",
+      "label": "Direct Verification (payment): complete-partially"
+    },
+    {
+      "url": "https://benin-e-visa.com/visa-payment/Qko3NjM0MzM3Sk9H/",
+      "timestamp": "2026-11-23 20:23:19",
+      "label": "Final / Payment Page"
+    }
+  ],
+  "screenshotPath": "/screenshots/2026-11-23_20-23-19/benin-e-visa/benin-e-visa-desktop-chromium-captured-url.png",
+  "error": "",
+  "failedStep": "",
+  "startTime": "2026-11-23 20:22:42",
+  "endTime": "2026-11-23 20:23:19",
+  "testBlocks": [
+    {
+      "title": "Benin Visa Application",
+      "status": "PASS",
+      "duration": 37.1,
+      "error": "",
+      "failedStep": "",
+      "screenshotPath": "/screenshots/2026-11-23_20-23-19/benin-e-visa/benin-e-visa-desktop-chromium-captured-url.png"
+    }
+  ],
+  "passCount": 1,
+  "failCount": 0,
+  "skipCount": 0
+}

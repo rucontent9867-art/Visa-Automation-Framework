@@ -18,6 +18,7 @@ const {
   getSystemMemoryStatus,
 } = require('../services/executionQueue');
 const { REPORT_PATH } = require('../services/htmlReportGenerator');
+const sectionDetector = require('../services/sectionDetector');
 
 // ── GET /api/health-check ── lightweight system health check
 router.get('/health-check', (req, res) => {
@@ -116,17 +117,33 @@ router.get('/system-status', (req, res) => {
   }
 });
 
-// ── GET /api/tests ── list available test files
+// ── GET /api/tests ── list available test files + detected sections
 router.get('/tests', (req, res) => {
   try {
     const testDirRel = process.env.TEST_DIR || './tests/spec';
     const testsDir = path.resolve(process.cwd(), testDirRel);
     if (!fs.existsSync(testsDir)) {
-      return res.json({ tests: [] });
+      return res.json({ tests: [], sections: [], specMap: {}, totalTests: 0 });
     }
     const files = fs.readdirSync(testsDir)
       .filter((f) => f.endsWith('.spec.ts') || f.endsWith('.spec.js'));
-    res.json({ tests: files });
+    const sectionData = sectionDetector.scanAllSections();
+    res.json({
+      tests: files,
+      sections: sectionData.sections,
+      specMap: sectionData.specMap,
+      totalTests: sectionData.totalTests,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/sections ── get auto-identified sections across all specs
+router.get('/sections', (req, res) => {
+  try {
+    const data = sectionDetector.scanAllSections();
+    res.json({ success: true, ...data });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -163,7 +180,7 @@ router.get('/sessions/:id', (req, res) => {
 // ── POST /api/run ── start a new execution session
 router.post('/run', (req, res) => {
   try {
-    const { testFiles, browsers, devices, retries = 2, headless = true, batchSize = 5, targets, timeouts } = req.body;
+    const { testFiles, browsers, devices, retries = 2, headless = true, batchSize = 5, targets, timeouts, disabledSections, enabledSections, contactUsEnabled = false } = req.body;
 
     if (Array.isArray(targets) && targets.length > 0) {
       const session = enqueueSession({
@@ -175,6 +192,9 @@ router.post('/run', (req, res) => {
         headless,
         batchSize,
         timeouts,
+        disabledSections,
+        enabledSections,
+        contactUsEnabled: !!contactUsEnabled,
       });
 
       return res.json({
@@ -203,6 +223,9 @@ router.post('/run', (req, res) => {
       headless,
       batchSize,
       timeouts,
+      disabledSections,
+      enabledSections,
+      contactUsEnabled: !!contactUsEnabled,
     });
 
     res.json({
@@ -266,6 +289,9 @@ router.post('/run-failed', (req, res) => {
     const finalHeadless = headless !== undefined ? headless : (sessionOptions.headless ?? true);
     const finalBatchSize = batchSize !== undefined ? batchSize : (sessionOptions.batchSize ?? 5);
     const finalTimeouts = timeouts !== undefined ? timeouts : (sessionOptions.timeouts || undefined);
+    const finalDisabledSections = req.body.disabledSections !== undefined ? req.body.disabledSections : (sessionOptions.disabledSections || []);
+    const finalEnabledSections = req.body.enabledSections !== undefined ? req.body.enabledSections : (sessionOptions.enabledSections || []);
+    const finalContactUsEnabled = req.body.contactUsEnabled !== undefined ? !!req.body.contactUsEnabled : !!sessionOptions.contactUsEnabled;
 
     const session = enqueueSession({
       targets,
@@ -276,6 +302,9 @@ router.post('/run-failed', (req, res) => {
       headless: finalHeadless,
       batchSize: finalBatchSize,
       timeouts: finalTimeouts,
+      disabledSections: finalDisabledSections,
+      enabledSections: finalEnabledSections,
+      contactUsEnabled: finalContactUsEnabled,
     });
 
     res.json({
@@ -717,10 +746,10 @@ router.post('/generator/ai-providers/active', (req, res) => {
   }
 });
 
-router.post('/generator/start', (req, res) => {
+router.post('/generator/start', async (req, res) => {
   try {
-    const { mode, scriptName, targetUrl, scenario, options, providerId } = req.body;
-    const result = scriptGeneratorService.startJob({ mode, scriptName, targetUrl, scenario, options, providerId });
+    const { mode, scriptName, targetUrl, scenario, options, providerId, wait } = req.body;
+    const result = await scriptGeneratorService.startJob({ mode, scriptName, targetUrl, scenario, options, providerId, wait });
     res.json(result);
   } catch (err) {
     res.status(400).json({ success: false, error: err.message });
@@ -765,6 +794,15 @@ router.get('/generator/specs', (req, res) => {
   }
 });
 
+router.get('/generator/portal-knowledge', (req, res) => {
+  try {
+    const knowledge = scriptGeneratorService.getPortalKnowledge();
+    res.json({ success: true, ...knowledge });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 router.get('/generator/spec-content', (req, res) => {
   try {
     const { scriptName } = req.query;
@@ -800,6 +838,27 @@ router.get('/generator/events', (req, res) => {
   req.on('close', () => {
     scriptGeneratorService.sseClients.delete(res);
   });
+});
+
+// ── Captcha Solving Helper Routes (Server-Side Gemini API) ──
+router.post('/captcha/transcribe-audio', async (req, res) => {
+  try {
+    const { audioBase64, mimeType } = req.body || {};
+    const result = await aiProviderService.transcribeAudioWithGemini(audioBase64, mimeType || 'audio/mp3');
+    res.json({ success: true, ...result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/captcha/solve-image-grid', async (req, res) => {
+  try {
+    const { imageBase64, instruction, totalTiles } = req.body || {};
+    const result = await aiProviderService.solveImageGridCaptchaWithGemini(imageBase64, instruction, totalTiles || 9);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 module.exports = router;

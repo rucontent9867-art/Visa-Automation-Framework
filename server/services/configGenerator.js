@@ -16,6 +16,7 @@
 
 const path = require('path');
 const fs = require('fs');
+const sectionDetector = require('./sectionDetector');
 
 // ─── Browser Engine → Playwright engine mapping ───
 
@@ -77,9 +78,11 @@ function getLaunchArgs() {
  * @param {number} options.retries - Max retries for this execution
  * @param {boolean} options.headless - Headless mode
  * @param {Object} [options.timeouts] - Configurable timeouts (testTimeout, actionTimeout, navigationTimeout, assertionTimeout)
+ * @param {string[]|string} [options.disabledSections] - List of section names whose test blocks should be skipped
+ * @param {string[]|string} [options.enabledSections] - List of section names that are enabled
  * @returns {string} Config file source
  */
-function generateSingleExecutionConfig({ testFile, browser, device, retries, headless, timeouts }) {
+function generateSingleExecutionConfig({ testFile, browser, device, retries, headless, timeouts, disabledSections, enabledSections }) {
   const browserCfg = BROWSER_MAP[browser];
   const deviceCfg = DEVICE_MAP[device];
 
@@ -96,6 +99,15 @@ function generateSingleExecutionConfig({ testFile, browser, device, retries, hea
   const testDir = process.env.TEST_DIR || './tests/spec';
   const normalizedTestDir = testDir.replace(/\\/g, '/');
   const normalizedTestFile = testFile.replace(/\\/g, '/');
+
+  // Compute Playwright grepInvert patterns for test blocks in disabled sections
+  let grepInvertCode = '';
+  if (disabledSections && (Array.isArray(disabledSections) ? disabledSections.length > 0 : !!disabledSections)) {
+    const patterns = sectionDetector.getGrepInvertPatterns(testFile, disabledSections);
+    if (patterns && patterns.length > 0) {
+      grepInvertCode = `\n  grepInvert: [${patterns.map((p) => `/${p}/i`).join(', ')}],`;
+    }
+  }
 
   const useLines = [];
   if (deviceCfg.playwrightDevice) {
@@ -133,7 +145,7 @@ if (!process.env.PLAYWRIGHT_BROWSERS_PATH && fs.existsSync('/ms-playwright')) {
 
 export default defineConfig({
   testDir: '${normalizedTestDir}',
-  testMatch: '**/${normalizedTestFile}',
+  testMatch: '**/${normalizedTestFile}',${grepInvertCode}
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: ${retries},

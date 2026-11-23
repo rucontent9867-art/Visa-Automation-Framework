@@ -290,3 +290,16 @@ test('ESTA Online Application', async ({ page, waitForCaptcha, getUploadFile }) 
     );
 
 });
+
+// =====================================
+// SECTION: Contact Us
+// =====================================
+test.describe('Esta Online contact form', () => {
+    test.describe.configure({ retries: 0 });
+
+    test('sends one inquiry and displays confirmation', async ({ page }) => {
+        const { submitContactUsForm } = await import('../../utils/contactUs');
+        const result = await submitContactUsForm(page, 'esta-online');
+        expect(result.status, result.reason || 'Esta Online Contact Us submission failed').toBe('PASS');
+    });
+});

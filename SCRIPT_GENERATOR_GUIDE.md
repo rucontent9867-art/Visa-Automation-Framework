@@ -4,21 +4,38 @@ This master knowledge base defines the architectural standards, code patterns, l
 
 ---
 
-## 1. Capabilities Overview: What the Generator Can Handle
+## 1. Critical SDET Context: Live Forms & Limited Application Attempts
 
-The generator is fully capable of synthesizing and updating **all 3 primary testing archetypes**:
+> ⚠️ **CRITICAL REALITY: FORMS ARE LIVE PRODUCTION SYSTEMS**  
+> All visa application portals in this framework (`*.com/application/`, `*.info/apply/`, etc.) are live production services. Submitting invalid data, failing mid-flow, or repeatedly hitting endpoints via trial-and-error tests causes severe problems:
+> - Incomplete or orphaned application records in live government/agency databases.
+> - IP rate-limiting, Cloudflare blocks, and CAPTCHA difficulty escalation.
+> - Unwanted processing charges or consumed one-time registration quotas.
 
-| Test Archetype | Purpose | Behavior & End State |
-| :--- | :--- | :--- |
-| **Archetype 1: Full E2E with Dual Page Verification** *(Azerbaijan & Bahrain standard)* | Validates the complete application flow while simultaneously verifying status & partial resumption pages at each stage. | At **Document Upload**, **Preview**, and **Payment** stages, extracts Order ID and opens `/visa-status/` and `/complete-partially/` in separate browser tabs, solves captchas, captures stage screenshots, closes tabs, and lands on Payment screen. |
-| **Archetype 2: Up-to-Payment-Page Only** | Validates form fields, dynamic dates, and file uploads through to payment screen without opening secondary tabs. | Navigates through Registration → Personal Details → Document Upload → Preview → Payment page. Asserts payment fee header and `dm443790@gmail.com` visibility, captures payment screenshot, and concludes test. |
-| **Archetype 3: Verification-Only / Status Resumption** | Tests existing or partially completed applications directly on status or resume pages. | Bypasses registration completely. Navigates directly to `/visa-status/` or `/complete-partially/` with a specified Order ID, verifies tracking info or partial data restore, and captures verification screenshots. |
+**The Golden SDET Rule: One-Shot Flawless Execution & Minimum Database Records**  
+- **Single-Application Principle**: Every generated or updated test script must create only the **minimum required applications (exactly ONE application per test flow)**.
+- **Order ID Reuse**: The single Order ID generated during registration must be reused across all subsequent verification checkpoints (`preview`, `document-upload`, `payment`). Never create secondary applications or registrations within a test run.
+- **Read-Only Verification Tabs**: Secondary tabs opened for `/visa-status/` and `/complete-partially/` must only query the created application and capture screenshot evidence—they must never submit blank forms or register new application drafts.
+- **Zero-Pollution Synthesis**: The Script Generator synthesizes scripts statically through AST and knowledge heuristics without executing live browser runs, preventing unwanted draft applications from accumulating in production databases.
 
 ---
 
-## 2. Core Senior SDET Anti-Flakiness Rules
+## 2. Capabilities Overview: What the Generator Can Handle
 
-1. **Mandatory Email Convention**:
+The generator is fully capable of synthesizing and updating **all 4 primary testing archetypes**:
+
+| Test Archetype | Flow Architecture | Golden Reference Standard |
+| :--- | :--- | :--- |
+| **Archetype 1A: Upload-First Dual Page Verification** | Registration → Passport Form → **Doc Upload** → *(Checkpoint 1)* → **Submit & Preview** → *(Checkpoint 2)* → **Confirm & Submit** → **Payment Screen** → *(Checkpoint 3)* | **`azerbaijan-visa.spec.ts`** *(Egypt, Turkey, Armenia, Georgia standard)* |
+| **Archetype 1B: Preview-First Multi-Section Upload** | Registration → Passport Form → **Submit & Preview** → *(Checkpoint 1)* → **Confirm & Submit** → **Multi-Section Uploads** (`passport_form_`, `photo_form_`, etc.) → **Reload/Doc Check** → *(Checkpoint 2)* → **Save & Continue** → **Payment Screen** → *(Checkpoint 3)* | **`bahrain-visa.spec.ts`** *(UK, Ivory Coast, Malawi standard)* |
+| **Archetype 2: Up-to-Payment-Page Only** | Validates form fields, dynamic dates, and file uploads directly to payment screen without opening secondary verification tabs. | Navigates through Registration → Personal Details → Upload → Preview → Payment page. Asserts payment fee header and `dm443790@gmail.com` visibility, captures payment screenshot. |
+| **Archetype 3: Standalone Verification / Status Resumption** | Tests existing or partially completed applications directly on status or resume pages. | Bypasses registration completely. Navigates directly to `/visa-status/` or `/complete-partially/` (or `/application-status/`) with a specified Order ID, verifies tracking info, and captures verification screenshots. |
+
+---
+
+## 3. Core Senior SDET Anti-Flakiness Rules
+
+1. **Mandatory Test Email Convention**:
    - **`dm443790@gmail.com`** is the ONLY authorized email for all test forms.
    - Assert its presence on the final review/payment screen:
      ```typescript
@@ -34,9 +51,9 @@ The generator is fully capable of synthesizing and updating **all 3 primary test
 
 3. **Dynamic Elements & Async Overlays**:
    - Prefer user-facing semantic locators: `getByRole('textbox', { name: '...' })`, `getByRole('button', { name: '...' })`.
-   - Wait for loading overlays and spinners to detach:
+   - Wait for loading overlays and spinners to detach before clicking action buttons:
      ```typescript
-     const spinner = page.locator('.loading-overlay, .spinner-border, #loading_indicator');
+     const spinner = page.locator('.loading-overlay, .spinner, .overlay, [aria-busy="true"]');
      if (await spinner.isVisible().catch(() => false)) {
          await spinner.waitFor({ state: 'detached', timeout: 15000 });
      }
@@ -44,12 +61,13 @@ The generator is fully capable of synthesizing and updating **all 3 primary test
 
 4. **Date Rollover Prevention**:
    - Use dynamic helpers from `../../utils/date`:
-     - `getArrivalDate()`: 9 months in future (avoids month-end rollover errors).
+     - `getArrivalDate()`: 9 months in future (avoids month-end 31st/30th rollover errors).
      - `getPassportExpiryDate()`: 5 years in future.
+     - `getDateOfBirth()`: 25 years in past.
 
 5. **Direct URL Dual Page Verification**:
-   - Opens `/visa-status/` and `/complete-partially/` in separate tabs simultaneously using `verifyDirectUrls`.
-   - Never loses page context: tabs are closed in `finally` blocks, returning focus to main application page.
+   - Opens `/visa-status/` and `/complete-partially/` (or `/application-status/` and `/complete-application/`) in separate tabs simultaneously using `verifyDirectUrls`.
+   - Never loses page context: tabs are closed in `finally` blocks, returning focus to main application page safely.
 
 ---
 

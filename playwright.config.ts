@@ -49,8 +49,8 @@ export default defineConfig({
   // Use list reporter for clean console output
   reporter: 'list',
 
-  // Global timeout per test (1 minute default)
-  timeout: 60_000,
+  // Global timeout per test (2 minutes default for multi-stage direct URL verifications)
+  timeout: 120_000,
 
   // Expect assertions timeout (15 seconds)
   expect: {

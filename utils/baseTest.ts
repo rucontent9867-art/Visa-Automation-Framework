@@ -19,6 +19,9 @@ import {
   TestInfo,
 } from '@playwright/test';
 import { waitForCaptcha } from './captcha/captchaHelper';
+import { solveRecaptchaAudio, RecaptchaAudioOptions } from './captcha/recaptchaAudio';
+import { waitForPageLoad, WaitForPageLoadOptions } from './pageLoad';
+import { submitContactUsForm } from './contactUs';
 import { captureScreenshot, getCapturedScreenshots, clearCapturedScreenshots } from './screenshot';
 import {
   setupUrlTracker,
@@ -61,13 +64,21 @@ export interface TestResultData {
   deviceType: string;
   browser: string;
   viewport: string;
-  status: 'PASS' | 'FAIL' | 'RETRY_PASS';
+  status: 'PASS' | 'FAIL' | 'RETRY_PASS' | 'SKIPPED';
   retries: number;
   duration: number;
   paymentUrl: string;
   capturedUrls: string[];
   urlHistory: TrackedUrlRecord[];
   screenshotPath: string;
+  contactUsEnabled: boolean;
+  contactUsStatus: string;
+  contactUsScreenshot: string;
+  contactUsReason: string;
+  visaStatusUrl: string;
+  visaStatusScreenshot: string;
+  completePartiallyUrl: string;
+  completePartiallyScreenshot: string;
   error: string;
   failedStep: string;
   startTime: string;
@@ -100,6 +111,10 @@ type MyFixtures = {
   page: Page;
   /** Re-exported captcha helper for convenient import */
   waitForCaptcha: typeof waitForCaptcha;
+  /** Solves Google reCAPTCHA v2 challenges (audio via Gemini, with visual grid fallback) */
+  solveRecaptchaAudio: (options?: RecaptchaAudioOptions) => Promise<boolean>;
+  /** Wait until the page is fully loaded (non-throwing) */
+  waitForPageLoad: (options?: WaitForPageLoadOptions) => Promise<void>;
   getUploadFile: typeof getUploadFile;
   /** Utility method to track / label URL changes explicitly in spec */
   trackUrl: (customLabel?: string) => Promise<string>;
@@ -130,6 +145,12 @@ export const test = base.extend<MyFixtures>({
   waitForCaptcha: async ({}, use) => {
     await use(waitForCaptcha);
   },
+  solveRecaptchaAudio: async ({ page }, use) => {
+    await use((options?: RecaptchaAudioOptions) => solveRecaptchaAudio(page, options));
+  },
+  waitForPageLoad: async ({ page }, use) => {
+    await use((options?: WaitForPageLoadOptions) => waitForPageLoad(page, options));
+  },
   getUploadFile: async ({}, use) => {
     await use(getUploadFile);
   },
@@ -146,6 +167,26 @@ export const test = base.extend<MyFixtures>({
 
 // Re-export expect for convenience
 export { expect };
+
+// ─── BeforeEach: Auto-skip test blocks belonging to disabled sections ───
+test.beforeEach(async ({}, testInfo: TestInfo) => {
+  const disabledSectionsEnv = process.env.DISABLED_SECTIONS;
+  if (!disabledSectionsEnv) return;
+
+  const disabledList = disabledSectionsEnv
+    .split('|||')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  if (disabledList.length === 0) return;
+
+  const title = (testInfo.title || '').toLowerCase();
+  for (const disabled of disabledList) {
+    if (disabled && title.includes(disabled)) {
+      test.skip(true, `Test block skipped because section "${disabled}" is disabled`);
+      return;
+    }
+  }
+});
 
 // ─── AfterEach: Capture results ───
 
@@ -164,7 +205,9 @@ test.afterEach(async ({ page }, testInfo: TestInfo) => {
 
   // Determine final status
   let status: TestResultData['status'];
-  if (isPassed && isRetried) {
+  if (testInfo.status === 'skipped') {
+    status = 'SKIPPED';
+  } else if (isPassed && isRetried) {
     status = 'RETRY_PASS';
   } else if (isPassed) {
     status = 'PASS';
@@ -386,6 +429,53 @@ test.afterEach(async ({ page }, testInfo: TestInfo) => {
     }
   }
 
+  // Read optional post-payment URLs/screenshots set by specs & reset for next test in worker
+  const visaStatusUrl = process.env.VISA_STATUS_PAGE_URL || 'N/A';
+  const visaStatusScreenshot = process.env.VISA_STATUS_SCREENSHOT || 'N/A';
+  const completePartiallyUrl = process.env.COMPLETE_PARTIALLY_URL || 'N/A';
+  const completePartiallyScreenshot = process.env.COMPLETE_PARTIALLY_SCREENSHOT || 'N/A';
+  if (process.env.PAYMENT_PAGE_URL) paymentUrl = process.env.PAYMENT_PAGE_URL;
+  delete process.env.PAYMENT_PAGE_URL;
+  delete process.env.VISA_STATUS_PAGE_URL;
+  delete process.env.VISA_STATUS_SCREENSHOT;
+  delete process.env.COMPLETE_PARTIALLY_URL;
+  delete process.env.COMPLETE_PARTIALLY_SCREENSHOT;
+
+  // Optional Contact Us verification when enabled from dashboard (runs independently of visa pass/fail,
+  // skipping only if the test itself was skipped or is already a dedicated Contact Us test block)
+  const contactUsEnabled = process.env.CONTACT_US_ENABLED === 'true';
+  let contactUsStatus = 'SKIPPED';
+  let contactUsScreenshot = 'N/A';
+  let contactUsReason = '';
+
+  const isInlineContactBlock =
+    /contact\s*(us|form)/i.test(testName) ||
+    /contact\s*(us|form)/i.test(testInfo.titlePath.join(' '));
+
+  if (isInlineContactBlock) {
+    contactUsStatus = (status === 'PASS' || status === 'RETRY_PASS') ? 'PASS' : (status === 'SKIPPED' ? 'SKIPPED' : 'FAIL');
+    contactUsScreenshot = finalScreenshotPath;
+    contactUsReason = isPassed ? '' : errorMessage;
+  } else if (contactUsEnabled && testInfo.status !== 'skipped') {
+    test.setTimeout(Math.max(testInfo.timeout, testInfo.duration) + 60_000);
+    try {
+      if (page && !page.isClosed()) {
+        const cuRes = await submitContactUsForm(page, testKey);
+        contactUsStatus = cuRes.status || 'SKIPPED';
+        if (cuRes.screenshotPath) {
+          contactUsScreenshot = cuRes.screenshotPath.startsWith('/') ? cuRes.screenshotPath : '/' + cuRes.screenshotPath;
+        }
+        contactUsReason = cuRes.reason || '';
+      } else {
+        contactUsStatus = 'FAIL';
+        contactUsReason = 'The Playwright page was closed before Contact Us verification could run.';
+      }
+    } catch (cuErr: any) {
+      contactUsStatus = 'FAIL';
+      contactUsReason = cuErr?.message || 'Contact Us check failed.';
+    }
+  }
+
   // Build result object
   const result: TestResultData = {
     testScript: scriptName,
@@ -401,6 +491,14 @@ test.afterEach(async ({ page }, testInfo: TestInfo) => {
     capturedUrls: capturedUrls,
     urlHistory: trackedUrlRecords,
     screenshotPath: finalScreenshotPath,
+    contactUsEnabled,
+    contactUsStatus,
+    contactUsScreenshot,
+    contactUsReason,
+    visaStatusUrl,
+    visaStatusScreenshot,
+    completePartiallyUrl,
+    completePartiallyScreenshot,
     error: errorMessage,
     failedStep: failedStep,
     startTime: startTime,
@@ -408,20 +506,144 @@ test.afterEach(async ({ page }, testInfo: TestInfo) => {
   };
 
   // Write result JSON to .temp-results/
-  // Filename is deterministic — same test+device+browser overwrites on retry
-  // So only the FINAL attempt's result survives
+  // Filename is deterministic — same test+device+browser accumulates or overwrites on retry
   const resultDir = path.join(process.cwd(), '.temp-results');
   fs.mkdirSync(resultDir, { recursive: true });
 
   const resultFileName = `${testKey}__${device}__${browser}.json`;
   const resultFilePath = path.join(resultDir, resultFileName);
 
+  let existingBlocks: any[] = [];
+  let existingResult: any = null;
+
+  if (fs.existsSync(resultFilePath)) {
+    try {
+      existingResult = JSON.parse(fs.readFileSync(resultFilePath, 'utf8'));
+      if (existingResult && Array.isArray(existingResult.testBlocks)) {
+        existingBlocks = existingResult.testBlocks;
+      } else if (existingResult && existingResult.testName) {
+        existingBlocks = [{
+          title: existingResult.testName,
+          status: existingResult.status,
+          duration: existingResult.duration,
+          error: existingResult.error,
+          failedStep: existingResult.failedStep,
+          screenshotPath: existingResult.screenshotPath,
+        }];
+      }
+    } catch (_) {}
+  }
+
+  // Current test block item
+  const currentBlock = {
+    title: testName,
+    status: status,
+    duration: parseFloat(durationSec),
+    error: errorMessage,
+    failedStep: failedStep,
+    screenshotPath: finalScreenshotPath,
+  };
+
+  // Upsert current test block
+  const existingIdx = existingBlocks.findIndex((b: any) => b.title === testName);
+  if (existingIdx >= 0) {
+    existingBlocks[existingIdx] = currentBlock;
+  } else {
+    existingBlocks.push(currentBlock);
+  }
+
+  // Calculate composite status:
+  // If ANY test block failed -> overall status is FAIL
+  // If all are PASS or RETRY_PASS -> PASS
+  // If all are SKIPPED -> SKIPPED
+  const hasFail = existingBlocks.some((b: any) => b.status === 'FAIL');
+  const hasRetryPass = existingBlocks.some((b: any) => b.status === 'RETRY_PASS');
+  const allSkipped = existingBlocks.every((b: any) => b.status === 'SKIPPED');
+  const anyPass = existingBlocks.some((b: any) => b.status === 'PASS' || b.status === 'RETRY_PASS');
+
+  let compositeStatus: TestResultData['status'] = 'PASS';
+  if (hasFail) {
+    compositeStatus = 'FAIL';
+  } else if (hasRetryPass) {
+    compositeStatus = 'RETRY_PASS';
+  } else if (allSkipped) {
+    compositeStatus = 'SKIPPED';
+  } else if (anyPass) {
+    compositeStatus = 'PASS';
+  }
+
+  // Composite error: if tests failed, specify which test failed
+  let compositeError = errorMessage;
+  if (hasFail) {
+    const failedBlocks = existingBlocks.filter((b: any) => b.status === 'FAIL');
+    compositeError = failedBlocks
+      .map((b: any) => `[${b.title}] ${b.error || 'Failed'}`)
+      .join('\n\n');
+  }
+
+  // Total duration
+  const totalDuration = existingBlocks.reduce((acc: number, b: any) => acc + (b.duration || 0), 0);
+
+  // Merge captured URLs
+  let allCapturedUrls = capturedUrls;
+  if (existingResult && Array.isArray(existingResult.capturedUrls)) {
+    allCapturedUrls = Array.from(new Set([...existingResult.capturedUrls, ...capturedUrls]));
+  }
+
+  // Merge full URL history across all test blocks in this spec
+  let allUrlHistory: TrackedUrlRecord[] = trackedUrlRecords;
+  if (existingResult && Array.isArray(existingResult.urlHistory)) {
+    const seenHist = new Set<string>();
+    allUrlHistory = [];
+    for (const h of [...existingResult.urlHistory, ...trackedUrlRecords]) {
+      const key = `${h.url}_${h.label}`;
+      if (!seenHist.has(key)) {
+        seenHist.add(key);
+        allUrlHistory.push(h);
+      }
+    }
+  }
+
+  // Screenshot: prioritize failure screenshot if any test block failed
+  let compositeScreenshot = finalScreenshotPath;
+  const failedWithScreenshot = existingBlocks.find((b: any) => b.status === 'FAIL' && b.screenshotPath && b.screenshotPath !== 'N/A');
+  if (failedWithScreenshot) {
+    compositeScreenshot = failedWithScreenshot.screenshotPath;
+  } else if (existingResult && existingResult.screenshotPath && existingResult.screenshotPath !== 'N/A' && compositeScreenshot === 'N/A') {
+    compositeScreenshot = existingResult.screenshotPath;
+  }
+
+  const finalContactUsEnabled = contactUsEnabled || Boolean(existingResult?.contactUsEnabled);
+  let finalContactUsStatus = contactUsStatus;
+  let finalContactUsScreenshot = contactUsScreenshot;
+  let finalContactUsReason = contactUsReason;
+  if (finalContactUsStatus === 'SKIPPED' && existingResult?.contactUsStatus && existingResult.contactUsStatus !== 'SKIPPED') {
+    finalContactUsStatus = existingResult.contactUsStatus;
+    finalContactUsScreenshot = existingResult.contactUsScreenshot || 'N/A';
+    finalContactUsReason = existingResult.contactUsReason || '';
+  }
+
+  const finalResult: TestResultData & { testBlocks: any[]; passCount: number; failCount: number; skipCount: number } = {
+    ...result,
+    status: compositeStatus,
+    duration: parseFloat(totalDuration.toFixed(1)),
+    error: compositeError,
+    screenshotPath: compositeScreenshot,
+    contactUsEnabled: finalContactUsEnabled,
+    contactUsStatus: finalContactUsStatus,
+    contactUsScreenshot: finalContactUsScreenshot,
+    contactUsReason: finalContactUsReason,
+    capturedUrls: allCapturedUrls,
+    urlHistory: allUrlHistory,
+    testBlocks: existingBlocks,
+    passCount: existingBlocks.filter((b: any) => b.status === 'PASS' || b.status === 'RETRY_PASS').length,
+    failCount: existingBlocks.filter((b: any) => b.status === 'FAIL').length,
+    skipCount: existingBlocks.filter((b: any) => b.status === 'SKIPPED').length,
+  };
+
   try {
-    fs.writeFileSync(resultFilePath, JSON.stringify(result, null, 2), 'utf8');
+    fs.writeFileSync(resultFilePath, JSON.stringify(finalResult, null, 2), 'utf8');
   } catch (writeError) {
-    console.error(
-      `[baseTest] Failed to write result JSON for ${testKey}:`,
-      writeError
-    );
+    console.error(`[baseTest] Failed to write result JSON for ${testKey}:`, writeError);
   }
 });

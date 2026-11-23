@@ -4,6 +4,7 @@
  * Express server entry point.
  */
 
+require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
@@ -26,29 +27,39 @@ if (!process.env.PLAYWRIGHT_BROWSERS_PATH) {
   if (!fs.existsSync(msPlaywright)) return;
   try {
     const entries = fs.readdirSync(msPlaywright);
-    const headlessSource = entries.find(e => e.startsWith('chromium_headless_shell-') && !e.includes('1234'));
+    const headlessSource = entries.find(e => e.startsWith('chromium_headless_shell-') && !fs.lstatSync(path.join(msPlaywright, e)).isSymbolicLink());
+    const chromiumSource = entries.find(e => e.startsWith('chromium-') && !fs.lstatSync(path.join(msPlaywright, e)).isSymbolicLink());
+
+    // Read expected revision from browsers.json if available
+    const expectedRevisions = new Set(['1254', '1247', '1234']);
+    try {
+      const browsersJsonPath = path.join(process.cwd(), 'node_modules', 'playwright-core', 'browsers.json');
+      if (fs.existsSync(browsersJsonPath)) {
+        const bData = JSON.parse(fs.readFileSync(browsersJsonPath, 'utf8'));
+        if (Array.isArray(bData.browsers)) {
+          bData.browsers.forEach(b => {
+            if (b.revision) expectedRevisions.add(String(b.revision));
+          });
+        }
+      }
+    } catch (_) {}
+
     if (headlessSource) {
       const srcPath = path.join(msPlaywright, headlessSource);
-      const target1234 = path.join(msPlaywright, 'chromium_headless_shell-1234');
-      if (!fs.existsSync(target1234)) {
-        try { fs.symlinkSync(srcPath, target1234, 'dir'); } catch (_) {}
+      for (const rev of expectedRevisions) {
+        const target = path.join(msPlaywright, `chromium_headless_shell-${rev}`);
+        if (!fs.existsSync(target)) {
+          try { fs.symlinkSync(srcPath, target, 'dir'); } catch (_) {}
+        }
       }
-      const chromeDir = path.join(msPlaywright, 'chromium-1234', 'chrome-linux64');
-      if (!fs.existsSync(chromeDir)) {
-        fs.mkdirSync(chromeDir, { recursive: true });
-        const binSource = path.join(srcPath, 'chrome-headless-shell-linux64');
-        if (fs.existsSync(binSource)) {
-          const files = fs.readdirSync(binSource);
-          for (const f of files) {
-            const dest = path.join(chromeDir, f);
-            if (!fs.existsSync(dest)) {
-              try { fs.symlinkSync(path.join(binSource, f), dest); } catch (_) {}
-            }
-          }
-          const chromeBin = path.join(chromeDir, 'chrome');
-          if (!fs.existsSync(chromeBin)) {
-            try { fs.symlinkSync(path.join(binSource, 'chrome-headless-shell'), chromeBin); } catch (_) {}
-          }
+    }
+
+    if (chromiumSource || headlessSource) {
+      const srcChromium = chromiumSource ? path.join(msPlaywright, chromiumSource) : path.join(msPlaywright, headlessSource);
+      for (const rev of expectedRevisions) {
+        const target = path.join(msPlaywright, `chromium-${rev}`);
+        if (!fs.existsSync(target)) {
+          try { fs.symlinkSync(srcChromium, target, 'dir'); } catch (_) {}
         }
       }
     }
@@ -63,7 +74,7 @@ const { updateReportDisk } = require('./services/htmlReportGenerator');
 const app = express();
 const PORT = 3000;
 
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
 // Serve web frontend static files
 app.use(express.static(path.join(process.cwd(), 'web')));

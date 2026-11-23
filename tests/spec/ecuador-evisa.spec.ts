@@ -231,3 +231,16 @@ test('Ecuador Visa Application', async ({ page, waitForCaptcha }) => {
     ).toBeVisible();
 
 });
+
+// =====================================
+// SECTION: Contact Us
+// =====================================
+test.describe('Ecuador Evisa contact form', () => {
+    test.describe.configure({ retries: 0 });
+
+    test('sends one inquiry and displays confirmation', async ({ page }) => {
+        const { submitContactUsForm } = await import('../../utils/contactUs');
+        const result = await submitContactUsForm(page, 'ecuador-evisa');
+        expect(result.status, result.reason || 'Ecuador Evisa Contact Us submission failed').toBe('PASS');
+    });
+});

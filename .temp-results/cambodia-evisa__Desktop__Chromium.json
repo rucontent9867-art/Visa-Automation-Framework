@@ -1,0 +1,113 @@
+{
+  "testScript": "cambodia-evisa.spec.ts",
+  "testName": "E-Visa Application",
+  "device": "Desktop",
+  "deviceType": "Desktop",
+  "browser": "Chromium",
+  "viewport": "1920 x 1080",
+  "status": "PASS",
+  "retries": 0,
+  "duration": 88.6,
+  "paymentUrl": "https://cambodia-evisa.info/visa-payment/QzAzNjYwMDA5VlVL/",
+  "capturedUrls": [
+    "https://cambodia-evisa.info/apply-evisa/",
+    "https://cambodia-evisa.info/visa-status/",
+    "https://cambodia-evisa.info/complete-partially/",
+    "https://cambodia-evisa.info/document-upload/QzAxNDAwNTk3TE5J/",
+    "https://cambodia-evisa.info/document-upload/QzA3NTE4MjkxVFJY/",
+    "https://cambodia-evisa.info/document-upload/QzAxMDMwNTc4WEZS/",
+    "https://cambodia-evisa.info/document-upload/QzA4NzYzNDg5RENP/",
+    "https://cambodia-evisa.info/document-upload/QzAzNjYwMDA5VlVL/",
+    "https://cambodia-evisa.info/visa-payment/QzAzNjYwMDA5VlVL/"
+  ],
+  "urlHistory": [
+    {
+      "url": "https://cambodia-evisa.info/apply-evisa/",
+      "timestamp": "2026-11-12 17:06:02",
+      "label": "Initial Navigation"
+    },
+    {
+      "url": "https://cambodia-evisa.info/visa-status/",
+      "timestamp": "2026-11-12 17:06:17",
+      "label": "Direct Verification (preview): visa-status"
+    },
+    {
+      "url": "https://cambodia-evisa.info/complete-partially/",
+      "timestamp": "2026-11-12 17:06:20",
+      "label": "Direct Verification (preview): complete-partially"
+    },
+    {
+      "url": "https://cambodia-evisa.info/document-upload/QzAxNDAwNTk3TE5J/",
+      "timestamp": "2026-11-12 17:06:26",
+      "label": "Redirect / Step 4"
+    },
+    {
+      "url": "https://cambodia-evisa.info/document-upload/QzA3NTE4MjkxVFJY/",
+      "timestamp": "2026-11-12 17:07:22",
+      "label": "Redirect / Step 4"
+    },
+    {
+      "url": "https://cambodia-evisa.info/document-upload/QzAxMDMwNTc4WEZS/",
+      "timestamp": "2026-11-12 17:08:17",
+      "label": "Redirect / Step 4"
+    },
+    {
+      "url": "https://cambodia-evisa.info/document-upload/QzA4NzYzNDg5RENP/",
+      "timestamp": "2026-11-12 17:09:12",
+      "label": "Redirect / Step 4"
+    },
+    {
+      "url": "https://cambodia-evisa.info/document-upload/QzAzNjYwMDA5VlVL/",
+      "timestamp": "2026-11-12 17:16:59",
+      "label": "Redirect / Step 4"
+    },
+    {
+      "url": "https://cambodia-evisa.info/visa-status/",
+      "timestamp": "2026-11-12 17:17:25",
+      "label": "Direct Verification (document-upload): visa-status"
+    },
+    {
+      "url": "https://cambodia-evisa.info/complete-partially/",
+      "timestamp": "2026-11-12 17:17:29",
+      "label": "Direct Verification (document-upload): complete-partially"
+    },
+    {
+      "url": "https://cambodia-evisa.info/visa-payment/QzAzNjYwMDA5VlVL/",
+      "timestamp": "2026-11-12 17:17:36",
+      "label": "Redirect / Step 7"
+    },
+    {
+      "url": "https://cambodia-evisa.info/visa-status/",
+      "timestamp": "2026-11-12 17:17:53",
+      "label": "Direct Verification (payment): visa-status"
+    },
+    {
+      "url": "https://cambodia-evisa.info/complete-partially/",
+      "timestamp": "2026-11-12 17:17:57",
+      "label": "Direct Verification (payment): complete-partially"
+    },
+    {
+      "url": "https://cambodia-evisa.info/visa-payment/QzAzNjYwMDA5VlVL/",
+      "timestamp": "2026-11-12 17:18:01",
+      "label": "Final / Payment Page"
+    }
+  ],
+  "screenshotPath": "/screenshots/2026-11-12_17-18-01/cambodia-evisa/cambodia-evisa-desktop-chromium-captured-url.png",
+  "error": "",
+  "failedStep": "",
+  "startTime": "2026-11-12 17:16:32",
+  "endTime": "2026-11-12 17:18:01",
+  "testBlocks": [
+    {
+      "title": "E-Visa Application",
+      "status": "PASS",
+      "duration": 88.6,
+      "error": "",
+      "failedStep": "",
+      "screenshotPath": "/screenshots/2026-11-12_17-18-01/cambodia-evisa/cambodia-evisa-desktop-chromium-captured-url.png"
+    }
+  ],
+  "passCount": 1,
+  "failCount": 0,
+  "skipCount": 0
+}

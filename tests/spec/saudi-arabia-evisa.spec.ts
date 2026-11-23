@@ -260,3 +260,16 @@ test('Saudi Arabia Visa Application', async ({ page, waitForCaptcha }) => {
     );
 
 });
+
+// =====================================
+// SECTION: Contact Us
+// =====================================
+test.describe('Saudi Arabia Evisa contact form', () => {
+    test.describe.configure({ retries: 0 });
+
+    test('sends one inquiry and displays confirmation', async ({ page }) => {
+        const { submitContactUsForm } = await import('../../utils/contactUs');
+        const result = await submitContactUsForm(page, 'saudi-arabia-evisa');
+        expect(result.status, result.reason || 'Saudi Arabia Evisa Contact Us submission failed').toBe('PASS');
+    });
+});

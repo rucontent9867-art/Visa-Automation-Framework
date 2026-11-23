@@ -261,3 +261,16 @@ test('Israel Visa Application', async ({ page, waitForCaptcha }) => {
     );
 
 });
+
+// =====================================
+// SECTION: Contact Us
+// =====================================
+test.describe('Israel Evisa contact form', () => {
+    test.describe.configure({ retries: 0 });
+
+    test('sends one inquiry and displays confirmation', async ({ page }) => {
+        const { submitContactUsForm } = await import('../../utils/contactUs');
+        const result = await submitContactUsForm(page, 'israel-evisa');
+        expect(result.status, result.reason || 'Israel Evisa Contact Us submission failed').toBe('PASS');
+    });
+});

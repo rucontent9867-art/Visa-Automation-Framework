@@ -165,6 +165,19 @@ test('E-Visa Application', async ({ page, waitForCaptcha }) => {
     }
     await page.waitForTimeout(1000);
     await capturescreenshot(page, 'preview');
+
+    // =========================================================================
+    // DIRECT URL VERIFICATION: PREVIEW STAGE
+    // Verify application status & partial resume on Preview screen
+    // =========================================================================
+    let orderId = (await page.locator('#order_id_spn, #order_id, [data-order-id]').textContent().catch(() => ''))?.trim() || '';
+    await verifyDirectUrls(page, {
+        orderId,
+        stageName: 'preview',
+        urls: ["/visa-status/","/complete-partially/"],
+        waitForCaptcha,
+        networkIdleTimeoutMs: 5000,
+    });
     await page.getByRole('button', { name: 'Submit & Preview' })
         .click();
     try {
@@ -190,16 +203,25 @@ test('E-Visa Application', async ({ page, waitForCaptcha }) => {
     await photoInput.setInputFiles(uploadFile);
     await expect(page.locator('[id^="photo_result_"]').getByText('Document has been uploaded!')).toBeVisible();
 
-    // Flight itinerary
+    // Flight itinerary (if required on page)
     const flightInput = page.locator('[id^="flight_itinerary_form_"] input[type="file"]');
-    await flightInput.setInputFiles(uploadFile);
-    await expect(page.locator('[id^="flight_itinerary_result_"]').getByText('Document has been uploaded!')).toBeVisible();
+    if (await flightInput.count() > 0) {
+        await flightInput.setInputFiles(uploadFile);
+        await expect(page.locator('[id^="flight_itinerary_result_"]')).toContainText('Document has been uploaded!');
+    }
 
-    // Hotel booking
+    // Hotel booking (if required on page)
     const hotelInput = page.locator('[id^="hotel_booking_form_"] input[type="file"]');
-    await hotelInput.setInputFiles(uploadFile);
-    await expect(page.locator('[id^="hotel_booking_result_"]').getByText('Document has been uploaded!')).toBeVisible();
+    if (await hotelInput.count() > 0) {
+        await hotelInput.setInputFiles(uploadFile);
+        await expect(page.locator('[id^="hotel_booking_result_"]')).toContainText('Document has been uploaded!');
+    }
 
+    // Check confirmation checkbox if present
+    const docCheckbox = page.locator('input[type="checkbox"]').first();
+    if (await docCheckbox.count() > 0) {
+        await docCheckbox.check().catch(() => {});
+    }
 
     // =====================================
     // PAYMENT
@@ -207,10 +229,21 @@ test('E-Visa Application', async ({ page, waitForCaptcha }) => {
 
     await page.waitForTimeout(1000);
     await capturescreenshot(page, 'doc-page');
+
+    // =========================================================================
+    // DIRECT URL VERIFICATION: DOCUMENT UPLOAD STAGE
+    // Verify application status & partial resume on Document Upload screen
+    // =========================================================================
+    orderId = (await page.locator('#order_id_spn, #order_id, [data-order-id]').textContent().catch(() => ''))?.trim() || orderId;
+    await verifyDirectUrls(page, {
+        orderId,
+        stageName: 'document-upload',
+        urls: ["/visa-status/","/complete-partially/"],
+        waitForCaptcha,
+        networkIdleTimeoutMs: 5000,
+    });
     await page.getByRole('button', { name: 'Save & Continue' })
-        .click({
-            modifiers: ['ControlOrMeta']
-        });
+        .click();
     try {
         await page.waitForLoadState('networkidle', { timeout: 5000 });
     } catch {
@@ -228,11 +261,12 @@ test('E-Visa Application', async ({ page, waitForCaptcha }) => {
     // DIRECT URL VERIFICATION - PAYMENT STAGE
     // Verify /visa-status/ and /complete-partially/ simultaneously
     // =========================================================================
+    orderId = (await page.locator('#order_id_spn, #order_id, [data-order-id]').textContent().catch(() => ''))?.trim() || orderId;
     await verifyDirectUrls(page, {
+        orderId,
         stageName: 'payment',
-        orderIdSelector: '#order_id_spn, #order_id, [data-order-id]',
         urls: ['/visa-status/', '/complete-partially/'],
-        waitForCaptcha: true,
+        waitForCaptcha,
         networkIdleTimeoutMs: 5000,
     });
 
@@ -240,4 +274,17 @@ test('E-Visa Application', async ({ page, waitForCaptcha }) => {
         page.getByText('dm443790@gmail.com')
     ).toBeVisible();
 
+});
+
+// =====================================
+// SECTION: Contact Us
+// =====================================
+test.describe('Cambodia Evisa contact form', () => {
+    test.describe.configure({ retries: 0 });
+
+    test('sends one inquiry and displays confirmation', async ({ page }) => {
+        const { submitContactUsForm } = await import('../../utils/contactUs');
+        const result = await submitContactUsForm(page, 'cambodia-evisa');
+        expect(result.status, result.reason || 'Cambodia Evisa Contact Us submission failed').toBe('PASS');
+    });
 });

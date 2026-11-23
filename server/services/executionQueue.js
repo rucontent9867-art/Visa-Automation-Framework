@@ -142,7 +142,7 @@ function getFormattedTimestamp() {
   return `${yyyy}-${mm}-${dd}_${hh}-${min}-${ss}`;
 }
 
-function enqueueSession({ testFiles, browsers, devices, retries, headless, batchSize = 5, targets, timeouts }) {
+function enqueueSession({ testFiles, browsers, devices, retries, headless, batchSize = 5, targets, timeouts, disabledSections, enabledSections, contactUsEnabled = false }) {
   const sessionId = uuidv4();
   const runNumber = store.nextRunNumber();
   const sessionTimestamp = getFormattedTimestamp();
@@ -242,7 +242,10 @@ function enqueueSession({ testFiles, browsers, devices, retries, headless, batch
       timeouts: validatedTimeouts,
       sessionTimestamp,
       enableScreenshotCapture,
+      contactUsEnabled: !!contactUsEnabled,
       isRerun: Array.isArray(targets) && targets.length > 0,
+      disabledSections: disabledSections || [],
+      enabledSections: enabledSections || [],
     },
     executionIds,
   };
@@ -354,8 +357,11 @@ async function runSingleTestTask(exec, session) {
         retries: exec.retries,
         headless: session.options?.headless,
         enableScreenshotCapture: session.options?.enableScreenshotCapture,
+        contactUsEnabled: !!session.options?.contactUsEnabled,
         sessionTimestamp: session.options?.sessionTimestamp,
         timeouts: session.options?.timeouts,
+        disabledSections: session.options?.disabledSections,
+        enabledSections: session.options?.enabledSections,
       },
       (evt) => broadcast(session.id, { type: 'log', executionId: exec.id, ...evt })
     );
@@ -370,10 +376,22 @@ async function runSingleTestTask(exec, session) {
         : (exec.paymentUrl && exec.paymentUrl !== 'N/A' ? [exec.paymentUrl] : []);
       exec.urlHistory = Array.isArray(rj.urlHistory) ? rj.urlHistory : [];
       exec.screenshotPath = rj.screenshotPath || 'N/A';
+      exec.contactUsEnabled = !!rj.contactUsEnabled;
+      exec.contactUsStatus = rj.contactUsStatus || 'SKIPPED';
+      exec.contactUsScreenshot = rj.contactUsScreenshot || 'N/A';
+      exec.contactUsReason = rj.contactUsReason || '';
+      exec.visaStatusUrl = rj.visaStatusUrl || 'N/A';
+      exec.visaStatusScreenshot = rj.visaStatusScreenshot || 'N/A';
+      exec.completePartiallyUrl = rj.completePartiallyUrl || 'N/A';
+      exec.completePartiallyScreenshot = rj.completePartiallyScreenshot || 'N/A';
       exec.error = rj.error || '';
       exec.failedStep = rj.failedStep || '';
       if (rj.testName) exec.testName = rj.testName;
       if (rj.retries !== undefined) exec.retries = rj.retries;
+      if (Array.isArray(rj.testBlocks)) exec.testBlocks = rj.testBlocks;
+      if (rj.passCount !== undefined) exec.passCount = rj.passCount;
+      if (rj.failCount !== undefined) exec.failCount = rj.failCount;
+      if (rj.skipCount !== undefined) exec.skipCount = rj.skipCount;
     } else {
       exec.status = result.exitCode === 0 ? 'PASS' : 'FAIL';
       const rawErr = (result.stderr || result.stdout || '').trim();

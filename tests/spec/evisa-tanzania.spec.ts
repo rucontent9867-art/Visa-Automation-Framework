@@ -237,3 +237,16 @@ test('Tanzania Visa Application', async ({ page, waitForCaptcha, getUploadFile }
         `\n================ PAYMENT PAGE URL ================\n${page.url()}\n====================================================\n`
     );
 });
+
+// =====================================
+// SECTION: Contact Us
+// =====================================
+test.describe('Evisa Tanzania contact form', () => {
+    test.describe.configure({ retries: 0 });
+
+    test('sends one inquiry and displays confirmation', async ({ page }) => {
+        const { submitContactUsForm } = await import('../../utils/contactUs');
+        const result = await submitContactUsForm(page, 'evisa-tanzania');
+        expect(result.status, result.reason || 'Evisa Tanzania Contact Us submission failed').toBe('PASS');
+    });
+});

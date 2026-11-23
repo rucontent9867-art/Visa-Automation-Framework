@@ -5,7 +5,7 @@
  * Starts directly from the application page URL.
  */
 
-import { test, expect } from '../../utils/baseTest';
+import { test, expect, capturescreenshot, verifyDirectUrls } from '../../utils/baseTest';
 import {
     getArrivalDate,
     getDateOfBirth,
@@ -125,9 +125,25 @@ test('United Kingdom Visa Application', async ({ page, waitForCaptcha }) => {
 
     // ── Submit & Preview ──
 
+    await page.waitForTimeout(1000);
+    await capturescreenshot(page, 'applicant-detail');
     await page.getByRole('button', { name: 'Submit & Preview' })
         .click();
 
+    // =======================================================================
+    // DIRECT URL VERIFICATION: PREVIEW STAGE
+    // Verify application status & partial resume before final submission
+    // =======================================================================
+    await verifyDirectUrls(page, {
+        stageName: 'preview',
+        orderIdSelector: '#order_id_spn, #order_id, [data-order-id]',
+        urls: ['/application-status/', '/complete-application/'],
+        waitForCaptcha: true,
+        networkIdleTimeoutMs: 5000,
+    });
+
+    await page.waitForTimeout(1000);
+    await capturescreenshot(page, 'preview');
 
     // ── Confirm & Submit ──
 
@@ -181,6 +197,20 @@ test('United Kingdom Visa Application', async ({ page, waitForCaptcha }) => {
         console.log(`Uploaded: ${section.replace(/_/g, ' ')}`);
     }
 
+    await page.waitForTimeout(1000);
+    await capturescreenshot(page, 'doc-page');
+
+    // =======================================================================
+    // DIRECT URL VERIFICATION: DOCUMENT UPLOAD STAGE
+    // Verify direct URLs open Document Upload stage before proceeding
+    // =======================================================================
+    await verifyDirectUrls(page, {
+        stageName: 'document-upload',
+        orderIdSelector: '#order_id_spn, #order_id, [data-order-id]',
+        urls: ['/application-status/', '/complete-application/'],
+        waitForCaptcha: true,
+        networkIdleTimeoutMs: 5000,
+    });
 
     // ── Save & Continue ──
 
@@ -193,6 +223,21 @@ test('United Kingdom Visa Application', async ({ page, waitForCaptcha }) => {
     await expect(
         page.getByRole('heading', { name: 'Pay Application Fee' })
     ).toBeVisible({ timeout: 30000 });
+
+    await page.waitForTimeout(1000);
+    await capturescreenshot(page, 'payment-page');
+
+    // =======================================================================
+    // DIRECT URL VERIFICATION: PAYMENT STAGE
+    // Verify direct URLs open Payment stage before checkout
+    // =======================================================================
+    await verifyDirectUrls(page, {
+        stageName: 'payment',
+        orderIdSelector: '#order_id_spn, #order_id, [data-order-id]',
+        urls: ['/application-status/', '/complete-application/'],
+        waitForCaptcha: true,
+        networkIdleTimeoutMs: 5000,
+    });
 
     await expect(
         page.getByText('dm443790@gmail.com')
@@ -207,4 +252,17 @@ test('United Kingdom Visa Application', async ({ page, waitForCaptcha }) => {
         `====================================================\n`
     );
 
+});
+
+// =====================================
+// SECTION: Contact Us
+// =====================================
+test.describe('United Kingdom Visa contact form', () => {
+    test.describe.configure({ retries: 0 });
+
+    test('sends one inquiry and displays confirmation', async ({ page }) => {
+        const { submitContactUsForm } = await import('../../utils/contactUs');
+        const result = await submitContactUsForm(page, 'united-kingdom-visa');
+        expect(result.status, result.reason || 'United Kingdom Visa Contact Us submission failed').toBe('PASS');
+    });
 });

@@ -266,3 +266,16 @@ test('Kuwait Visa Application', async ({ page, waitForCaptcha }) => {
     );
 
 });
+
+// =====================================
+// SECTION: Contact Us
+// =====================================
+test.describe('Kuwait Evisa contact form', () => {
+    test.describe.configure({ retries: 0 });
+
+    test('sends one inquiry and displays confirmation', async ({ page }) => {
+        const { submitContactUsForm } = await import('../../utils/contactUs');
+        const result = await submitContactUsForm(page, 'kuwait-evisa');
+        expect(result.status, result.reason || 'Kuwait Evisa Contact Us submission failed').toBe('PASS');
+    });
+});

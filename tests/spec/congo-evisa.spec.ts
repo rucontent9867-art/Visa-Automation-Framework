@@ -161,6 +161,19 @@ test('Congo Visa Application', async ({ page, waitForCaptcha }) => {
 
     await page.waitForTimeout(1000);
     await capturescreenshot(page, 'preview');
+
+    // =========================================================================
+    // DIRECT URL VERIFICATION: PREVIEW STAGE
+    // Verify application status & partial resume on Preview screen
+    // =========================================================================
+    let orderId = (await page.locator('#order_id_spn, #order_id, [data-order-id]').textContent().catch(() => ''))?.trim() || '';
+    await verifyDirectUrls(page, {
+        orderId,
+        stageName: 'preview',
+        urls: ["/visa-status/","/complete-partially/"],
+        waitForCaptcha,
+        networkIdleTimeoutMs: 5000,
+    });
     await page.getByRole('button', { name: 'Confirm & Submit' })
         .click();
     try {
@@ -198,6 +211,19 @@ test('Congo Visa Application', async ({ page, waitForCaptcha }) => {
 
     await page.waitForTimeout(1000);
     await capturescreenshot(page, 'doc-page');
+
+    // =========================================================================
+    // DIRECT URL VERIFICATION: DOCUMENT UPLOAD STAGE
+    // Verify application status & partial resume on Document Upload screen
+    // =========================================================================
+    orderId = (await page.locator('#order_id_spn, #order_id, [data-order-id]').textContent().catch(() => ''))?.trim() || orderId;
+    await verifyDirectUrls(page, {
+        orderId,
+        stageName: 'document-upload',
+        urls: ["/visa-status/","/complete-partially/"],
+        waitForCaptcha,
+        networkIdleTimeoutMs: 5000,
+    });
     await page.getByRole('button', { name: 'Save & Continue' })
         .click();
     try {
@@ -214,11 +240,12 @@ test('Congo Visa Application', async ({ page, waitForCaptcha }) => {
     // DIRECT URL VERIFICATION - STAGE 3: PAYMENT / DETAIL STAGE
     // Verify /visa-status/ and /complete-partially/ in separate tabs before checkout
     // =========================================================================
+    orderId = (await page.locator('#order_id_spn, #order_id, [data-order-id]').textContent().catch(() => ''))?.trim() || orderId;
     await verifyDirectUrls(page, {
+        orderId,
         stageName: 'payment',
-        orderIdSelector: '#order_id_spn, #order_id, [data-order-id]',
         urls: ['/visa-status/', '/complete-partially/'],
-        waitForCaptcha: true,
+        waitForCaptcha,
         networkIdleTimeoutMs: 5000,
     });
 
@@ -233,4 +260,17 @@ test('Congo Visa Application', async ({ page, waitForCaptcha }) => {
         `\n================ PAYMENT PAGE URL ================\n${page.url()}\n====================================================\n`
     );
 
+});
+
+// =====================================
+// SECTION: Contact Us
+// =====================================
+test.describe('Congo Evisa contact form', () => {
+    test.describe.configure({ retries: 0 });
+
+    test('sends one inquiry and displays confirmation', async ({ page }) => {
+        const { submitContactUsForm } = await import('../../utils/contactUs');
+        const result = await submitContactUsForm(page, 'congo-evisa');
+        expect(result.status, result.reason || 'Congo Evisa Contact Us submission failed').toBe('PASS');
+    });
 });

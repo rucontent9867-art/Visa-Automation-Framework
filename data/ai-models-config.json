@@ -1,22 +1,13 @@
 {
-  "activeProviderId": "builtin-sdet",
+  "activeProviderId": "google-gemini",
   "providers": [
-    {
-      "id": "builtin-sdet",
-      "name": "Built-in SDET Expert Engine",
-      "vendor": "builtin",
-      "description": "Guaranteed 100% offline, zero-config resilient test synthesis with full dynamic element handling.",
-      "isBuiltin": true,
-      "enabled": true
-    },
     {
       "id": "google-gemini",
       "name": "Google Gemini",
       "vendor": "gemini",
-      "apiKey": "",
-      "model": "gemini-2.5-flash",
+      "model": "gemini-4-hydrogen",
       "settings": {
-        "models/gemini-2.5-flash": {
+        "models/gemini-4-hydrogen": {
           "reasoningEffort": "medium"
         }
       },
@@ -65,31 +56,14 @@
       "maxInputTokens": 128000,
       "maxOutputTokens": 16000,
       "enabled": true
-    },
-    {
-      "id": "copilot-codex",
-      "name": "Copilot (gpt-5.3-codex)",
-      "vendor": "copilot",
-      "settings": {
-        "gpt-5.3-codex": {
-          "reasoningEffort": "xhigh"
-        }
-      },
-      "enabled": true
     }
   ],
   "connectionStatuses": {
-    "builtin-sdet": {
-      "state": "connected",
-      "message": "Built-in SDET Smart Engine ready (100% Offline Guaranteed)",
-      "latencyMs": 1,
-      "checkedAt": "2026-10-31T22:06:09.057Z"
-    },
-    "ollama-local": {
+    "google-gemini": {
       "state": "offline",
-      "message": "Cannot connect (fetch failed) to http://localhost:11434/v1",
-      "latencyMs": 51,
-      "checkedAt": "2026-10-31T22:06:12.566Z"
+      "message": "Gemini API error: {\"error\":{\"code\":503,\"message\":\"This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.\",\"status\":\"UNAVAILABLE\"}}",
+      "latencyMs": 1759,
+      "checkedAt": "2026-11-23T20:33:30.977Z"
     }
   }
 }

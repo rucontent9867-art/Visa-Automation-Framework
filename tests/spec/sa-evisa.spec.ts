@@ -329,3 +329,16 @@ test('South Africa Visa Application', async ({ page, waitForCaptcha, getUploadFi
     );
 
 });
+
+// =====================================
+// SECTION: Contact Us
+// =====================================
+test.describe('Sa Evisa contact form', () => {
+    test.describe.configure({ retries: 0 });
+
+    test('sends one inquiry and displays confirmation', async ({ page }) => {
+        const { submitContactUsForm } = await import('../../utils/contactUs');
+        const result = await submitContactUsForm(page, 'sa-evisa');
+        expect(result.status, result.reason || 'Sa Evisa Contact Us submission failed').toBe('PASS');
+    });
+});

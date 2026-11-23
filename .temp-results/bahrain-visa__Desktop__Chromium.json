@@ -1,0 +1,114 @@
+{
+  "testScript": "bahrain-visa.spec.ts",
+  "testName": "sends one inquiry and displays confirmation",
+  "device": "Desktop",
+  "deviceType": "Desktop",
+  "browser": "Chromium",
+  "viewport": "1920 x 1080",
+  "status": "PASS",
+  "retries": 0,
+  "duration": 71.6,
+  "paymentUrl": "N/A",
+  "capturedUrls": [
+    "https://bahrain-eta.it.com/application/",
+    "https://bahrain-eta.it.com/application-status/",
+    "https://bahrain-eta.it.com/complete-application/",
+    "https://bahrain-eta.it.com/document-upload/Qkg0MjAwOTQ0VFFM/",
+    "https://bahrain-eta.it.com/visa-payment/Qkg0MjAwOTQ0VFFM/",
+    "https://bahrain-eta.it.com/document-upload/Qkg0NTg2MjgzRkJC/",
+    "https://bahrain-eta.it.com/visa-payment/Qkg0NTg2MjgzRkJC/"
+  ],
+  "urlHistory": [
+    {
+      "url": "https://bahrain-eta.it.com/application/",
+      "timestamp": "2026-11-12 17:10:53",
+      "label": "Initial Navigation"
+    },
+    {
+      "url": "https://bahrain-eta.it.com/application-status/",
+      "timestamp": "2026-11-12 17:11:06",
+      "label": "Direct Verification (preview): application-status"
+    },
+    {
+      "url": "https://bahrain-eta.it.com/complete-application/",
+      "timestamp": "2026-11-12 17:11:12",
+      "label": "Direct Verification (preview): complete-application"
+    },
+    {
+      "url": "https://bahrain-eta.it.com/document-upload/Qkg0MjAwOTQ0VFFM/",
+      "timestamp": "2026-11-12 17:11:20",
+      "label": "Redirect / Step 4"
+    },
+    {
+      "url": "https://bahrain-eta.it.com/application-status/",
+      "timestamp": "2026-11-12 17:11:34",
+      "label": "Direct Verification (document-upload): application-status"
+    },
+    {
+      "url": "https://bahrain-eta.it.com/complete-application/",
+      "timestamp": "2026-11-12 17:11:40",
+      "label": "Direct Verification (document-upload): complete-application"
+    },
+    {
+      "url": "https://bahrain-eta.it.com/visa-payment/Qkg0MjAwOTQ0VFFM/",
+      "timestamp": "2026-11-12 17:11:47",
+      "label": "Redirect / Step 7"
+    },
+    {
+      "url": "https://bahrain-eta.it.com/application-status/",
+      "timestamp": "2026-11-12 17:11:53",
+      "label": "Direct Verification (payment): application-status"
+    },
+    {
+      "url": "https://bahrain-eta.it.com/visa-payment/Qkg0MjAwOTQ0VFFM/",
+      "timestamp": "2026-11-12 17:11:53",
+      "label": "Page URL at finish"
+    },
+    {
+      "url": "https://bahrain-eta.it.com/document-upload/Qkg0NTg2MjgzRkJC/",
+      "timestamp": "2026-11-12 17:15:35",
+      "label": "Redirect / Step 4"
+    },
+    {
+      "url": "https://bahrain-eta.it.com/visa-payment/Qkg0NTg2MjgzRkJC/",
+      "timestamp": "2026-11-12 17:16:02",
+      "label": "Redirect / Step 7"
+    },
+    {
+      "url": "https://bahrain-eta.it.com/complete-application/",
+      "timestamp": "2026-11-12 17:16:14",
+      "label": "Direct Verification (payment): complete-application"
+    },
+    {
+      "url": "https://bahrain-eta.it.com/visa-payment/Qkg0NTg2MjgzRkJC/",
+      "timestamp": "2026-11-12 17:16:18",
+      "label": "Final / Payment Page"
+    }
+  ],
+  "screenshotPath": "/screenshots/2026-11-12_17-16-19/bahrain-visa/bahrain-visa-desktop-chromium-failed.png",
+  "error": "",
+  "failedStep": "",
+  "startTime": "2026-11-12 17:16:19",
+  "endTime": "2026-11-12 17:16:19",
+  "testBlocks": [
+    {
+      "title": "Bahrain Visa Application",
+      "status": "PASS",
+      "duration": 71.5,
+      "error": "",
+      "failedStep": "",
+      "screenshotPath": "/screenshots/2026-11-12_17-16-18/bahrain-visa/bahrain-visa-desktop-chromium-captured-url.png"
+    },
+    {
+      "title": "sends one inquiry and displays confirmation",
+      "status": "SKIPPED",
+      "duration": 0.1,
+      "error": "",
+      "failedStep": "",
+      "screenshotPath": "/screenshots/2026-11-12_17-16-19/bahrain-visa/bahrain-visa-desktop-chromium-failed.png"
+    }
+  ],
+  "passCount": 1,
+  "failCount": 0,
+  "skipCount": 1
+}

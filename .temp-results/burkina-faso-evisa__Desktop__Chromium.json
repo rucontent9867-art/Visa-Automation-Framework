@@ -1,0 +1,89 @@
+{
+  "testScript": "burkina-faso-evisa.spec.ts",
+  "testName": "Burkina Faso Visa Application",
+  "device": "Desktop",
+  "deviceType": "Desktop",
+  "browser": "Chromium",
+  "viewport": "1920 x 1080",
+  "status": "PASS",
+  "retries": 0,
+  "duration": 106.9,
+  "paymentUrl": "https://burkina-faso-evisa.com/visa-payment/QkY5MDUyMDUyT1VO/",
+  "capturedUrls": [
+    "https://burkina-faso-evisa.com/apply-now/",
+    "https://burkina-faso-evisa.com/visa-status/",
+    "https://burkina-faso-evisa.com/complete-partially/",
+    "https://burkina-faso-evisa.com/document-upload/QkY5MDUyMDUyT1VO/",
+    "https://burkina-faso-evisa.com/visa-payment/QkY5MDUyMDUyT1VO/"
+  ],
+  "urlHistory": [
+    {
+      "url": "https://burkina-faso-evisa.com/apply-now/",
+      "timestamp": "2026-11-23 20:24:25",
+      "label": "Initial Navigation"
+    },
+    {
+      "url": "https://burkina-faso-evisa.com/visa-status/",
+      "timestamp": "2026-11-23 20:24:51",
+      "label": "Direct Verification (preview): visa-status"
+    },
+    {
+      "url": "https://burkina-faso-evisa.com/complete-partially/",
+      "timestamp": "2026-11-23 20:24:54",
+      "label": "Direct Verification (preview): complete-partially"
+    },
+    {
+      "url": "https://burkina-faso-evisa.com/document-upload/QkY5MDUyMDUyT1VO/",
+      "timestamp": "2026-11-23 20:25:04",
+      "label": "Redirect / Step 4"
+    },
+    {
+      "url": "https://burkina-faso-evisa.com/visa-status/",
+      "timestamp": "2026-11-23 20:25:35",
+      "label": "Direct Verification (document-upload): visa-status"
+    },
+    {
+      "url": "https://burkina-faso-evisa.com/complete-partially/",
+      "timestamp": "2026-11-23 20:25:39",
+      "label": "Direct Verification (document-upload): complete-partially"
+    },
+    {
+      "url": "https://burkina-faso-evisa.com/visa-payment/QkY5MDUyMDUyT1VO/",
+      "timestamp": "2026-11-23 20:25:45",
+      "label": "Redirect / Step 7"
+    },
+    {
+      "url": "https://burkina-faso-evisa.com/visa-status/",
+      "timestamp": "2026-11-23 20:26:02",
+      "label": "Direct Verification (payment): visa-status"
+    },
+    {
+      "url": "https://burkina-faso-evisa.com/complete-partially/",
+      "timestamp": "2026-11-23 20:26:05",
+      "label": "Direct Verification (payment): complete-partially"
+    },
+    {
+      "url": "https://burkina-faso-evisa.com/visa-payment/QkY5MDUyMDUyT1VO/",
+      "timestamp": "2026-11-23 20:26:10",
+      "label": "Final / Payment Page"
+    }
+  ],
+  "screenshotPath": "/screenshots/2026-11-23_20-26-10/burkina-faso-evisa/burkina-faso-evisa-desktop-chromium-captured-url.png",
+  "error": "",
+  "failedStep": "",
+  "startTime": "2026-11-23 20:24:23",
+  "endTime": "2026-11-23 20:26:10",
+  "testBlocks": [
+    {
+      "title": "Burkina Faso Visa Application",
+      "status": "PASS",
+      "duration": 106.9,
+      "error": "",
+      "failedStep": "",
+      "screenshotPath": "/screenshots/2026-11-23_20-26-10/burkina-faso-evisa/burkina-faso-evisa-desktop-chromium-captured-url.png"
+    }
+  ],
+  "passCount": 1,
+  "failCount": 0,
+  "skipCount": 0
+}

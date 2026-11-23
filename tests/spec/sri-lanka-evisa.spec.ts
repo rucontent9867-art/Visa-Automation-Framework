@@ -187,3 +187,16 @@ test('Sri Lanka Visa Application', async ({ page, waitForCaptcha, getUploadFile 
     );
 
 });
+
+// =====================================
+// SECTION: Contact Us
+// =====================================
+test.describe('Sri Lanka Evisa contact form', () => {
+    test.describe.configure({ retries: 0 });
+
+    test('sends one inquiry and displays confirmation', async ({ page }) => {
+        const { submitContactUsForm } = await import('../../utils/contactUs');
+        const result = await submitContactUsForm(page, 'sri-lanka-evisa');
+        expect(result.status, result.reason || 'Sri Lanka Evisa Contact Us submission failed').toBe('PASS');
+    });
+});

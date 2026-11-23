@@ -174,7 +174,7 @@ test('Brazil Visa Application', async ({ page, waitForCaptcha }) => {
 
     await page.getByRole('textbox', { name: 'DD-MM-YYYY' })
         .click();
-    await page.getByRole('link', { name: '4' })
+    await page.getByRole('link', { name: '4', exact: true })
         .click();
 
     await page.locator('#accomodation_0')
@@ -313,4 +313,17 @@ test('Brazil Visa Application', async ({ page, waitForCaptcha }) => {
         `====================================================\n`
     );
 
+});
+
+// =====================================
+// SECTION: Contact Us
+// =====================================
+test.describe('Brazil Evisa contact form', () => {
+    test.describe.configure({ retries: 0 });
+
+    test('sends one inquiry and displays confirmation', async ({ page }) => {
+        const { submitContactUsForm } = await import('../../utils/contactUs');
+        const result = await submitContactUsForm(page, 'brazil-evisa');
+        expect(result.status, result.reason || 'Brazil Evisa Contact Us submission failed').toBe('PASS');
+    });
 });

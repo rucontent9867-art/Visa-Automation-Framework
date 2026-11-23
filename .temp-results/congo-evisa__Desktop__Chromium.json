@@ -1,0 +1,89 @@
+{
+  "testScript": "congo-evisa.spec.ts",
+  "testName": "Congo Visa Application",
+  "device": "Desktop",
+  "deviceType": "Desktop",
+  "browser": "Chromium",
+  "viewport": "1920 x 1080",
+  "status": "PASS",
+  "retries": 0,
+  "duration": 94.1,
+  "paymentUrl": "https://congo-evisa.com/visa-payment/Q0QyODU0MDY5SUdE/",
+  "capturedUrls": [
+    "https://congo-evisa.com/apply-evisa/",
+    "https://congo-evisa.com/visa-status/",
+    "https://congo-evisa.com/complete-partially/",
+    "https://congo-evisa.com/document-upload/Q0QyODU0MDY5SUdE/",
+    "https://congo-evisa.com/visa-payment/Q0QyODU0MDY5SUdE/"
+  ],
+  "urlHistory": [
+    {
+      "url": "https://congo-evisa.com/apply-evisa/",
+      "timestamp": "2026-11-23 20:24:24",
+      "label": "Initial Navigation"
+    },
+    {
+      "url": "https://congo-evisa.com/visa-status/",
+      "timestamp": "2026-11-23 20:24:50",
+      "label": "Direct Verification (preview): visa-status"
+    },
+    {
+      "url": "https://congo-evisa.com/complete-partially/",
+      "timestamp": "2026-11-23 20:24:55",
+      "label": "Direct Verification (preview): complete-partially"
+    },
+    {
+      "url": "https://congo-evisa.com/document-upload/Q0QyODU0MDY5SUdE/",
+      "timestamp": "2026-11-23 20:25:01",
+      "label": "Redirect / Step 4"
+    },
+    {
+      "url": "https://congo-evisa.com/visa-status/",
+      "timestamp": "2026-11-23 20:25:28",
+      "label": "Direct Verification (document-upload): visa-status"
+    },
+    {
+      "url": "https://congo-evisa.com/complete-partially/",
+      "timestamp": "2026-11-23 20:25:31",
+      "label": "Direct Verification (document-upload): complete-partially"
+    },
+    {
+      "url": "https://congo-evisa.com/visa-payment/Q0QyODU0MDY5SUdE/",
+      "timestamp": "2026-11-23 20:25:34",
+      "label": "Redirect / Step 7"
+    },
+    {
+      "url": "https://congo-evisa.com/visa-status/",
+      "timestamp": "2026-11-23 20:25:51",
+      "label": "Direct Verification (payment): visa-status"
+    },
+    {
+      "url": "https://congo-evisa.com/complete-partially/",
+      "timestamp": "2026-11-23 20:25:54",
+      "label": "Direct Verification (payment): complete-partially"
+    },
+    {
+      "url": "https://congo-evisa.com/visa-payment/Q0QyODU0MDY5SUdE/",
+      "timestamp": "2026-11-23 20:25:57",
+      "label": "Final / Payment Page"
+    }
+  ],
+  "screenshotPath": "/screenshots/2026-11-23_20-25-57/congo-evisa/congo-evisa-desktop-chromium-captured-url.png",
+  "error": "",
+  "failedStep": "",
+  "startTime": "2026-11-23 20:24:23",
+  "endTime": "2026-11-23 20:25:57",
+  "testBlocks": [
+    {
+      "title": "Congo Visa Application",
+      "status": "PASS",
+      "duration": 94.1,
+      "error": "",
+      "failedStep": "",
+      "screenshotPath": "/screenshots/2026-11-23_20-25-57/congo-evisa/congo-evisa-desktop-chromium-captured-url.png"
+    }
+  ],
+  "passCount": 1,
+  "failCount": 0,
+  "skipCount": 0
+}

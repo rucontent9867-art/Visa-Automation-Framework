@@ -218,3 +218,16 @@ test('Mongolia Visa Application', async ({ page, waitForCaptcha, getUploadFile }
     ).toBeVisible();
 
 });
+
+// =====================================
+// SECTION: Contact Us
+// =====================================
+test.describe('Evisa Mongolia contact form', () => {
+    test.describe.configure({ retries: 0 });
+
+    test('sends one inquiry and displays confirmation', async ({ page }) => {
+        const { submitContactUsForm } = await import('../../utils/contactUs');
+        const result = await submitContactUsForm(page, 'evisa-mongolia');
+        expect(result.status, result.reason || 'Evisa Mongolia Contact Us submission failed').toBe('PASS');
+    });
+});

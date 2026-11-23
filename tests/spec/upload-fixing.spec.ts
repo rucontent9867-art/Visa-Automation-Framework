@@ -69,3 +69,16 @@ test('ESTA Document Upload', async ({ page, getUploadFile }) => {
     ).toBeVisible({ timeout: 20000 });
 
 });
+
+// =====================================
+// SECTION: Contact Us
+// =====================================
+test.describe('Upload Fixing contact form', () => {
+    test.describe.configure({ retries: 0 });
+
+    test('sends one inquiry and displays confirmation', async ({ page }) => {
+        const { submitContactUsForm } = await import('../../utils/contactUs');
+        const result = await submitContactUsForm(page, 'upload-fixing');
+        expect(result.status, result.reason || 'Upload Fixing Contact Us submission failed').toBe('PASS');
+    });
+});

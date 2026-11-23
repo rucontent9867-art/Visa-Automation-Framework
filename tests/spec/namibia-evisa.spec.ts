@@ -224,3 +224,16 @@ test('Namibia Visa Application', async ({ page, waitForCaptcha, getUploadFile })
     );
 
 });
+
+// =====================================
+// SECTION: Contact Us
+// =====================================
+test.describe('Namibia Evisa contact form', () => {
+    test.describe.configure({ retries: 0 });
+
+    test('sends one inquiry and displays confirmation', async ({ page }) => {
+        const { submitContactUsForm } = await import('../../utils/contactUs');
+        const result = await submitContactUsForm(page, 'namibia-evisa');
+        expect(result.status, result.reason || 'Namibia Evisa Contact Us submission failed').toBe('PASS');
+    });
+});

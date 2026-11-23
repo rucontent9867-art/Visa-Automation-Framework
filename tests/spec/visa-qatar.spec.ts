@@ -227,3 +227,16 @@ test('Qatar Visa Application', async ({ page, waitForCaptcha, getUploadFile }) =
     );
 
 });
+
+// =====================================
+// SECTION: Contact Us
+// =====================================
+test.describe('Visa Qatar contact form', () => {
+    test.describe.configure({ retries: 0 });
+
+    test('sends one inquiry and displays confirmation', async ({ page }) => {
+        const { submitContactUsForm } = await import('../../utils/contactUs');
+        const result = await submitContactUsForm(page, 'visa-qatar');
+        expect(result.status, result.reason || 'Visa Qatar Contact Us submission failed').toBe('PASS');
+    });
+});

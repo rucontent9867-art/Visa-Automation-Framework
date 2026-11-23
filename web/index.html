@@ -114,6 +114,15 @@
                 </div>
               </label>
 
+              <label class="checkbox-label option-tile">
+                <input type="checkbox" id="contactUsMode">
+                <span class="checkmark"></span>
+                <div class="option-info">
+                  <span class="option-title"><i class="fas fa-envelope"></i> Verify Contact Us</span>
+                  <span class="option-desc">Submit Contact Us form with dm443790@gmail.com after pass</span>
+                </div>
+              </label>
+
               <div class="input-card">
                 <div class="input-card-header">
                   <label for="batchSize"><i class="fas fa-layer-group"></i> Batch Concurrency</label>
@@ -393,9 +402,38 @@
       </div>
 
       <div class="card-body test-panel-body">
+        <!-- ─── Auto-Identified Test Sections Bar ─── -->
+        <div class="section-filter-bar" id="sectionFilterBar">
+          <div class="section-filter-header">
+            <div class="section-filter-title">
+              <i class="fas fa-cubes-stacked"></i>
+              <span>Test Sections</span>
+              <span class="section-filter-subtext">Toggle checkboxes to run or skip test() blocks</span>
+            </div>
+            <div class="section-filter-actions">
+              <button type="button" class="btn btn-xs btn-ghost" id="selectAllSectionsBtn" title="Enable all detected test sections">
+                <i class="fas fa-check-double"></i> All
+              </button>
+              <button type="button" class="btn btn-xs btn-ghost" id="resetSectionsBtn" title="Reset all sections active">
+                <i class="fas fa-undo"></i> Reset
+              </button>
+            </div>
+          </div>
+          <div class="section-checkbox-group" id="sectionCheckboxGroup">
+            <!-- Populated dynamically with auto-identified section checkboxes -->
+            <div class="section-pills-loading">
+              <i class="fas fa-spinner fa-spin"></i> Detecting test sections...
+            </div>
+          </div>
+          <div class="section-status-banner hidden" id="sectionStatusBanner">
+            <i class="fas fa-filter"></i>
+            <span id="sectionStatusText">All sections enabled</span>
+          </div>
+        </div>
+
         <div class="test-search-wrapper">
           <i class="fas fa-search search-icon"></i>
-          <input type="text" id="testSearch" placeholder="Search tests by country, name, or filename..." autocomplete="off">
+          <input type="text" id="testSearch" placeholder="Search tests by name, section, or filename..." autocomplete="off">
           <button class="clear-search-btn hidden" id="clearSearchBtn" title="Clear search">
             <i class="fas fa-times-circle"></i>
           </button>
@@ -684,6 +722,27 @@
           <i class="fas fa-copy"></i> Copy All URLs
         </button>
         <button type="button" class="btn btn-sm btn-primary" id="urlsModalOkBtn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ TEST CASES BREAKDOWN MODAL ═══════════════ -->
+  <div class="modal-backdrop hidden" id="testBlocksModal" role="dialog" aria-modal="true" aria-labelledby="testBlocksModalTitle">
+    <div class="modal-container" style="max-width: 820px;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="testBlocksModalTitle">
+          <i class="fas fa-list-check" style="color: var(--accent);"></i> Test Cases in Spec (<span id="testBlocksModalCount">0</span>)
+        </h3>
+        <button type="button" class="modal-close-btn" id="testBlocksModalCloseBtn" aria-label="Close modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="error-meta" id="testBlocksModalMeta" style="margin-bottom: 8px;"></div>
+        <div id="testBlocksModalList" style="display: flex; flex-direction: column; gap: 10px; max-height: 520px; overflow-y: auto;">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-sm btn-primary" id="testBlocksModalOkBtn">Close</button>
       </div>
     </div>
   </div>
@@ -1058,7 +1117,7 @@
             <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">Quick templates:</span>
             <button type="button" class="gh-template-btn" data-template="Update test automation test suites">Test Suites Update</button>
             <button type="button" class="gh-template-btn" data-template="Sync framework configurations & reports">Framework Config</button>
-            <button type="button" class="gh-template-btn" data-template="Fix visa application automated selectors">Selector Fixes</button>
+            <button type="button" class="gh-template-btn" data-template="Fix automated test selectors &amp; assertions">Selector Fixes</button>
           </div>
 
           <button type="button" class="btn btn-primary btn-block" id="githubPushSubmitBtn" style="width: 100%; padding: 10px; font-size: 13.5px;">
@@ -1191,9 +1250,9 @@
           </div>
           <div>
             <h3 class="modal-title" style="font-size: 16px; margin: 0; display: flex; align-items: center; gap: 8px;">
-              Playwright Automated Script Generator
+              AI Playwright Script Generator &amp; Locator Healer
             </h3>
-            <span style="font-size: 11.5px; color: var(--text-muted);">Generate & update resilient test scripts with Direct URL Verification (no test execution)</span>
+            <span style="font-size: 11.5px; color: var(--text-muted);">Create specs or heal failing locators using AI with TypeScript &amp; optional Playwright verification</span>
           </div>
         </div>
         <div style="display: flex; align-items: center; gap: 10px;">
@@ -1222,24 +1281,13 @@
         <!-- ── TAB 1: SCRIPT GENERATOR & SPEC PREVIEW ── -->
         <div class="gen-tab-panel active" id="genPanelBuilder">
 
-          <!-- AI Model Selection & Live Connectivity Bar -->
-          <div class="ai-provider-bar" style="margin-bottom: 12px;">
-            <div class="ai-provider-select-wrap">
-              <label for="genAiProviderSelect"><i class="fas fa-brain" style="color: #4f46e5;"></i> AI Engine:</label>
-              <select id="genAiProviderSelect" class="form-control ai-select">
-                <option value="builtin-sdet">Built-in SDET Expert Engine (100% Offline Guaranteed)</option>
-              </select>
+          <!-- AI Generation & Healing Strategy Banner -->
+          <div style="background: linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%); border: 1px solid #bfdbfe; border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; display: flex; align-items: flex-start; gap: 10px;">
+            <div style="font-size: 18px; color: #0284c7; line-height: 1; margin-top: 2px;">
+              <i class="fas fa-shield-halved"></i>
             </div>
-            <div class="ai-provider-status-wrap">
-              <span class="ai-status-badge untested" id="genActiveAiStatusBadge">
-                <span class="status-dot"></span> <span id="genActiveAiStatusText">Checking...</span>
-              </span>
-              <button type="button" class="btn btn-secondary btn-sm" id="genCheckActiveConnectionBtn" title="Test connection to active AI server">
-                <i class="fas fa-bolt"></i> Test Ping
-              </button>
-              <button type="button" class="btn btn-outline-primary btn-sm" id="genOpenAiTabBtn" title="Manage all AI Endpoints, Ollama, VLLM &amp; API Keys">
-                <i class="fas fa-gear"></i> Configure Endpoints
-              </button>
+            <div style="flex: 1; font-size: 12px; color: #1e293b; line-height: 1.45;">
+              <strong style="color: #0369a1;">Smart AI Generator &amp; Self-Healer:</strong> Generates &amp; repairs specs via AI (max 3 syntax/type heal attempts), auto-loads recent Playwright failure logs &amp; DOM snapshots when fixing an existing script, and verifies 3-stage Direct URL checkpoints.
             </div>
           </div>
 
@@ -1247,11 +1295,11 @@
           <div class="gen-mode-toggle" style="margin-bottom: 12px;">
             <label class="gen-mode-label">
               <input type="radio" name="genMode" value="update" id="genModeUpdate" checked>
-              <span><i class="fas fa-wrench"></i> Update Existing Script (e.g. bahrain-visa, azerbaijan-visa)</span>
+              <span><i class="fas fa-wrench"></i> Fix / Heal Existing Script</span>
             </label>
             <label class="gen-mode-label">
               <input type="radio" name="genMode" value="create" id="genModeCreate">
-              <span><i class="fas fa-file-circle-plus"></i> Create Brand New Script</span>
+              <span><i class="fas fa-file-circle-plus"></i> Create New Script</span>
             </label>
           </div>
 
@@ -1259,7 +1307,7 @@
           <div id="genUpdateScriptContainer" style="margin-bottom: 12px;">
             <div class="form-group">
               <label for="genExistingScriptSelect" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">
-                Select Script from <code>tests/spec/</code>: <span style="color: var(--danger);">*</span>
+                Select Test Script from <code>tests/spec/</code>: <span style="color: var(--danger);">*</span>
               </label>
               <div style="display: flex; gap: 8px;">
                 <select id="genExistingScriptSelect" class="form-control" style="flex: 1; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; background: white;">
@@ -1269,118 +1317,67 @@
                   <i class="fas fa-rotate"></i>
                 </button>
               </div>
+              <div style="font-size: 11px; color: #475569; margin-top: 4px;">
+                <i class="fas fa-circle-info" style="color: #3b82f6;"></i> If this script recently failed, its exact Playwright error and DOM snapshot are automatically sent to AI for locator healing.
+              </div>
             </div>
           </div>
 
           <!-- Mode A: New Script Inputs -->
-          <div id="genNewScriptContainer" style="display: none; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
-            <div class="form-group">
-              <label for="genScriptNameInput" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">
-                Script Filename: <span style="color: var(--danger);">*</span>
-              </label>
-              <input type="text" id="genScriptNameInput" class="form-control" placeholder="e.g. morocco-evisa.spec.ts" value="custom-visa-application.spec.ts" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px;" />
-            </div>
-            <div class="form-group">
-              <label for="genTargetUrlInput" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">
-                Target Start URL: <span style="color: var(--danger);">*</span>
-              </label>
-              <input type="url" id="genTargetUrlInput" class="form-control" placeholder="https://portal.example.com/apply" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px;" />
-            </div>
-          </div>
-
-          <!-- Senior SDET Anti-Flakiness Guardrails (Automatic & Zero-Config) -->
-          <div class="sdet-guardrails-banner" style="margin-bottom: 12px;">
-            <div class="sdet-guardrails-header">
-              <div class="sdet-guardrails-title">
-                <i class="fas fa-shield-check" style="color: #16a34a; font-size: 13px;"></i>
-                <span>Senior SDET Anti-Flakiness Guardrails (Enforced across all AI models)</span>
+          <div id="genNewScriptContainer" style="display: none; flex-direction: column; gap: 10px; margin-bottom: 12px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+              <div class="form-group" style="margin: 0;">
+                <label for="genScriptNameInput" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">
+                  Script Filename: <span style="color: var(--danger);">*</span>
+                </label>
+                <input type="text" id="genScriptNameInput" class="form-control" placeholder="e.g. checkout-flow.spec.ts" value="custom-e2e-flow.spec.ts" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px;" />
               </div>
-            </div>
-            <div class="sdet-pills-row">
-              <span class="sdet-pill"><i class="fas fa-check"></i> Dynamic Waits (getByRole/Label)</span>
-              <span class="sdet-pill"><i class="fas fa-check"></i> Spinner &amp; Overlay Detach</span>
-              <span class="sdet-pill"><i class="fas fa-check"></i> Captcha Hook Pre-Nav</span>
-              <span class="sdet-pill"><i class="fas fa-check"></i> Direct URL Verifications</span>
-              <span class="sdet-pill"><i class="fas fa-check"></i> Email: <code>dm443790@gmail.com</code></span>
-            </div>
-          </div>
-
-          <!-- Direct URL Slugs & Options Customizer -->
-          <div class="card" style="margin-bottom: 12px; border: 1px solid var(--border); background: var(--bg-tertiary); border-radius: 8px; overflow: hidden;">
-            <div style="padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; background: #f1f5f9; cursor: pointer;" id="genToggleCustomizerBtn">
-              <span style="font-size: 12px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 6px;">
-                <i class="fas fa-sliders" style="color: #4f46e5;"></i> Configure Custom Direct URL Slugs &amp; Stages (Manual Accuracy)
-              </span>
-              <span style="font-size: 11px; color: #64748b;" id="genCustomizerToggleText">Expand ▾</span>
-            </div>
-            <div id="genCustomizerPanel" style="display: none; padding: 12px; background: white; border-top: 1px solid var(--border);">
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
-                <div class="form-group" style="margin: 0;">
-                  <label for="customDirectUrlsInput" style="font-size: 11.5px; font-weight: 600; color: #334155; display: block; margin-bottom: 4px;">
-                    Custom URL Slugs (comma separated):
-                  </label>
-                  <input type="text" id="customDirectUrlsInput" class="form-control" value="/visa-status/, /complete-partially/" style="font-size: 12px; padding: 6px 10px;" />
-                </div>
-                <div class="form-group" style="margin: 0;">
-                  <label for="customOrderIdSelectorInput" style="font-size: 11.5px; font-weight: 600; color: #334155; display: block; margin-bottom: 4px;">
-                    Order ID DOM Selector:
-                  </label>
-                  <input type="text" id="customOrderIdSelectorInput" class="form-control" value="#order_id_spn, #order_id, [data-order-id]" style="font-size: 12px; padding: 6px 10px;" />
-                </div>
-              </div>
-              <div style="display: flex; gap: 14px; align-items: center; flex-wrap: wrap; font-size: 11.5px; color: #334155;">
-                <span style="font-weight: 600;">Stages to Verify:</span>
-                <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
-                  <input type="checkbox" id="stagePreviewCheck" checked /> Preview Stage
+              <div class="form-group" style="margin: 0;">
+                <label for="genTargetUrlInput" style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">
+                  Target Start URL: <span style="color: var(--danger);">*</span>
                 </label>
-                <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
-                  <input type="checkbox" id="stageDocumentUploadCheck" checked /> Document Upload Stage
-                </label>
-                <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
-                  <input type="checkbox" id="stagePaymentCheck" checked /> Payment Stage
-                </label>
+                <input type="url" id="genTargetUrlInput" class="form-control" placeholder="https://portal.example.com/apply" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px;" />
               </div>
             </div>
           </div>
 
-          <!-- Scenario Instructions with Quick Helpful Chips -->
+          <!-- Scenario Instructions -->
           <div class="form-group" style="margin-bottom: 12px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 6px;">
               <label for="genScenarioPrompt" style="font-size: 12px; font-weight: 700; color: var(--text-muted); margin: 0;">
-                Scenario Requirements &amp; Steps (Optional):
+                Additional Instructions / Failing Step Notes (Optional):
               </label>
               <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                <button type="button" class="gen-tpl-btn" data-template="Standard Bahrain visa application with applicant info, dynamic date calendar picker, and direct URL status checks before submit.">
-                  <i class="fas fa-sparkles"></i> Bahrain Visa
+                <button type="button" class="gen-tpl-btn" data-template="Heal strict-mode or broken locators and verify 3-stage Direct URL checkpoints (Preview, Document Upload, Payment).">
+                  <i class="fas fa-wrench"></i> Heal Locators
                 </button>
-                <button type="button" class="gen-tpl-btn" data-template="Handle dynamic date pickers, wait for loading overlays to detach, and prevent calendar rollover errors.">
-                  <i class="fas fa-calendar-day"></i> Dynamic Dates
-                </button>
-                <button type="button" class="gen-tpl-btn" data-template="Verify Direct URL checkpoints at Preview and Payment stages before proceeding with final submission.">
-                  <i class="fas fa-link"></i> Direct URL Checks
+                <button type="button" class="gen-tpl-btn" data-template="Guard optional document upload sections with count() > 0 checks before uploading.">
+                  <i class="fas fa-file-arrow-up"></i> Optional Uploads
                 </button>
               </div>
             </div>
-            <textarea id="genScenarioPrompt" class="form-control" rows="2" placeholder="e.g. Standard visa application with dynamic date selection, document upload, and Direct URL checks at Preview &amp; Payment." style="width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 12.5px; font-family: inherit;"></textarea>
+            <textarea id="genScenarioPrompt" class="form-control" rows="2" placeholder="Optional: describe specific steps to create or paste any locator issue to fix..." style="width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 12.5px; font-family: inherit;"></textarea>
           </div>
+
+          <!-- Bounded Live Verification Option -->
+          <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px; padding: 8px 12px; background: #f8fafc; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; color: #334155; cursor: pointer;">
+            <input type="checkbox" id="genVerifyPlaywrightCheck" style="width: 15px; height: 15px; accent-color: #4f46e5;">
+            <span><strong>Verify &amp; Auto-Heal with Live Playwright Run</strong> (runs up to 2 live attempts; if run 1 fails, feeds exact error &amp; DOM snapshot back to AI to heal locators)</span>
+          </label>
 
           <!-- Primary Action Button -->
           <div style="margin-bottom: 12px;">
             <button type="button" class="btn btn-primary" id="startGeneratorBtn" style="width: 100%; padding: 12px 18px; font-size: 14px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px;">
-              <i class="fas fa-bolt"></i> Generate Resilient Test Script
+              <i class="fas fa-bolt"></i> Generate / Heal Script with AI
             </button>
-            <div style="font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 4px; display: flex; align-items: center; justify-content: center; gap: 5px;">
-              <i class="fas fa-shield-check" style="color: #10b981;"></i>
-              <span>Minimal application strategy: uses verified resilient locators so the form passes in 1 run without trial-and-error submissions.</span>
-            </div>
           </div>
 
-          <!-- Generated Playwright Test Spec Output (Unified & Immediate) -->
+          <!-- Generated Playwright Test Spec Output -->
           <div style="background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 8px; padding: 12px;">
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
               <div style="display: flex; align-items: center; gap: 6px;">
                 <i class="fas fa-file-code" style="color: #4f46e5;"></i>
-                <span style="font-size: 12.5px; font-weight: 700; color: var(--text-primary);">Synthesized Test Spec:</span>
+                <span style="font-size: 12.5px; font-weight: 700; color: var(--text-primary);">Generated / Healed Test Spec:</span>
                 <span id="genCurrentSpecNameLabel" style="font-size: 11px; color: var(--text-muted); font-family: monospace;"></span>
               </div>
               <div style="display: flex; gap: 6px;">
@@ -1392,12 +1389,12 @@
                 </button>
               </div>
             </div>
-            <textarea id="genSpecCodeViewer" readonly style="width: 100%; height: 320px; background: #0f172a; color: #38bdf8; font-family: 'Fira Code', 'Cascadia Code', monospace; font-size: 11.5px; padding: 12px; border-radius: var(--radius-sm); border: 1px solid #1e293b; resize: vertical; line-height: 1.45; white-space: pre;" placeholder="Select an existing script above or click 'Synthesize & Apply Script' to view the code..."></textarea>
+            <textarea id="genSpecCodeViewer" readonly style="width: 100%; height: 300px; background: #0f172a; color: #38bdf8; font-family: 'Fira Code', 'Cascadia Code', monospace; font-size: 11.5px; padding: 12px; border-radius: var(--radius-sm); border: 1px solid #1e293b; resize: vertical; line-height: 1.45; white-space: pre;" placeholder="Select an existing script above or click 'Generate / Heal Script with AI' to view the code..."></textarea>
           </div>
 
           <!-- Compact Activity Log -->
-          <div style="margin-top: 10px; background: #0f172a; border-radius: 6px; padding: 8px 12px; font-family: monospace; font-size: 11px; color: #94a3b8; max-height: 80px; overflow-y: auto;" id="genConsoleLogsContainer">
-            <div class="gen-log-entry info"><span class="log-time">[Ready]</span> Select an AI engine and click "Synthesize & Apply Script".</div>
+          <div style="margin-top: 10px; background: #0f172a; border-radius: 6px; padding: 8px 12px; font-family: monospace; font-size: 11px; color: #94a3b8; max-height: 95px; overflow-y: auto;" id="genConsoleLogsContainer">
+            <div class="gen-log-entry info"><span class="log-time">[Ready]</span> Select a script to fix or create a new one, then click "Generate / Heal Script with AI".</div>
           </div>
         </div>
 
@@ -1407,10 +1404,10 @@
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
             <div>
               <h4 style="margin: 0; font-size: 14px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
-                <i class="fas fa-network-wired" style="color: #4f46e5;"></i> Configured AI Endpoints & Servers
+                <i class="fas fa-network-wired" style="color: #4f46e5;"></i> Configured AI Endpoints &amp; Servers
               </h4>
               <span style="font-size: 11.5px; color: var(--text-muted);">
-                Connect to local Ollama, vLLM, Google Gemini, Copilot, or remote OpenAI-compatible servers
+                Connect to Google Gemini (via GEMINI_API_KEY env) or local Ollama / vLLM / OpenAI-compatible servers
               </span>
             </div>
             <div style="display: flex; gap: 8px;">
@@ -1437,7 +1434,7 @@
             <textarea id="aiImportJsonTextarea" rows="6" class="form-control" style="width: 100%; font-family: monospace; font-size: 11.5px; margin-bottom: 8px;" placeholder='[ { "name": "Custom Endpoint", "vendor": "customendpoint", "url": "http://192.168.1.250:8000/v1", "model": "Qwen3.6-35B-A3B-NVFP4" } ]'></textarea>
             <div style="display: flex; justify-content: flex-end; gap: 8px;">
               <button type="button" class="btn btn-primary btn-sm" id="btnApplyImportJson">
-                <i class="fas fa-check"></i> Parse & Apply JSON
+                <i class="fas fa-check"></i> Parse &amp; Apply JSON
               </button>
             </div>
           </div>
@@ -1464,8 +1461,7 @@
                 </label>
                 <select id="endpointVendorSelect" class="form-control" style="width: 100%; font-size: 12px; padding: 6px 9px;">
                   <option value="customendpoint">Custom Endpoint (vLLM / Ollama / OpenAI-compatible)</option>
-                  <option value="gemini">Google Gemini</option>
-                  <option value="copilot">Copilot / Other</option>
+                  <option value="gemini">Google Gemini (uses GEMINI_API_KEY env)</option>
                 </select>
               </div>
             </div>
@@ -1480,14 +1476,8 @@
                 <label style="font-size: 11.5px; font-weight: 600; color: #334155; display: block; margin-bottom: 3px;">
                   Model Name / ID: <span style="color: var(--danger);">*</span>
                 </label>
-                <input type="text" id="endpointModelInput" class="form-control" placeholder="e.g. Qwen3.6-35B-A3B-NVFP4 or gemini-2.5-flash" style="width: 100%; font-size: 12px; padding: 6px 9px;" />
+                <input type="text" id="endpointModelInput" class="form-control" placeholder="e.g. Qwen3.6-35B-A3B-NVFP4 or gemini-4-hydrogen" style="width: 100%; font-size: 12px; padding: 6px 9px;" />
               </div>
-            </div>
-            <div style="margin-bottom: 10px;">
-              <label style="font-size: 11.5px; font-weight: 600; color: #334155; display: block; margin-bottom: 3px;">
-                API Key (Optional for local servers):
-              </label>
-              <input type="password" id="endpointApiKeyInput" class="form-control" placeholder="Optional for local servers; required for Gemini/cloud endpoints" style="width: 100%; font-size: 12px; padding: 6px 9px;" />
             </div>
             <div style="display: flex; justify-content: flex-end; gap: 8px;">
               <button type="button" class="btn btn-secondary btn-sm" id="btnCancelEndpointForm">Cancel</button>
@@ -1560,7 +1550,7 @@
               <span>File on disk: <strong id="genGuideActiveFilePathLabel" style="color: #0f172a; font-family: monospace;">/SCRIPT_GENERATOR_GUIDE.md</strong></span>
             </div>
             <div>
-              <span style="color: #166534; font-weight: 600;"><i class="fas fa-check-circle" style="color: #16a34a;"></i> Dual Page Verification Architecture Enforced</span>
+              <span style="color: #166534; font-weight: 600;"><i class="fas fa-check-circle" style="color: #16a34a;"></i> AI Self-Healing + TypeScript Verification</span>
             </div>
           </div>
         </div>
@@ -1569,7 +1559,7 @@
       <div class="modal-footer" style="padding: 12px 20px; background: var(--bg-tertiary); display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--border);">
         <div style="font-size: 11.5px; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
           <i class="fas fa-shield-check" style="color: #10b981;"></i>
-          <span>Execution-Free: Generates & updates Playwright test code without running tests.</span>
+          <span>AI-powered script generation &amp; bounded locator healing (max 2 live verification attempts).</span>
         </div>
         <button type="button" class="btn btn-secondary" id="generatorFooterCloseBtn">Close</button>
       </div>

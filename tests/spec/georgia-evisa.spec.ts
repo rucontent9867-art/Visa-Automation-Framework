@@ -271,3 +271,16 @@ if (await passportDropdown.isVisible()) {
     );
 
 });
+
+// =====================================
+// SECTION: Contact Us
+// =====================================
+test.describe('Georgia Evisa contact form', () => {
+    test.describe.configure({ retries: 0 });
+
+    test('sends one inquiry and displays confirmation', async ({ page }) => {
+        const { submitContactUsForm } = await import('../../utils/contactUs');
+        const result = await submitContactUsForm(page, 'georgia-evisa');
+        expect(result.status, result.reason || 'Georgia Evisa Contact Us submission failed').toBe('PASS');
+    });
+});

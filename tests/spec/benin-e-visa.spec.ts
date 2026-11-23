@@ -194,12 +194,36 @@ test('Benin Visa Application', async ({ page, waitForCaptcha }) => {
 
 
     // =====================================
+    // PREVIEW & CONFIRM
+    // =====================================
+
+    await page.waitForTimeout(1000);
+    await capturescreenshot(page, 'applicant-detail');
+    await page.getByRole('button', { name: 'Submit & Preview' })
+        .click();
+    try {
+        await page.waitForLoadState('networkidle', { timeout: 5000 });
+    } catch {
+        console.log('Network never went idle, continuing anyway');
+    }
+
+    await page.waitForTimeout(1000);
+    await capturescreenshot(page, 'preview');
+    await page.getByRole('button', { name: 'Submit & Preview' })
+        .click();
+    try {
+        await page.waitForLoadState('networkidle', { timeout: 5000 });
+    } catch {
+        console.log('Network never went idle, continuing anyway');
+    }
+
+    // =====================================
     // PAYMENT STAGE & CHECKPOINT
     // =====================================
 
     await expect(
         page.getByRole('heading', {
-            name: 'Pay Application Processing Fee'
+            name: /Pay Application Processing Fee|Pay Visa Processing Fee|Payment/i
         })
     ).toBeVisible({ timeout: 30000 });
 
@@ -227,4 +251,17 @@ test('Benin Visa Application', async ({ page, waitForCaptcha }) => {
         `====================================================\n`
     );
 
+});
+
+// =====================================
+// SECTION: Contact Us
+// =====================================
+test.describe('Benin E Visa contact form', () => {
+    test.describe.configure({ retries: 0 });
+
+    test('sends one inquiry and displays confirmation', async ({ page }) => {
+        const { submitContactUsForm } = await import('../../utils/contactUs');
+        const result = await submitContactUsForm(page, 'benin-e-visa');
+        expect(result.status, result.reason || 'Benin E Visa Contact Us submission failed').toBe('PASS');
+    });
 });

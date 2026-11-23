@@ -18,6 +18,8 @@
 
 import { Page } from '@playwright/test';
 import { captureScreenshot } from './screenshot';
+import { waitForCaptcha as defaultWaitForCaptcha } from './captcha/captchaHelper';
+import { recordCustomUrl } from './urlTracker';
 
 export interface DirectUrlTarget {
   slug: string;
@@ -111,7 +113,11 @@ export async function extractOrderId(page: Page, customSelector?: string): Promi
         const text = (await loc.textContent().catch(() => '')) || (await loc.inputValue().catch(() => ''));
         const cleaned = text?.trim();
         if (cleaned && cleaned.length >= 3) {
-          return cleaned;
+          const tokens = cleaned.match(/[A-Z0-9_-]{4,32}/gi) || [];
+          const validId = tokens.find(t => /\d/.test(t));
+          if (validId) {
+            return validId;
+          }
         }
       }
     } catch {
@@ -122,8 +128,8 @@ export async function extractOrderId(page: Page, customSelector?: string): Promi
   // Regex fallback over page body
   try {
     const pageText = await page.evaluate(() => document.body?.innerText || '');
-    const match = pageText.match(/(?:Order\s*(?:ID|Number|No|#)|Application\s*(?:ID|No|#))\s*[:#-]?\s*([A-Za-z0-9_-]{4,32})/i);
-    if (match && match[1]) {
+    const match = pageText.match(/(?:Order\s*(?:ID|Number|No|#)|Application\s*(?:ID|No|#))\s*[:#-]?\s*([A-Za-z0-9_-]*\d[A-Za-z0-9_-]*)/i);
+    if (match && match[1] && match[1].length >= 4) {
       return match[1].trim();
     }
   } catch {
@@ -209,11 +215,19 @@ export async function verifyDirectUrls(
           console.log(`[DirectURL:${stageName}:${target.slug}] Captcha listener notice: ${err.message}`);
           return '';
         });
+      } else if (options.waitForCaptcha === true) {
+        captchaPromise = defaultWaitForCaptcha(tab).catch(err => {
+          console.log(`[DirectURL:${stageName}:${target.slug}] Default captcha helper notice: ${err.message}`);
+          return '';
+        });
       }
 
       // Navigate to target URL
       console.log(`[DirectURL:${stageName}:${target.slug}] Opening tab: ${target.url}`);
       await tab.goto(target.url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      try {
+        recordCustomUrl(page, target.url, `Direct Verification (${stageName}): ${target.slug}`);
+      } catch {}
 
       // Networkidle wait with 5-second timeout fallback
       try {
@@ -251,18 +265,23 @@ export async function verifyDirectUrls(
         }
       }
 
-      // Submit form
-      const submitSelectors = options.customSelectors?.submitBtn ||
-        'button:has-text("Submit"), button:has-text("Check"), button:has-text("Search"), button:has-text("Status"), input[type="submit"]';
-      const submitBtn = tab.locator(submitSelectors).first();
-      if (await submitBtn.isVisible({ timeout: 2500 }).catch(() => false)) {
-        console.log(`[DirectURL:${stageName}:${target.slug}] Submitting status/check form...`);
-        await submitBtn.click();
-        try {
-          await tab.waitForLoadState('networkidle', { timeout: timeoutMs });
-        } catch {
-          // Timeout fallback
+      // Submit lookup form safely: only submit if a valid, existing Order ID is present.
+      // This protects live databases against blank queries or creating unwanted application drafts.
+      if (orderId && orderId !== 'ORDER-PENDING') {
+        const submitSelectors = options.customSelectors?.submitBtn ||
+          'button:has-text("Submit"), button:has-text("Check"), button:has-text("Search"), button:has-text("Status"), button:has-text("Track"), input[type="submit"]';
+        const submitBtn = tab.locator(submitSelectors).first();
+        if (await submitBtn.isVisible({ timeout: 2500 }).catch(() => false)) {
+          console.log(`[DirectURL:${stageName}:${target.slug}] Submitting status/check form for Order ID: ${orderId}...`);
+          await submitBtn.click();
+          try {
+            await tab.waitForLoadState('networkidle', { timeout: timeoutMs });
+          } catch {
+            // Timeout fallback
+          }
         }
+      } else {
+        console.log(`[DirectURL:${stageName}:${target.slug}] Skipping form submit because Order ID is not yet assigned (preserves database integrity).`);
       }
 
       // Settle and capture screenshot named: ${stageName}-${target.slug}

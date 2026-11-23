@@ -230,3 +230,16 @@ test('E-Visa Cambodia Application', async ({ page, waitForCaptcha }) => {
     ).toBeVisible();
 
 });
+
+// =====================================
+// SECTION: Contact Us
+// =====================================
+test.describe('E Visa Cambodia contact form', () => {
+    test.describe.configure({ retries: 0 });
+
+    test('sends one inquiry and displays confirmation', async ({ page }) => {
+        const { submitContactUsForm } = await import('../../utils/contactUs');
+        const result = await submitContactUsForm(page, 'e-visa-cambodia');
+        expect(result.status, result.reason || 'E Visa Cambodia Contact Us submission failed').toBe('PASS');
+    });
+});

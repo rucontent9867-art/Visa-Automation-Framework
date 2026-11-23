@@ -240,3 +240,16 @@ test('Iraq Visa Application', async ({ page, waitForCaptcha, getUploadFile }) =>
     ).toBeVisible();
 
 });
+
+// =====================================
+// SECTION: Contact Us
+// =====================================
+test.describe('Evisa Iraq contact form', () => {
+    test.describe.configure({ retries: 0 });
+
+    test('sends one inquiry and displays confirmation', async ({ page }) => {
+        const { submitContactUsForm } = await import('../../utils/contactUs');
+        const result = await submitContactUsForm(page, 'evisa-iraq');
+        expect(result.status, result.reason || 'Evisa Iraq Contact Us submission failed').toBe('PASS');
+    });
+});

@@ -178,6 +178,7 @@ function generateReportHtml(data) {
   let contentHtml = '';
   const errorStoreObj = {};
   const urlsStoreObj = {};
+  const testBlocksStoreObj = {};
 
   if (sessions.length === 0) {
     contentHtml = '<div style="text-align: center; padding: 48px 24px; color: var(--text-secondary); background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); max-width: 640px; margin: 30px auto; box-shadow: var(--shadow);">' +
@@ -295,17 +296,30 @@ function generateReportHtml(data) {
             };
           }
 
+          if (Array.isArray(exec.testBlocks) && exec.testBlocks.length > 0) {
+            testBlocksStoreObj[exec.id] = {
+              title: formattedTitle || exec.testScript,
+              testScript: exec.testScript,
+              device: exec.device,
+              browser: exec.browser,
+              status: exec.status,
+              duration: exec.duration,
+              testBlocks: exec.testBlocks
+            };
+          }
+
           let payUrl = '<span class="empty-cell">—</span>';
           if (capturedList.length === 1) {
             const singleUrl = capturedList[0];
             payUrl = '<div class="url-cell-wrapper">' +
-              '<a href="' + escapeHtml(singleUrl) + '" target="_blank" class="btn-table btn-table-url" title="' + escapeHtml(singleUrl) + '"><i class="fas fa-external-link-alt"></i> Open URL</a>' +
+              '<button type="button" class="btn-table btn-table-url-single" onclick="openUrlsModal(\'' + exec.id + '\')" title="View captured URL details"><i class="fas fa-link"></i> 1 URL</button>' +
+              '<a href="' + escapeHtml(singleUrl) + '" target="_blank" class="btn-table btn-table-url" title="' + escapeHtml(singleUrl) + '"><i class="fas fa-external-link-alt"></i> Open</a>' +
               '<button type="button" class="btn-table-icon" onclick="copySingleUrl(\'' + escapeHtml(singleUrl) + '\', this)" title="Copy URL"><i class="fas fa-copy"></i></button>' +
             '</div>';
           } else if (capturedList.length > 1) {
             const latestUrl = capturedList[capturedList.length - 1];
             payUrl = '<div class="url-cell-wrapper">' +
-              '<button type="button" class="btn-table btn-table-url-multiple" onclick="openUrlsModal(\'' + exec.id + '\')" title="View all ' + capturedList.length + ' captured URLs"><i class="fas fa-layer-group"></i> ' + capturedList.length + ' URLs</button>' +
+              '<button type="button" class="btn-table btn-table-url-multiple" onclick="openUrlsModal(\'' + exec.id + '\')" title="View all ' + capturedList.length + ' URLs captured during application flow"><i class="fas fa-layer-group"></i> ' + capturedList.length + ' URLs</button>' +
               '<a href="' + escapeHtml(latestUrl) + '" target="_blank" class="btn-table btn-table-url-latest" title="Open latest: ' + escapeHtml(latestUrl) + '"><i class="fas fa-external-link-alt"></i> Latest</a>' +
             '</div>';
           }
@@ -324,7 +338,8 @@ function generateReportHtml(data) {
               title: formattedTitle || exec.testScript,
               device: exec.device,
               browser: exec.browser,
-              error: exec.error
+              error: exec.error,
+              testBlocks: exec.testBlocks || []
             };
 
             const shortErr = exec.error.length > 35 ? exec.error.substring(0, 35) + '…' : exec.error;
@@ -334,8 +349,35 @@ function generateReportHtml(data) {
             '</div>';
           }
 
+          let blocksBadgeHtml = '';
+          if (Array.isArray(exec.testBlocks) && exec.testBlocks.length > 1) {
+            const p = exec.passCount ?? exec.testBlocks.filter(b => b.status === 'PASS' || b.status === 'RETRY_PASS').length;
+            const f = exec.failCount ?? exec.testBlocks.filter(b => b.status === 'FAIL').length;
+            const s = exec.skipCount ?? exec.testBlocks.filter(b => b.status === 'SKIPPED').length;
+            blocksBadgeHtml = '<div class="test-blocks-summary-wrapper" style="margin-top: 5px;">' +
+              '<button type="button" class="btn-table btn-table-blocks" onclick="openTestBlocksModal(\'' + exec.id + '\')" title="Inspect all ' + exec.testBlocks.length + ' test cases in this spec">' +
+                '<i class="fas fa-list-check" style="color:var(--accent);"></i> ' + exec.testBlocks.length + ' Tests: ' +
+                (p > 0 ? '<span class="tb-pill tb-pass"><i class="fas fa-check"></i> ' + p + ' passed</span> ' : '') +
+                (f > 0 ? '<span class="tb-pill tb-fail"><i class="fas fa-times"></i> ' + f + ' failed</span> ' : '') +
+                (s > 0 ? '<span class="tb-pill tb-skip"><i class="fas fa-forward"></i> ' + s + ' skipped</span>' : '') +
+              '</button>' +
+            '</div>';
+          }
+
+          let contactUsBadgeHtml = '';
+          if (exec.contactUsEnabled && exec.contactUsStatus && exec.contactUsStatus !== 'SKIPPED') {
+            const cuPass = exec.contactUsStatus === 'PASS';
+            const cuBlocked = exec.contactUsStatus === 'CAPTCHA_BLOCKED';
+            const cuColor = cuPass ? '#16a34a' : cuBlocked ? '#d97706' : '#dc2626';
+            const cuLabel = cuPass ? 'Contact Us: PASS' : cuBlocked ? 'Contact Us: CAPTCHA' : 'Contact Us: FAIL';
+            const cuLink = (exec.contactUsScreenshot && exec.contactUsScreenshot !== 'N/A')
+              ? ' <a href="' + escapeHtml(exec.contactUsScreenshot) + '" target="_blank" style="color:inherit;text-decoration:underline;margin-left:4px;">Shot</a>'
+              : '';
+            contactUsBadgeHtml = '<div style="margin-top:4px;font-size:11px;font-weight:600;color:' + cuColor + ';" title="' + escapeHtml(exec.contactUsReason || cuLabel) + '"><i class="fas fa-envelope"></i> ' + cuLabel + cuLink + '</div>';
+          }
+
           cardsHtml += '<tr>' +
-            '<td><div class="test-script-cell"><strong class="test-title">' + escapeHtml(formattedTitle) + '</strong><span class="test-file">' + escapeHtml(exec.testScript) + '</span></div></td>' +
+            '<td><div class="test-script-cell"><strong class="test-title">' + escapeHtml(formattedTitle) + '</strong><span class="test-file">' + escapeHtml(exec.testScript) + '</span>' + blocksBadgeHtml + contactUsBadgeHtml + '</div></td>' +
             '<td><div class="env-cell">' +
               '<span class="platform-chip"><i class="' + (exec.device === 'Android' ? 'fab' : exec.device === 'iOS' ? 'fab' : 'fas') + ' ' + getDeviceIcon(exec.device) + '"></i> ' + escapeHtml(exec.device) + '</span>' +
               '<span class="engine-chip"><i class="fab ' + getBrowserIcon(exec.browser) + '"></i> ' + escapeHtml(exec.browser) + '</span>' +
@@ -582,8 +624,16 @@ function generateReportHtml(data) {
     .btn-table-details:hover { background: var(--danger); color: white; border-color: var(--danger); }
     .btn-table-url-multiple { background: #f0fdf4; color: #16a34a; border-color: #bbf7d0; }
     .btn-table-url-multiple:hover { background: #16a34a; color: white; border-color: #16a34a; }
+    .btn-table-url-single { background: #f0fdf4; color: #16a34a; border-color: #bbf7d0; }
+    .btn-table-url-single:hover { background: #16a34a; color: white; border-color: #16a34a; }
     .btn-table-url-latest { background: #dcfce7; color: #15803d; border-color: #bbf7d0; padding: 6px 10px; }
     .btn-table-url-latest:hover { background: #15803d; color: white; border-color: #15803d; }
+    .btn-table-blocks { background: #ffffff; border: 1px solid var(--border); color: var(--text-primary); font-size: 11px; font-weight: 600; padding: 4px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; transition: all 0.15s ease; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+    .btn-table-blocks:hover { background: var(--accent-light); border-color: var(--accent-border); color: var(--accent); }
+    .tb-pill { font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px; }
+    .tb-pass { background: #f0fdf4; border: 1px solid #bbf7d0; color: #16a34a; }
+    .tb-fail { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; }
+    .tb-skip { background: #f1f5f9; border: 1px solid #cbd5e1; color: #64748b; }
     .btn-table-icon { background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-secondary); padding: 4px 7px; cursor: pointer; font-size: 11px; display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s ease; }
     .btn-table-icon:hover { color: var(--accent); border-color: var(--accent); background: var(--bg-secondary); }
     .url-cell-wrapper { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
@@ -670,6 +720,25 @@ function generateReportHtml(data) {
     </div>
   </div>
 
+  <!-- Test Cases Breakdown Modal -->
+  <div class="modal-backdrop hidden" id="testBlocksModal" role="dialog" aria-modal="true">
+    <div class="modal-container" style="max-width: 820px;">
+      <div class="modal-header">
+        <h3 class="modal-title"><i class="fas fa-list-check" style="color: var(--accent);"></i> Test Cases in Spec (<span id="testBlocksModalCount">0</span>)</h3>
+        <button type="button" class="modal-close-btn" id="testBlocksModalCloseBtn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="error-meta" id="testBlocksModalMeta"></div>
+        <div id="testBlocksModalList" style="display: flex; flex-direction: column; gap: 10px; max-height: 520px; overflow-y: auto;">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-table btn-table-cancel" id="testBlocksModalOkBtn">Close</button>
+      </div>
+    </div>
+  </div>
+
   <script id="__REPORT_DATA__" type="application/json">
     ${jsonStr}
   </script>
@@ -677,6 +746,7 @@ function generateReportHtml(data) {
   <script>
     const executionErrorStore = new Map(${JSON.stringify(Object.entries(errorStoreObj))});
     const executionUrlsStore = new Map(${JSON.stringify(Object.entries(urlsStoreObj))});
+    const executionTestBlocksStore = new Map(${JSON.stringify(Object.entries(testBlocksStoreObj))});
 
     function escapeHtml(str) {
       if (!str) return '';
@@ -692,8 +762,25 @@ function generateReportHtml(data) {
       const errorModalTrace = document.getElementById('errorModalTrace');
 
       if (errorModalMeta) {
+        let blocksTable = '';
+        if (Array.isArray(errorData.testBlocks) && errorData.testBlocks.length > 1) {
+          blocksTable = '<div style="margin-top:10px;margin-bottom:10px;border:1px solid #e2e8f0;border-radius:6px;overflow:hidden;">' +
+            '<div style="font-size:11.5px;font-weight:700;background:#f8fafc;padding:5px 8px;border-bottom:1px solid #e2e8f0;">Test Blocks Breakdown:</div>' +
+            '<table style="width:100%;font-size:11.5px;border-collapse:collapse;"><tbody>' +
+            errorData.testBlocks.map(b => {
+              const pass = b.status === 'PASS' || b.status === 'RETRY_PASS';
+              const col = pass ? '#16a34a' : (b.status === 'SKIPPED' ? '#64748b' : '#dc2626');
+              return '<tr style="border-bottom:1px solid #f1f5f9;background:#fff;">' +
+                '<td style="padding:5px 8px;font-weight:600;">' + escapeHtml(b.title) + '</td>' +
+                '<td style="padding:5px 8px;font-weight:700;color:' + col + ';width:90px;">' + escapeHtml(b.status) + '</td>' +
+                '<td style="padding:5px 8px;color:#64748b;width:60px;text-align:right;">' + (b.duration != null ? b.duration + 's' : '—') + '</td>' +
+              '</tr>';
+            }).join('') +
+            '</tbody></table></div>';
+        }
+
         errorModalMeta.innerHTML = '<strong>' + escapeHtml(errorData.title) + '</strong> &bull; ' +
-          '<span>' + escapeHtml(errorData.device) + ' / ' + escapeHtml(errorData.browser) + '</span>';
+          '<span>' + escapeHtml(errorData.device) + ' / ' + escapeHtml(errorData.browser) + '</span>' + blocksTable;
       }
       if (errorModalTrace) {
         errorModalTrace.textContent = errorData.error;
@@ -765,6 +852,75 @@ function generateReportHtml(data) {
       document.body.style.overflow = '';
     }
 
+    function openTestBlocksModal(execId) {
+      const data = executionTestBlocksStore.get(execId);
+      const modal = document.getElementById('testBlocksModal');
+      if (!data || !modal) return;
+
+      const metaEl = document.getElementById('testBlocksModalMeta');
+      const countEl = document.getElementById('testBlocksModalCount');
+      const listEl = document.getElementById('testBlocksModalList');
+
+      const blocks = data.testBlocks || [];
+      if (countEl) countEl.textContent = blocks.length;
+      if (metaEl) {
+        metaEl.innerHTML = '<strong>' + escapeHtml(data.title) + '</strong> <span style="font-family:monospace;font-size:12px;color:var(--text-muted);">(' + escapeHtml(data.testScript) + ')</span> &bull; ' +
+          '<span>' + escapeHtml(data.device) + ' / ' + escapeHtml(data.browser) + '</span> &bull; ' +
+          '<span>Overall: ' + getStatusBadgeHtml(data.status) + '</span>';
+      }
+
+      if (listEl) {
+        let itemsHtml = '';
+        blocks.forEach(function(b, idx) {
+          const num = idx + 1;
+          const isPass = b.status === 'PASS' || b.status === 'RETRY_PASS';
+          const isSkip = b.status === 'SKIPPED';
+          const statusClass = isPass ? 'status-PASS' : (isSkip ? 'status-PENDING' : 'status-FAIL');
+          const statusIcon = isPass ? 'fa-check-circle' : (isSkip ? 'fa-forward' : 'fa-times-circle');
+          const durStr = b.duration != null ? b.duration + 's' : '—';
+
+          let errorBox = '';
+          if (b.error && b.error.trim()) {
+            errorBox = '<div style="margin-top: 8px; padding: 10px 12px; background: #1e293b; border-radius: 6px; font-family: monospace; font-size: 11.5px; color: #f87171; white-space: pre-wrap; word-break: break-all; border: 1px solid #334155;">' +
+              escapeHtml(b.error) +
+            '</div>';
+          }
+
+          let screenshotLink = '';
+          if (b.screenshotPath && b.screenshotPath !== 'N/A') {
+            screenshotLink = '<a href="' + escapeHtml(b.screenshotPath) + '" target="_blank" class="btn-table btn-table-screenshot" style="padding: 4px 10px; font-size: 11px;"><i class="fas fa-image"></i> Screenshot</a>';
+          }
+
+          itemsHtml += '<div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; display: flex; flex-direction: column; gap: 8px;">' +
+            '<div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">' +
+              '<div style="font-weight: 600; font-size: 13.5px; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">' +
+                '<span style="background: #e0e7ff; color: #4338ca; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 700;">#' + num + '</span> ' +
+                escapeHtml(b.title) +
+              '</div>' +
+              '<div style="display: flex; align-items: center; gap: 8px;">' +
+                '<span class="duration-badge">' + escapeHtml(durStr) + '</span>' +
+                screenshotLink +
+                '<span class="status-badge ' + statusClass + '"><i class="fas ' + statusIcon + '"></i> ' + escapeHtml(b.status) + '</span>' +
+              '</div>' +
+            '</div>' +
+            (b.failedStep ? '<div style="font-size: 12px; color: var(--text-muted);"><i class="fas fa-step-forward" style="color:var(--danger);"></i> Failed at step: <strong style="color:var(--text-primary);">' + escapeHtml(b.failedStep) + '</strong></div>' : '') +
+            errorBox +
+          '</div>';
+        });
+        listEl.innerHTML = itemsHtml;
+      }
+
+      modal.classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeTestBlocksModal() {
+      const modal = document.getElementById('testBlocksModal');
+      if (!modal) return;
+      modal.classList.add('hidden');
+      document.body.style.overflow = '';
+    }
+
     window.copySingleUrl = function(urlText, btn) {
       if (!urlText) return;
       navigator.clipboard.writeText(urlText).then(function() {
@@ -803,6 +959,18 @@ function generateReportHtml(data) {
         });
       }
 
+      const blocksCloseBtn = document.getElementById('testBlocksModalCloseBtn');
+      const blocksOkBtn = document.getElementById('testBlocksModalOkBtn');
+      const blocksModal = document.getElementById('testBlocksModal');
+
+      if (blocksCloseBtn) blocksCloseBtn.addEventListener('click', closeTestBlocksModal);
+      if (blocksOkBtn) blocksOkBtn.addEventListener('click', closeTestBlocksModal);
+      if (blocksModal) {
+        blocksModal.addEventListener('click', function(e) {
+          if (e.target === blocksModal) closeTestBlocksModal();
+        });
+      }
+
       if (urlsCopyAllBtn) {
         urlsCopyAllBtn.addEventListener('click', function() {
           const activeExecId = urlsModal.getAttribute('data-active-exec');
@@ -821,6 +989,7 @@ function generateReportHtml(data) {
         if (e.key === 'Escape') {
           closeErrorModal();
           closeUrlsModal();
+          closeTestBlocksModal();
         }
       });
 

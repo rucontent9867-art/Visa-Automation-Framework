@@ -1,0 +1,91 @@
+{
+  "testScript": "azerbaijan-visa.spec.ts",
+  "testName": "sends one inquiry and displays confirmation",
+  "device": "Desktop",
+  "deviceType": "Desktop",
+  "browser": "Chromium",
+  "viewport": "1920 x 1080",
+  "status": "PASS",
+  "retries": 0,
+  "duration": 49,
+  "paymentUrl": "N/A",
+  "capturedUrls": [
+    "https://azerbaijan-visa.info/apply/",
+    "https://azerbaijan-visa.info/visa-status/",
+    "https://azerbaijan-visa.info/complete-partially/",
+    "https://azerbaijan-visa.info/visa-payment/QVo2MTQzNzM3QVdK/"
+  ],
+  "urlHistory": [
+    {
+      "url": "https://azerbaijan-visa.info/apply/",
+      "timestamp": "2026-11-12 17:09:49",
+      "label": "Initial Navigation"
+    },
+    {
+      "url": "https://azerbaijan-visa.info/visa-status/",
+      "timestamp": "2026-11-12 17:09:56",
+      "label": "Direct Verification (document-upload): visa-status"
+    },
+    {
+      "url": "https://azerbaijan-visa.info/complete-partially/",
+      "timestamp": "2026-11-12 17:10:01",
+      "label": "Direct Verification (document-upload): complete-partially"
+    },
+    {
+      "url": "https://azerbaijan-visa.info/visa-status/",
+      "timestamp": "2026-11-12 17:10:08",
+      "label": "Direct Verification (preview): visa-status"
+    },
+    {
+      "url": "https://azerbaijan-visa.info/complete-partially/",
+      "timestamp": "2026-11-12 17:10:16",
+      "label": "Direct Verification (preview): complete-partially"
+    },
+    {
+      "url": "https://azerbaijan-visa.info/visa-payment/QVo2MTQzNzM3QVdK/",
+      "timestamp": "2026-11-12 17:10:23",
+      "label": "Redirect / Step 6"
+    },
+    {
+      "url": "https://azerbaijan-visa.info/visa-status/",
+      "timestamp": "2026-11-12 17:10:26",
+      "label": "Direct Verification (payment): visa-status"
+    },
+    {
+      "url": "https://azerbaijan-visa.info/complete-partially/",
+      "timestamp": "2026-11-12 17:10:33",
+      "label": "Direct Verification (payment): complete-partially"
+    },
+    {
+      "url": "https://azerbaijan-visa.info/visa-payment/QVo2MTQzNzM3QVdK/",
+      "timestamp": "2026-11-12 17:10:38",
+      "label": "Final / Payment Page"
+    }
+  ],
+  "screenshotPath": "/screenshots/2026-11-23_20-49-02/azerbaijan-visa/azerbaijan-visa-desktop-chromium-failed.png",
+  "error": "",
+  "failedStep": "",
+  "startTime": "2026-11-23 20:49:02",
+  "endTime": "2026-11-23 20:49:02",
+  "testBlocks": [
+    {
+      "title": "Azerbaijan Visa Application",
+      "status": "PASS",
+      "duration": 48.9,
+      "error": "",
+      "failedStep": "",
+      "screenshotPath": "/screenshots/2026-11-12_17-10-38/azerbaijan-visa/azerbaijan-visa-desktop-chromium-captured-url.png"
+    },
+    {
+      "title": "sends one inquiry and displays confirmation",
+      "status": "SKIPPED",
+      "duration": 0.1,
+      "error": "",
+      "failedStep": "",
+      "screenshotPath": "/screenshots/2026-11-23_20-49-02/azerbaijan-visa/azerbaijan-visa-desktop-chromium-failed.png"
+    }
+  ],
+  "passCount": 1,
+  "failCount": 0,
+  "skipCount": 1
+}

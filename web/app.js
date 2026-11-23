@@ -1,7 +1,7 @@
 /**
  * app.js
  *
- * Frontend script for the Visa Test Automation Dashboard.
+ * Frontend script for the Playwright Test Automation Dashboard.
  * Includes unified button state management, accessibility feedback, and async task tracking.
  */
 
@@ -86,6 +86,19 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentSessionId = null;
   let currentSessionOptions = null;
   let sseSource = null;
+
+  // Auto-Identified Test Sections State
+  let availableSections = [];
+  let enabledSections = new Set();
+  let specSectionsMap = {};
+
+  // Section Filter DOM Elements
+  const sectionFilterBar = document.getElementById('sectionFilterBar');
+  const sectionCheckboxGroup = document.getElementById('sectionCheckboxGroup');
+  const sectionStatusBanner = document.getElementById('sectionStatusBanner');
+  const sectionStatusText = document.getElementById('sectionStatusText');
+  const selectAllSectionsBtn = document.getElementById('selectAllSectionsBtn');
+  const resetSectionsBtn = document.getElementById('resetSectionsBtn');
 
   // Active operation state flags
   let isRunActive = false;
@@ -234,12 +247,109 @@ document.addEventListener('DOMContentLoaded', () => {
     return escaped.replace(regex, '<mark class="search-highlight">$1</mark>');
   }
 
-  // ── Fetch tests from API ──
+  // ── Auto-Identified Sections Helpers ──
+  function getDisabledSections() {
+    return availableSections
+      .filter((s) => !enabledSections.has(s.name))
+      .map((s) => s.name);
+  }
+
+  function getEnabledSections() {
+    return Array.from(enabledSections);
+  }
+
+  function toggleSection(sectionName) {
+    if (enabledSections.has(sectionName)) {
+      if (enabledSections.size === 1) {
+        showToast('At least one section must remain enabled to run tests.', 'warning');
+        return;
+      }
+      enabledSections.delete(sectionName);
+    } else {
+      enabledSections.add(sectionName);
+    }
+    renderSectionCheckboxes();
+    renderTestGrid();
+    updateSummary();
+  }
+
+  function selectAllSections() {
+    availableSections.forEach((s) => enabledSections.add(s.name));
+    renderSectionCheckboxes();
+    renderTestGrid();
+    updateSummary();
+  }
+
+  function resetSections() {
+    selectAllSections();
+  }
+
+  function renderSectionCheckboxes() {
+    if (!sectionCheckboxGroup) return;
+
+    if (!availableSections || availableSections.length === 0) {
+      sectionCheckboxGroup.innerHTML = '<span class="section-pills-loading">No sections detected</span>';
+      if (sectionStatusBanner) sectionStatusBanner.classList.add('hidden');
+      return;
+    }
+
+    sectionCheckboxGroup.innerHTML = availableSections.map((sec) => {
+      const isChecked = enabledSections.has(sec.name);
+      return `
+        <label class="section-checkbox-pill ${isChecked ? 'active' : 'inactive'}" 
+               data-section="${escapeHtml(sec.name)}" 
+               title="${isChecked ? 'Click to skip this section\'s test() blocks' : 'Click to run this section\'s test() blocks'}">
+          <input type="checkbox" value="${escapeHtml(sec.name)}" ${isChecked ? 'checked' : ''}>
+          <span class="section-check-icon"><i class="fas ${isChecked ? 'fa-check' : 'fa-ban'}"></i></span>
+          <span class="section-pill-label">${escapeHtml(sec.name)}</span>
+          <span class="section-pill-count" title="${sec.count} test() blocks across ${sec.specCount} spec file(s)">${sec.count}</span>
+        </label>
+      `;
+    }).join('');
+
+    // Attach click listeners to section pills
+    sectionCheckboxGroup.querySelectorAll('.section-checkbox-pill').forEach((pill) => {
+      pill.addEventListener('click', (e) => {
+        e.preventDefault();
+        const secName = pill.getAttribute('data-section');
+        if (secName) toggleSection(secName);
+      });
+    });
+
+    // Update status banner
+    if (sectionStatusBanner && sectionStatusText) {
+      const disabled = getDisabledSections();
+      if (disabled.length > 0) {
+        sectionStatusBanner.classList.remove('hidden', 'all-active');
+        sectionStatusText.innerHTML = `<strong>Skipping ${disabled.length} Section${disabled.length === 1 ? '' : 's'}:</strong> ${escapeHtml(disabled.join(', '))} — its test() blocks are skipped; all remaining test() blocks run normally.`;
+      } else {
+        sectionStatusBanner.classList.add('hidden');
+      }
+    }
+  }
+
+  // ── Fetch tests & detected sections from API ──
   async function loadTests() {
     try {
       const res = await fetch('/api/tests');
       const data = await res.json();
       allTests = data.tests || [];
+      availableSections = data.sections || [];
+      specSectionsMap = data.specMap || {};
+
+      // Initialize all sections as active by default if not set
+      if (enabledSections.size === 0 && availableSections.length > 0) {
+        availableSections.forEach((s) => enabledSections.add(s.name));
+      } else {
+        // If new sections were discovered, activate them
+        availableSections.forEach((s) => {
+          if (!enabledSections.has(s.name) && !getDisabledSections().includes(s.name)) {
+            enabledSections.add(s.name);
+          }
+        });
+      }
+
+      renderSectionCheckboxes();
       renderTestGrid();
       updateSummary();
     } catch (err) {
@@ -313,6 +423,23 @@ document.addEventListener('DOMContentLoaded', () => {
       const titleHighlighted = highlightText(titleFormatted, currentSearchTerm);
       const filenameHighlighted = highlightText(test, currentSearchTerm);
 
+      // Distinct sections inside this spec file
+      const specTests = specSectionsMap[test] || [];
+      const distinctSections = Array.from(new Set(specTests.map(t => t.section)));
+      let sectionBadgesHtml = '';
+      if (distinctSections.length > 0) {
+        sectionBadgesHtml = `
+          <div class="section-badges-container">
+            ${distinctSections.map(sec => {
+              const isEnabled = enabledSections.has(sec);
+              return `<span class="test-section-tag ${isEnabled ? 'active' : 'skipped'}" title="Section: ${escapeHtml(sec)}${isEnabled ? ' (Active)' : ' (Skipped)'}">
+                <i class="fas ${isEnabled ? 'fa-check' : 'fa-ban'}"></i> ${escapeHtml(sec)}${isEnabled ? '' : ' (Skipped)'}
+              </span>`;
+            }).join('')}
+          </div>
+        `;
+      }
+
       return `
         <div class="test-card ${isSelected ? 'selected' : ''}" 
              data-file="${escapeHtml(test)}" 
@@ -326,6 +453,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="test-card-content">
             <div class="test-card-title">${titleHighlighted}</div>
             <div class="test-card-filename"><i class="far fa-file-code"></i> ${filenameHighlighted}</div>
+            ${sectionBadgesHtml}
           </div>
         </div>
       `;
@@ -394,6 +522,20 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  if (selectAllSectionsBtn) {
+    selectAllSectionsBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      selectAllSections();
+    });
+  }
+
+  if (resetSectionsBtn) {
+    resetSectionsBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      resetSections();
+    });
+  }
+
   // Listen to configuration checkboxes
   document.querySelectorAll('.browser-checkbox, .device-checkbox').forEach(cb => {
     cb.addEventListener('change', updateSummary);
@@ -417,8 +559,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (summaryDevices) summaryDevices.textContent = `${devices.length} (${devices.join(', ') || 'None'})`;
 
     const totalExecs = testCountNum * browsers.length * devices.length;
+    const disabledList = getDisabledSections();
     if (summaryEquation) {
-      summaryEquation.textContent = `${testCountNum} Tests × ${browsers.length} Engine${browsers.length === 1 ? '' : 's'} × ${devices.length} Platform${devices.length === 1 ? '' : 's'} = ${totalExecs} Executions`;
+      const skipNote = disabledList.length > 0 ? ` (${disabledList.length} section${disabledList.length === 1 ? '' : 's'} skipped)` : '';
+      summaryEquation.textContent = `${testCountNum} Tests × ${browsers.length} Engine${browsers.length === 1 ? '' : 's'} × ${devices.length} Platform${devices.length === 1 ? '' : 's'} = ${totalExecs} Executions${skipNote}`;
     }
 
     updateButtonStates();
@@ -569,13 +713,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const rawBatchSize = parseInt(document.getElementById('batchSize')?.value || '5', 10);
     const batchSize = isNaN(rawBatchSize) ? 5 : Math.min(10, Math.max(1, rawBatchSize));
     const headless = document.getElementById('headlessMode')?.checked ?? true;
+    const contactUsEnabled = document.getElementById('contactUsMode')?.checked ?? false;
     const timeouts = getTimeoutSettings();
 
     try {
       const res = await fetch('/api/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ testFiles, browsers, devices, retries, headless, batchSize, timeouts }),
+        body: JSON.stringify({
+          testFiles,
+          browsers,
+          devices,
+          retries,
+          headless,
+          contactUsEnabled,
+          batchSize,
+          timeouts,
+          disabledSections: getDisabledSections(),
+          enabledSections: getEnabledSections(),
+        }),
       });
 
       const data = await res.json();
@@ -589,6 +745,7 @@ document.addEventListener('DOMContentLoaded', () => {
       currentSessionId = data.sessionId;
       currentSessionOptions = {
         headless,
+        contactUsEnabled,
         batchSize,
         retries,
         timeouts,
@@ -623,9 +780,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const batchSize = isNaN(rawBatchSize) ? 5 : Math.min(10, Math.max(1, rawBatchSize));
     const retries = parseInt(document.getElementById('retryCount')?.value || '2', 10);
     const headless = document.getElementById('headlessMode')?.checked ?? true;
+    const contactUsEnabled = document.getElementById('contactUsMode')?.checked ?? false;
     const timeouts = getTimeoutSettings();
     return {
       headless: !!headless,
+      contactUsEnabled: !!contactUsEnabled,
       batchSize: isNaN(batchSize) ? 5 : batchSize,
       retries: isNaN(retries) ? 2 : retries,
       timeouts,
@@ -759,9 +918,12 @@ document.addEventListener('DOMContentLoaded', () => {
           sessionId: currentSessionId,
           retries: chosenSettings.retries,
           headless: chosenSettings.headless,
+          contactUsEnabled: !!chosenSettings.contactUsEnabled,
           batchSize: chosenSettings.batchSize,
           timeouts: chosenSettings.timeouts || getTimeoutSettings(),
           targets,
+          disabledSections: getDisabledSections(),
+          enabledSections: getEnabledSections(),
         }),
       });
 
@@ -776,6 +938,7 @@ document.addEventListener('DOMContentLoaded', () => {
       currentSessionId = data.sessionId;
       currentSessionOptions = {
         headless: chosenSettings.headless,
+        contactUsEnabled: !!chosenSettings.contactUsEnabled,
         batchSize: chosenSettings.batchSize,
         retries: chosenSettings.retries,
         timeouts: chosenSettings.timeouts || getTimeoutSettings(),
@@ -1073,10 +1236,41 @@ document.addEventListener('DOMContentLoaded', () => {
     const errorData = executionErrorStore.get(execId);
     if (!errorData || !errorModal) return;
 
+    let blocksHtml = '';
+    if (Array.isArray(errorData.testBlocks) && errorData.testBlocks.length > 1) {
+      blocksHtml = `
+        <div class="modal-test-blocks-table" style="margin-top: 10px; margin-bottom: 12px; border: 1px solid var(--border); border-radius: 6px; overflow: hidden;">
+          <div style="font-size: 11.5px; font-weight: 700; color: var(--text-primary); background: #f8fafc; padding: 6px 10px; border-bottom: 1px solid var(--border);">
+            <i class="fas fa-list-check"></i> Test Blocks in this File (${errorData.testBlocks.length})
+          </div>
+          <table style="width: 100%; border-collapse: collapse; font-size: 11.5px;">
+            <tbody>
+              ${errorData.testBlocks.map(b => {
+                const isPass = b.status === 'PASS' || b.status === 'RETRY_PASS';
+                const isSkip = b.status === 'SKIPPED';
+                const color = isPass ? 'var(--success)' : (isSkip ? 'var(--text-muted)' : 'var(--danger)');
+                const icon = isPass ? 'fa-check-circle' : (isSkip ? 'fa-forward' : 'fa-times-circle');
+                return `
+                  <tr style="border-bottom: 1px solid var(--border); background: #fff;">
+                    <td style="padding: 6px 10px; font-weight: 600; color: var(--text-primary);">${escapeHtml(b.title)}</td>
+                    <td style="padding: 6px 10px; color: ${color}; font-weight: 700; width: 100px;">
+                      <i class="fas ${icon}"></i> ${escapeHtml(b.status)}
+                    </td>
+                    <td style="padding: 6px 10px; color: var(--text-muted); width: 60px; text-align: right;">${b.duration != null ? b.duration + 's' : '—'}</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
     if (errorModalMeta) {
       errorModalMeta.innerHTML = `
         <strong>${escapeHtml(errorData.title)}</strong> &bull; 
         <span>${escapeHtml(errorData.device)} / ${escapeHtml(errorData.browser)}</span>
+        ${blocksHtml}
       `;
     }
     if (errorModalTrace) {
@@ -1109,6 +1303,9 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       if (urlsModal && !urlsModal.classList.contains('hidden')) {
         closeUrlsModal();
+      }
+      if (testBlocksModal && !testBlocksModal.classList.contains('hidden')) {
+        closeTestBlocksModal();
       }
       if (resetConfirmModal && !resetConfirmModal.classList.contains('hidden') && !isResettingData) {
         closeResetModal();
@@ -1236,6 +1433,92 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  const testBlocksModal = document.getElementById('testBlocksModal');
+  const testBlocksModalMeta = document.getElementById('testBlocksModalMeta');
+  const testBlocksModalCount = document.getElementById('testBlocksModalCount');
+  const testBlocksModalList = document.getElementById('testBlocksModalList');
+  const testBlocksModalCloseBtn = document.getElementById('testBlocksModalCloseBtn');
+  const testBlocksModalOkBtn = document.getElementById('testBlocksModalOkBtn');
+
+  const executionTestBlocksStore = new Map();
+
+  window.openTestBlocksModal = function(execId) {
+    const data = executionTestBlocksStore.get(execId);
+    if (!data || !testBlocksModal) return;
+
+    const blocks = data.testBlocks || [];
+    if (testBlocksModalCount) testBlocksModalCount.textContent = blocks.length;
+    if (testBlocksModalMeta) {
+      testBlocksModalMeta.innerHTML = `
+        <strong>${escapeHtml(data.title)}</strong> <span style="font-family:monospace;font-size:12px;color:var(--text-muted);">(${escapeHtml(data.testScript)})</span> &bull; 
+        <span>${escapeHtml(data.device)} / ${escapeHtml(data.browser)}</span> &bull;
+        <span>Overall: ${getStatusBadgeHtml(data.status)}</span>
+      `;
+    }
+
+    if (testBlocksModalList) {
+      let itemsHtml = '';
+      blocks.forEach((b, idx) => {
+        const num = idx + 1;
+        const isPass = b.status === 'PASS' || b.status === 'RETRY_PASS';
+        const isSkip = b.status === 'SKIPPED';
+        const statusClass = isPass ? 'status-PASS' : (isSkip ? 'status-PENDING' : 'status-FAIL');
+        const statusIcon = isPass ? 'fa-check-circle' : (isSkip ? 'fa-forward' : 'fa-times-circle');
+        const durStr = b.duration != null ? `${b.duration}s` : '—';
+
+        let errorBox = '';
+        if (b.error && b.error.trim()) {
+          errorBox = `
+            <div style="margin-top: 8px; padding: 10px 12px; background: #1e293b; border-radius: 6px; font-family: monospace; font-size: 11.5px; color: #f87171; white-space: pre-wrap; word-break: break-all; border: 1px solid #334155;">
+              ${escapeHtml(b.error)}
+            </div>
+          `;
+        }
+
+        let screenshotLink = '';
+        if (b.screenshotPath && b.screenshotPath !== 'N/A') {
+          screenshotLink = `<a href="${escapeHtml(b.screenshotPath)}" target="_blank" class="btn-table btn-table-screenshot" style="padding: 4px 10px; font-size: 11px;"><i class="fas fa-image"></i> Screenshot</a>`;
+        }
+
+        itemsHtml += `
+          <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+              <div style="font-weight: 600; font-size: 13.5px; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                <span style="background: #e0e7ff; color: #4338ca; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 700;">#${num}</span>
+                ${escapeHtml(b.title)}
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="duration-badge">${escapeHtml(durStr)}</span>
+                ${screenshotLink}
+                <span class="status-badge ${statusClass}"><i class="fas ${statusIcon}"></i> ${escapeHtml(b.status)}</span>
+              </div>
+            </div>
+            ${b.failedStep ? `<div style="font-size: 12px; color: var(--text-muted);"><i class="fas fa-step-forward" style="color:var(--danger);"></i> Failed at step: <strong style="color:var(--text-primary);">${escapeHtml(b.failedStep)}</strong></div>` : ''}
+            ${errorBox}
+          </div>
+        `;
+      });
+      testBlocksModalList.innerHTML = itemsHtml;
+    }
+
+    testBlocksModal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+  };
+
+  function closeTestBlocksModal() {
+    if (!testBlocksModal) return;
+    testBlocksModal.classList.add('hidden');
+    document.body.style.overflow = '';
+  }
+
+  if (testBlocksModalCloseBtn) testBlocksModalCloseBtn.addEventListener('click', closeTestBlocksModal);
+  if (testBlocksModalOkBtn) testBlocksModalOkBtn.addEventListener('click', closeTestBlocksModal);
+  if (testBlocksModal) {
+    testBlocksModal.addEventListener('click', (e) => {
+      if (e.target === testBlocksModal) closeTestBlocksModal();
+    });
+  }
+
   function appendOrUpdateExecRow(exec) {
     if (!resultsList) return;
     const formattedTitle = formatTestTitle(exec.testScript);
@@ -1281,13 +1564,28 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
 
+    if (Array.isArray(exec.testBlocks) && exec.testBlocks.length > 0) {
+      executionTestBlocksStore.set(exec.id, {
+        title: formattedTitle || exec.testScript,
+        testScript: exec.testScript,
+        device: exec.device,
+        browser: exec.browser,
+        status: exec.status,
+        duration: exec.duration,
+        testBlocks: exec.testBlocks,
+      });
+    }
+
     let payUrlHtml = '<span class="empty-cell">—</span>';
     if (capturedList.length === 1) {
       const singleUrl = capturedList[0];
       payUrlHtml = `
         <div class="url-cell-wrapper">
+          <button type="button" class="btn-table btn-table-url-single" onclick="openUrlsModal('${exec.id}')" title="View captured URL details">
+            <i class="fas fa-link"></i> 1 URL
+          </button>
           <a href="${escapeHtml(singleUrl)}" target="_blank" class="btn-table btn-table-url" title="${escapeHtml(singleUrl)}">
-            <i class="fas fa-external-link-alt"></i> Open URL
+            <i class="fas fa-external-link-alt"></i> Open
           </a>
           <button type="button" class="btn-table-icon" onclick="copySingleUrl('${escapeHtml(singleUrl)}', this)" title="Copy URL">
             <i class="fas fa-copy"></i>
@@ -1298,7 +1596,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const latestUrl = capturedList[capturedList.length - 1];
       payUrlHtml = `
         <div class="url-cell-wrapper">
-          <button type="button" class="btn-table btn-table-url-multiple" onclick="openUrlsModal('${exec.id}')" title="View all ${capturedList.length} captured URLs">
+          <button type="button" class="btn-table btn-table-url-multiple" onclick="openUrlsModal('${exec.id}')" title="View all ${capturedList.length} captured URLs during application">
             <i class="fas fa-layer-group"></i> ${capturedList.length} URLs
           </button>
           <a href="${escapeHtml(latestUrl)}" target="_blank" class="btn-table btn-table-url-latest" title="Open latest: ${escapeHtml(latestUrl)}">
@@ -1321,7 +1619,8 @@ document.addEventListener('DOMContentLoaded', () => {
         title: formattedTitle || exec.testScript,
         device: exec.device,
         browser: exec.browser,
-        error: exec.error
+        error: exec.error,
+        testBlocks: exec.testBlocks || [],
       });
 
       const shortErr = exec.error.length > 35 ? exec.error.substring(0, 35) + '…' : exec.error;
@@ -1335,11 +1634,42 @@ document.addEventListener('DOMContentLoaded', () => {
       `;
     }
 
+    let testBlocksBadge = '';
+    if (Array.isArray(exec.testBlocks) && exec.testBlocks.length > 1) {
+      const pCount = exec.passCount ?? exec.testBlocks.filter(b => b.status === 'PASS' || b.status === 'RETRY_PASS').length;
+      const fCount = exec.failCount ?? exec.testBlocks.filter(b => b.status === 'FAIL').length;
+      const sCount = exec.skipCount ?? exec.testBlocks.filter(b => b.status === 'SKIPPED').length;
+      testBlocksBadge = `
+        <div class="test-blocks-summary-wrapper">
+          <button type="button" class="btn-test-blocks" onclick="openTestBlocksModal('${exec.id}')" title="Inspect all ${exec.testBlocks.length} test cases in this spec">
+            <span class="tb-count-badge"><i class="fas fa-list-check"></i> ${exec.testBlocks.length} Tests:</span>
+            ${pCount > 0 ? `<span class="block-pill block-pill-pass"><i class="fas fa-check"></i> ${pCount} passed</span>` : ''}
+            ${fCount > 0 ? `<span class="block-pill block-pill-fail"><i class="fas fa-times"></i> ${fCount} failed</span>` : ''}
+            ${sCount > 0 ? `<span class="block-pill block-pill-skip"><i class="fas fa-forward"></i> ${sCount} skipped</span>` : ''}
+          </button>
+        </div>
+      `;
+    }
+
+    let contactUsBadge = '';
+    if (exec.contactUsEnabled && exec.contactUsStatus && exec.contactUsStatus !== 'SKIPPED') {
+      const cuPass = exec.contactUsStatus === 'PASS';
+      const cuBlocked = exec.contactUsStatus === 'CAPTCHA_BLOCKED';
+      const cuColor = cuPass ? '#16a34a' : cuBlocked ? '#d97706' : '#dc2626';
+      const cuLabel = cuPass ? 'Contact Us: PASS' : cuBlocked ? 'Contact Us: CAPTCHA' : 'Contact Us: FAIL';
+      const cuLink = (exec.contactUsScreenshot && exec.contactUsScreenshot !== 'N/A')
+        ? ` <a href="${escapeHtml(exec.contactUsScreenshot)}" target="_blank" style="color:inherit;text-decoration:underline;margin-left:4px;">Shot</a>`
+        : '';
+      contactUsBadge = `<div class="contact-us-badge" title="${escapeHtml(exec.contactUsReason || cuLabel)}" style="margin-top:4px;font-size:11px;font-weight:600;color:${cuColor};"><i class="fas fa-envelope"></i> ${cuLabel}${cuLink}</div>`;
+    }
+
     row.innerHTML = `
       <td>
         <div class="test-script-cell">
           <strong class="test-title">${escapeHtml(formattedTitle)}</strong>
           <span class="test-file">${escapeHtml(exec.testScript)}</span>
+          ${testBlocksBadge}
+          ${contactUsBadge}
         </div>
       </td>
       <td>
@@ -2979,19 +3309,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const genExistingScriptSelect = document.getElementById('genExistingScriptSelect');
   const genRefreshSpecsBtn = document.getElementById('genRefreshSpecsBtn');
   const genScenarioPrompt = document.getElementById('genScenarioPrompt');
+  const genVerifyPlaywrightCheck = document.getElementById('genVerifyPlaywrightCheck');
 
   const startGeneratorBtn = document.getElementById('startGeneratorBtn');
   const stopGeneratorBtn = document.getElementById('stopGeneratorBtn');
 
-  // Timeline & console
-  const genCheckpointStatusNote = document.getElementById('genCheckpointStatusNote');
-  const genCheckpointCountBadge = document.getElementById('genCheckpointCountBadge');
+  // Console
   const genConsoleLogsContainer = document.getElementById('genConsoleLogsContainer');
   const genClearLogsBtn = document.getElementById('genClearLogsBtn');
   const genCopyLogsBtn = document.getElementById('genCopyLogsBtn');
-
-  // Checkpoints list
-  const genCheckpointsListContainer = document.getElementById('genCheckpointsListContainer');
 
   // Preview & Guide
   const genSpecCodeViewer = document.getElementById('genSpecCodeViewer');
@@ -3008,8 +3334,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const genGuideFormattedContainer = document.getElementById('genGuideFormattedContainer');
   const genGuideRawContainer = document.getElementById('genGuideRawContainer');
   const genGuideActiveFilePathLabel = document.getElementById('genGuideActiveFilePathLabel');
-
-  let currentCheckpoints = [];
 
   function switchGenTab(tabKey) {
     genTabButtons.forEach(btn => {
@@ -3041,12 +3365,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Switch between "Create New Script" and "Update / Heal Existing Script"
+  // Switch between "Create New Script" and "Fix / Heal Existing Script"
   genModeRadios.forEach(radio => {
     radio.addEventListener('change', () => {
       const mode = radio.value;
       if (mode === 'create') {
-        if (genNewScriptContainer) genNewScriptContainer.style.display = 'grid';
+        if (genNewScriptContainer) genNewScriptContainer.style.display = 'flex';
         if (genUpdateScriptContainer) genUpdateScriptContainer.style.display = 'none';
       } else {
         if (genNewScriptContainer) genNewScriptContainer.style.display = 'none';
@@ -3056,65 +3380,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Quick scenario template buttons & Customizer panel handlers
-  const genToggleCustomizerBtn = document.getElementById('genToggleCustomizerBtn');
-  const genCustomizerPanel = document.getElementById('genCustomizerPanel');
-  const btnApplyDirectUrlTemplate = document.getElementById('btnApplyDirectUrlTemplate');
-  const btnResetDirectUrlDefaults = document.getElementById('btnResetDirectUrlDefaults');
-  const customDirectUrlsInput = document.getElementById('customDirectUrlsInput');
-  const customOrderIdSelectorInput = document.getElementById('customOrderIdSelectorInput');
-  const stageDocumentUploadCheck = document.getElementById('stageDocumentUploadCheck');
-  const stagePreviewCheck = document.getElementById('stagePreviewCheck');
-  const stagePaymentCheck = document.getElementById('stagePaymentCheck');
-  const customCaptchaHandlingCheck = document.getElementById('customCaptchaHandlingCheck');
-  const customTimeoutMsInput = document.getElementById('customTimeoutMsInput');
-  const genTplDirectUrlBtn = document.getElementById('genTplDirectUrlBtn');
-
-  if (genToggleCustomizerBtn && genCustomizerPanel) {
-    genToggleCustomizerBtn.addEventListener('click', () => {
-      const isVisible = genCustomizerPanel.style.display === 'block';
-      genCustomizerPanel.style.display = isVisible ? 'none' : 'block';
-    });
-  }
-
-  if (btnResetDirectUrlDefaults) {
-    btnResetDirectUrlDefaults.addEventListener('click', () => {
-      if (customDirectUrlsInput) customDirectUrlsInput.value = '/visa-status/, /complete-partially/';
-      if (customOrderIdSelectorInput) customOrderIdSelectorInput.value = '#order_id_spn, #order_id, [data-order-id]';
-      if (stageDocumentUploadCheck) stageDocumentUploadCheck.checked = true;
-      if (stagePreviewCheck) stagePreviewCheck.checked = true;
-      if (stagePaymentCheck) stagePaymentCheck.checked = true;
-      if (customCaptchaHandlingCheck) customCaptchaHandlingCheck.checked = true;
-      if (customTimeoutMsInput) customTimeoutMsInput.value = '5000';
-      showToast('Direct URL template reset to defaults', 'info');
-    });
-  }
-
-  if (btnApplyDirectUrlTemplate && genScenarioPrompt) {
-    btnApplyDirectUrlTemplate.addEventListener('click', () => {
-      const urls = customDirectUrlsInput ? customDirectUrlsInput.value.trim() : '/visa-status/, /complete-partially/';
-      const orderSelector = customOrderIdSelectorInput ? customOrderIdSelectorInput.value.trim() : '#order_id_spn';
-      const stages = [];
-      if (stageDocumentUploadCheck && stageDocumentUploadCheck.checked) stages.push('Document Upload');
-      if (stagePreviewCheck && stagePreviewCheck.checked) stages.push('Preview');
-      if (stagePaymentCheck && stagePaymentCheck.checked) stages.push('Payment');
-
-      const templateText = `Direct URL Verification Template:\n- URLs: [${urls}]\n- Order ID Selector: ${orderSelector}\n- Stages: ${stages.join(', ')}\n- Behavior: Before clicking Submit/Continue at each stage, open status & resume URLs in separate tabs, enter Order ID, solve Captcha, wait for networkidle (${customTimeoutMsInput ? customTimeoutMsInput.value : 5000}ms fallback), capture stage screenshots, close tabs, and resume.`;
-      genScenarioPrompt.value = templateText;
-      showToast('Direct URL custom template applied to prompt!', 'success');
-      if (genCustomizerPanel) genCustomizerPanel.style.display = 'none';
-    });
-  }
-
-  if (genTplDirectUrlBtn && genScenarioPrompt) {
-    genTplDirectUrlBtn.addEventListener('click', () => {
-      genScenarioPrompt.value = 'Direct URL Verification: at Preview, Document Upload, and Payment stages, copy Order ID into a variable, open /visa-status/ and /complete-partially/ in separate tabs before clicking Submit, enter Order ID, solve Captcha, wait for networkidle (5s fallback), capture stage screenshots, close tabs, and resume.';
-      genScenarioPrompt.focus();
-    });
-  }
-
   document.querySelectorAll('.gen-tpl-btn').forEach(btn => {
-    if (btn.id === 'genTplDirectUrlBtn') return;
     btn.addEventListener('click', () => {
       const tpl = btn.getAttribute('data-template');
       if (tpl && genScenarioPrompt) {
@@ -3173,6 +3439,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+
   function appendGeneratorLog(message, level = 'info') {
     if (!genConsoleLogsContainer) return;
     const entry = document.createElement('div');
@@ -3206,12 +3473,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ── AI Models & Multi-Endpoint Manager State & Handlers ──
-  const genAiProviderSelect = document.getElementById('genAiProviderSelect');
-  const genActiveAiStatusBadge = document.getElementById('genActiveAiStatusBadge');
-  const genActiveAiStatusText = document.getElementById('genActiveAiStatusText');
-  const genCheckActiveConnectionBtn = document.getElementById('genCheckActiveConnectionBtn');
-  const genOpenAiTabBtn = document.getElementById('genOpenAiTabBtn');
-
   const btnTestAllAiConnections = document.getElementById('btnTestAllAiConnections');
   const btnToggleImportJson = document.getElementById('btnToggleImportJson');
   const btnCloseImportJsonBtn = document.getElementById('btnCloseImportJsonBtn');
@@ -3229,13 +3490,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const endpointVendorSelect = document.getElementById('endpointVendorSelect');
   const endpointUrlInput = document.getElementById('endpointUrlInput');
   const endpointModelInput = document.getElementById('endpointModelInput');
-  const endpointApiKeyInput = document.getElementById('endpointApiKeyInput');
   const btnSaveEndpointForm = document.getElementById('btnSaveEndpointForm');
 
   const aiProvidersListContainer = document.getElementById('aiProvidersListContainer');
 
   let cachedAiProviders = [];
-  let currentActiveAiId = 'builtin-sdet';
+  let currentActiveAiId = 'google-gemini';
 
   function updateStatusBadgeElement(elBadge, elText, statusObj) {
     if (!elBadge || !elText) return;
@@ -3263,23 +3523,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await res.json();
       if (data.success && Array.isArray(data.providers)) {
         cachedAiProviders = data.providers;
-        currentActiveAiId = data.activeProviderId || 'builtin-sdet';
-
-        // Populate dropdown
-        if (genAiProviderSelect) {
-          genAiProviderSelect.innerHTML = data.providers.map(p => {
-            const extra = p.vendor === 'builtin' ? '100% Offline' : (p.model || p.url || p.vendor);
-            return `<option value="${p.id}" ${p.id === currentActiveAiId ? 'selected' : ''}>${escapeHtml(p.name)} (${escapeHtml(extra)})</option>`;
-          }).join('');
-        }
-
-        // Update active status badge
-        const activeProv = data.providers.find(p => p.id === currentActiveAiId) || data.providers[0];
-        if (activeProv) {
-          updateStatusBadgeElement(genActiveAiStatusBadge, genActiveAiStatusText, activeProv.status);
-        }
-
-        // Render cards
+        currentActiveAiId = data.activeProviderId || (data.providers[0] ? data.providers[0].id : 'google-gemini');
         renderAiProviderCards(data.providers, currentActiveAiId);
       }
     } catch (err) {
@@ -3300,9 +3544,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const statusLabel = state === 'connected' ? `Connected (${p.status.latencyMs || 0}ms)` : (state === 'offline' ? 'Offline' : (state === 'checking' ? 'Testing...' : 'Untested'));
       const statusTitle = p.status?.message || '';
 
-      const keyStatus = p.hasApiKey ? 'Configured' : (p.vendor === 'builtin' ? 'Not Required' : 'None');
-      const urlDisplay = p.url ? escapeHtml(p.url) : (p.vendor === 'gemini' ? 'api.google.com/genai' : (p.vendor === 'builtin' ? 'Local Memory' : 'Default'));
-      const modelDisplay = p.model ? escapeHtml(p.model) : (p.vendor === 'builtin' ? 'SDET Rule Engine' : 'N/A');
+      const keyStatus = p.vendor === 'gemini' ? (p.hasApiKey ? 'GEMINI_API_KEY Set' : 'GEMINI_API_KEY Missing') : 'Not Required';
+      const urlDisplay = p.url ? escapeHtml(p.url) : (p.vendor === 'gemini' ? 'api.google.com/genai' : 'Default');
+      const modelDisplay = p.model ? escapeHtml(p.model) : 'N/A';
 
       return `
         <div class="ai-card ${isActive ? 'active-card' : ''}" data-id="${p.id}">
@@ -3375,7 +3619,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const id = btn.getAttribute('data-id');
         if (!confirm('Are you sure you want to remove this AI Endpoint?')) return;
         const filtered = cachedAiProviders.filter(p => p.id !== id);
-        const newActive = currentActiveAiId === id ? 'builtin-sdet' : currentActiveAiId;
+        const newActive = currentActiveAiId === id ? (filtered[0]?.id || 'google-gemini') : currentActiveAiId;
         await saveAiProvidersToServer(filtered, newActive);
       });
     });
@@ -3407,9 +3651,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Show checking state
     prov.status = { state: 'checking', message: 'Testing...', latencyMs: 0 };
-    if (providerId === currentActiveAiId) {
-      updateStatusBadgeElement(genActiveAiStatusBadge, genActiveAiStatusText, prov.status);
-    }
     renderAiProviderCards(cachedAiProviders, currentActiveAiId);
 
     try {
@@ -3437,9 +3678,6 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!silent) showToast(`🔴 ${prov.name} connection error: ${err.message}`, 'error');
     }
 
-    if (providerId === currentActiveAiId) {
-      updateStatusBadgeElement(genActiveAiStatusBadge, genActiveAiStatusText, prov.status);
-    }
     renderAiProviderCards(cachedAiProviders, currentActiveAiId);
   }
 
@@ -3464,10 +3702,6 @@ document.addEventListener('DOMContentLoaded', () => {
             };
           }
         });
-        const activeProv = cachedAiProviders.find(p => p.id === currentActiveAiId);
-        if (activeProv) {
-          updateStatusBadgeElement(genActiveAiStatusBadge, genActiveAiStatusText, activeProv.status);
-        }
         renderAiProviderCards(cachedAiProviders, currentActiveAiId);
         showToast('Tested all AI connections!', 'info');
       }
@@ -3491,7 +3725,6 @@ document.addEventListener('DOMContentLoaded', () => {
       if (endpointVendorSelect) endpointVendorSelect.value = prov.vendor || 'customendpoint';
       if (endpointUrlInput) endpointUrlInput.value = prov.url || '';
       if (endpointModelInput) endpointModelInput.value = prov.model || '';
-      if (endpointApiKeyInput) endpointApiKeyInput.value = '';
     } else {
       if (aiEndpointFormTitle) aiEndpointFormTitle.innerHTML = '<i class="fas fa-plus-circle"></i> Add New AI Endpoint';
       if (editEndpointId) editEndpointId.value = '';
@@ -3499,7 +3732,6 @@ document.addEventListener('DOMContentLoaded', () => {
       if (endpointVendorSelect) endpointVendorSelect.value = 'customendpoint';
       if (endpointUrlInput) endpointUrlInput.value = 'http://localhost:11434/v1';
       if (endpointModelInput) endpointModelInput.value = 'qwen2.5-coder:14b';
-      if (endpointApiKeyInput) endpointApiKeyInput.value = '';
     }
   }
 
@@ -3513,7 +3745,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const vendor = endpointVendorSelect ? endpointVendorSelect.value : 'customendpoint';
     const url = endpointUrlInput ? endpointUrlInput.value.trim() : '';
     const model = endpointModelInput ? endpointModelInput.value.trim() : '';
-    const apiKey = endpointApiKeyInput ? endpointApiKeyInput.value.trim() : '';
 
     if (!name || !model) {
       showToast('Name and Model Name are required.', 'warning');
@@ -3530,8 +3761,7 @@ document.addEventListener('DOMContentLoaded', () => {
           name,
           vendor,
           url,
-          model,
-          apiKey: apiKey || updated[idx].apiKey
+          model
         };
       }
     } else {
@@ -3542,7 +3772,6 @@ document.addEventListener('DOMContentLoaded', () => {
         vendor,
         url,
         model,
-        apiKey,
         enabled: true
       });
     }
@@ -3587,11 +3816,9 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       const importedList = [];
-      const builtin = cachedAiProviders.find(p => p.vendor === 'builtin');
-      if (builtin) importedList.push(builtin);
-
       parsed.forEach((item, idx) => {
         const vendor = item.vendor || 'customendpoint';
+        if (vendor === 'builtin') return;
         const name = item.name || `Endpoint ${idx + 1}`;
 
         if (Array.isArray(item.models) && item.models.length > 0) {
@@ -3618,8 +3845,7 @@ document.addEventListener('DOMContentLoaded', () => {
             name,
             vendor,
             url: item.url || '',
-            model: modelName || (vendor === 'gemini' ? 'gemini-2.5-flash' : 'default'),
-            apiKey: item.apiKey || '',
+            model: modelName || (vendor === 'gemini' ? 'gemini-4-hydrogen' : 'default'),
             settings: item.settings || {},
             enabled: true
           });
@@ -3634,29 +3860,6 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {
       showToast('Invalid JSON syntax: ' + err.message, 'error');
     }
-  }
-
-  // Wire AI toolbar buttons
-  if (genAiProviderSelect) {
-    genAiProviderSelect.addEventListener('change', async () => {
-      const val = genAiProviderSelect.value;
-      if (val) {
-        await setActiveAiProvider(val);
-      }
-    });
-  }
-
-  if (genCheckActiveConnectionBtn) {
-    genCheckActiveConnectionBtn.addEventListener('click', () => {
-      const activeId = genAiProviderSelect ? genAiProviderSelect.value : currentActiveAiId;
-      testSingleAiConnection(activeId);
-    });
-  }
-
-  if (genOpenAiTabBtn) {
-    genOpenAiTabBtn.addEventListener('click', () => {
-      switchGenTab('ai');
-    });
   }
 
   if (btnTestAllAiConnections) {
@@ -3753,15 +3956,43 @@ document.addEventListener('DOMContentLoaded', () => {
 
       eventSource.addEventListener('failed', (e) => {
         updateGenStatus('failed');
-        showToast('Generator notice: check parameters.', 'warning');
+        try {
+          const res = JSON.parse(e.data);
+          showToast(res.error || 'AI generation failed.', 'error');
+        } catch {
+          showToast('AI generation failed.', 'error');
+        }
       });
 
-      eventSource.addEventListener('stopped', (e) => {
+      eventSource.addEventListener('stopped', () => {
         updateGenStatus('idle');
       });
 
     } catch (err) {
       console.error('[Generator] EventSource error:', err);
+    }
+  }
+
+  async function pollGeneratorJobUntilSettled(jobId) {
+    for (let i = 0; i < 180; i++) {
+      await new Promise(r => setTimeout(r, 1500));
+      try {
+        const res = await fetch('/api/generator/status');
+        const data = await res.json();
+        if (!data.success || (jobId && data.id !== jobId)) continue;
+        if (data.status === 'completed') {
+          updateGenStatus('completed');
+          if (data.generatedCode && genSpecCodeViewer) {
+            genSpecCodeViewer.value = data.generatedCode;
+          }
+          if (typeof loadTestSuites === 'function') loadTestSuites();
+          return;
+        }
+        if (data.status === 'failed' || data.status === 'stopped') {
+          updateGenStatus(data.status === 'failed' ? 'failed' : 'idle');
+          return;
+        }
+      } catch {}
     }
   }
 
@@ -3787,26 +4018,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
-      const rawUrls = customDirectUrlsInput ? customDirectUrlsInput.value.trim() : '/visa-status/, /complete-partially/';
-      const directUrls = rawUrls.split(',').map(s => s.trim()).filter(Boolean);
-      const orderIdSelector = customOrderIdSelectorInput ? customOrderIdSelectorInput.value.trim() : '#order_id_spn, #order_id, [data-order-id]';
-      const stages = [];
-      if (stageDocumentUploadCheck && stageDocumentUploadCheck.checked) stages.push('document-upload');
-      if (stagePreviewCheck && stagePreviewCheck.checked) stages.push('preview');
-      if (stagePaymentCheck && stagePaymentCheck.checked) stages.push('payment');
-
       const options = {
-        directUrlOptions: {
-          urls: directUrls,
-          orderIdSelector,
-          stages,
-          timeoutMs: 5000
-        }
+        archetype: 'auto',
+        liveSafetyMode: true,
+        verifyWithPlaywright: Boolean(genVerifyPlaywrightCheck && genVerifyPlaywrightCheck.checked)
       };
 
       if (genConsoleLogsContainer) genConsoleLogsContainer.innerHTML = '';
       updateGenStatus('running');
-      appendGeneratorLog(`Synthesizing test script (no test execution required)...`, 'info');
+      appendGeneratorLog('Starting AI generation pipeline...', 'info');
 
       try {
         const res = await fetch('/api/generator/start', {
@@ -3814,7 +4034,7 @@ document.addEventListener('DOMContentLoaded', () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             mode: selectedMode,
-            providerId: genAiProviderSelect ? genAiProviderSelect.value : (currentActiveAiId || 'builtin-sdet'),
+            providerId: currentActiveAiId || 'google-gemini',
             scriptName: selectedMode === 'update' ? genExistingScriptSelect.value : scriptName,
             targetUrl,
             scenario,
@@ -3822,23 +4042,14 @@ document.addEventListener('DOMContentLoaded', () => {
           })
         });
         const data = await res.json();
-        if (data.success) {
-          // Immediately refresh spec content
-          const finalName = selectedMode === 'update' ? genExistingScriptSelect.value : (scriptName || 'custom-visa.spec.ts');
-          const contentRes = await fetch(`/api/generator/spec-content?scriptName=${encodeURIComponent(finalName)}`);
-          const contentData = await contentRes.json();
-          if (contentData.success && contentData.content) {
-            if (genSpecCodeViewer) genSpecCodeViewer.value = contentData.content;
-            updateGenStatus('completed');
-            showToast(`Script generated & saved to tests/spec/${finalName}!`, 'success');
-          }
-        } else {
-          throw new Error(data.error || 'Failed to generate script');
+        if (!data.success) {
+          throw new Error(data.error || 'Failed to start AI generation');
         }
+        pollGeneratorJobUntilSettled(data.jobId);
       } catch (err) {
-        updateGenStatus('idle');
-        showToast('Generation notice: ' + err.message, 'error');
-        appendGeneratorLog('Generation notice: ' + err.message, 'error');
+        updateGenStatus('failed');
+        showToast('Generation error: ' + err.message, 'error');
+        appendGeneratorLog('Generation error: ' + err.message, 'error');
       }
     });
   }

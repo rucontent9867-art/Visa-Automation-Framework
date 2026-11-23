@@ -261,3 +261,16 @@ test('Azerbaijan Visa Application', async ({ page, waitForCaptcha, getUploadFile
     );
 
 });
+
+// =====================================
+// SECTION: Contact Us
+// =====================================
+test.describe('Azerbaijan visa contact form', () => {
+    test.describe.configure({ retries: 0 });
+
+    test('sends one inquiry and displays confirmation', async ({ page }) => {
+        const { submitContactUsForm } = await import('../../utils/contactUs');
+        const result = await submitContactUsForm(page, 'azerbaijan-visa');
+        expect(result.status, result.reason || 'Azerbaijan Contact Us submission failed').toBe('PASS');
+    });
+});

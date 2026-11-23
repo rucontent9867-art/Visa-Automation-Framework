@@ -194,3 +194,16 @@ test('Egypt ETA Application', async ({ page, waitForCaptcha, getUploadFile }) =>
     ).toBeVisible();
 
 });
+
+// =====================================
+// SECTION: Contact Us
+// =====================================
+test.describe('Egypt Eta contact form', () => {
+    test.describe.configure({ retries: 0 });
+
+    test('sends one inquiry and displays confirmation', async ({ page }) => {
+        const { submitContactUsForm } = await import('../../utils/contactUs');
+        const result = await submitContactUsForm(page, 'egypt-eta');
+        expect(result.status, result.reason || 'Egypt Eta Contact Us submission failed').toBe('PASS');
+    });
+});

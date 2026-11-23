@@ -13,7 +13,8 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "types": ["node"]
+    "types": ["node"],
+    "noImplicitAny": false
   },
   "include": ["utils/**/*.ts", "tests/**/*.ts"],
   "exclude": ["node_modules", "dist", "server", "web", "reports", ".temp-results"]

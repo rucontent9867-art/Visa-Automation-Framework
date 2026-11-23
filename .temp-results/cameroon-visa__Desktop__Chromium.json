@@ -1,0 +1,32 @@
+{
+  "testScript": "cameroon-visa.spec.ts",
+  "testName": "Cameroon Visa Application",
+  "device": "Desktop",
+  "deviceType": "Desktop",
+  "browser": "Chromium",
+  "viewport": "1920 x 1080",
+  "status": "FAIL",
+  "retries": 3,
+  "duration": 0.2,
+  "paymentUrl": "N/A",
+  "capturedUrls": [],
+  "urlHistory": [],
+  "screenshotPath": "/screenshots/2026-11-12_17-03-24/cameroon-visa/cameroon-visa-desktop-chromium-failed.png",
+  "error": "[Cameroon Visa Application] Error: page.goto: net::ERR_NAME_NOT_RESOLVED at https://cameroon-visa.info/application/\nCall log:\n\u001b[2m  - navigating to \"https://cameroon-visa.info/application/\", waiting until \"load\"\u001b[22m\n",
+  "failedStep": "Unknown",
+  "startTime": "2026-11-12 17:03:24",
+  "endTime": "2026-11-12 17:03:24",
+  "testBlocks": [
+    {
+      "title": "Cameroon Visa Application",
+      "status": "FAIL",
+      "duration": 0.2,
+      "error": "Error: page.goto: net::ERR_NAME_NOT_RESOLVED at https://cameroon-visa.info/application/\nCall log:\n\u001b[2m  - navigating to \"https://cameroon-visa.info/application/\", waiting until \"load\"\u001b[22m\n",
+      "failedStep": "Unknown",
+      "screenshotPath": "/screenshots/2026-11-12_17-03-24/cameroon-visa/cameroon-visa-desktop-chromium-failed.png"
+    }
+  ],
+  "passCount": 0,
+  "failCount": 1,
+  "skipCount": 0
+}

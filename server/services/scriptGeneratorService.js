@@ -1,21 +1,25 @@
 /**
  * scriptGeneratorService.js
  *
- * Playwright Automated Script Generator Engine.
- * Generates and updates production-ready Playwright test scripts conforming to
- * SCRIPT_GENERATOR_GUIDE.md and Direct URL Verification for All Websites.
- *
- * NOTE: Strict requirement: DOES NOT execute test cases or launch live test runs.
- * Generates, heals, and synthesizes clean TypeScript test specs instantly.
+ * AI-Powered Playwright Script Generator & Locator Self-Healing Engine.
+ * - Uses real AI (Google Gemini / OpenAI-compatible endpoints) with no offline mock fallback.
+ * - Automatically loads recent Playwright failure logs & DOM error-context.md snapshots when healing scripts.
+ * - Validates generated scripts with structural checks + TypeScript compiler (`tsc --noEmit`).
+ * - Supports optional bounded live Playwright verification & locator healing (max 2 live attempts).
  */
 
 const fs = require('fs');
 const path = require('path');
+const { execFile } = require('child_process');
+const { promisify } = require('util');
 const { v4: uuidv4 } = require('uuid');
 const aiProviderService = require('./aiProviderService');
+const store = require('./sessionStore');
+const { PORTAL_ARCHETYPES, PORTAL_REGISTRY } = require('./portalFlowKnowledge');
 
-const GUIDE_PATH = path.join(process.cwd(), 'SCRIPT_GENERATOR_GUIDE.md');
+const execFileAsync = promisify(execFile);
 const SPECS_DIR = path.join(process.cwd(), 'tests', 'spec');
+const TEST_RESULTS_DIR = path.join(process.cwd(), 'test-results');
 
 // In-memory active job state
 let activeJob = {
@@ -37,23 +41,6 @@ let activeJob = {
 
 // SSE connected clients
 const sseClients = new Set();
-
-function registerSseClient(req, res) {
-  res.writeHead(200, {
-    'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache',
-    'Connection': 'keep-alive',
-  });
-  res.write('\n');
-  sseClients.add(res);
-
-  // Send current status on connect
-  res.write(`event: status\ndata: ${JSON.stringify(getStatus())}\n\n`);
-
-  req.on('close', () => {
-    sseClients.delete(res);
-  });
-}
 
 function broadcastEvent(type, data) {
   const payload = `event: ${type}\ndata: ${JSON.stringify(data)}\n\n`;
@@ -125,12 +112,25 @@ function saveScript(scriptName, code) {
   if (!fileName.endsWith('.spec.ts') && !fileName.endsWith('.spec.js')) {
     fileName += '.spec.ts';
   }
+
+  const validationErr = aiProviderService.validateGeneratedScript(code);
+  if (validationErr) {
+    throw new Error(validationErr);
+  }
+
   if (!fs.existsSync(SPECS_DIR)) {
     fs.mkdirSync(SPECS_DIR, { recursive: true });
   }
   const targetPath = path.join(SPECS_DIR, fileName);
   fs.writeFileSync(targetPath, code, 'utf8');
   return { success: true, fileName, path: targetPath };
+}
+
+function getPortalKnowledge() {
+  return {
+    archetypes: PORTAL_ARCHETYPES,
+    registry: PORTAL_REGISTRY
+  };
 }
 
 function getStatus() {
@@ -151,293 +151,207 @@ function getStatus() {
 }
 
 /**
- * Update an existing script by adding or configuring Direct URL Verification
- * and ensuring guidelines (dm443790@gmail.com, baseTest imports) are applied.
+ * Collect the most recent Playwright failure log and DOM snapshot (error-context.md)
+ * for a given spec so AI can heal broken locators accurately.
  */
-function enhanceExistingSpec(code, options = {}) {
-  let updated = code;
+function findRecentFailureContext(scriptName) {
+  const cleanName = path.basename(scriptName);
+  const slug = cleanName.replace(/\.spec\.(ts|js)$/, '');
+  const parts = [];
 
-  // 1. Ensure verifyDirectUrls is imported from baseTest
-  if (!updated.includes('verifyDirectUrls')) {
-    updated = updated.replace(
-      /from\s+['"](\.\.\/\.\.\/utils\/baseTest)['"]/,
-      (match, p1) => match.replace('capturescreenshot', 'capturescreenshot, verifyDirectUrls')
+  // 1. Check latest failed execution in sessionStore
+  try {
+    const allExecs = Object.values(store.executionsById || {});
+    const matchingFails = allExecs
+      .filter(e => e && e.testScript === cleanName && e.status === 'FAIL' && e.error)
+      .sort((a, b) => new Date(b.endTime || b.startTime || 0) - new Date(a.endTime || a.startTime || 0));
+
+    if (matchingFails.length > 0) {
+      parts.push(`Latest Run Error:\n${String(matchingFails[0].error).slice(0, 2000)}`);
+    }
+  } catch {}
+
+  // 2. Check Playwright error-context.md on disk
+  try {
+    if (fs.existsSync(TEST_RESULTS_DIR)) {
+      const dirs = fs.readdirSync(TEST_RESULTS_DIR)
+        .filter(d => d.toLowerCase().startsWith(slug.toLowerCase()));
+      for (const dir of dirs) {
+        const ctxPath = path.join(TEST_RESULTS_DIR, dir, 'error-context.md');
+        if (fs.existsSync(ctxPath)) {
+          const content = fs.readFileSync(ctxPath, 'utf8');
+          parts.push(`Playwright DOM Error Context (${dir}/error-context.md):\n${content.slice(0, 4500)}`);
+          break;
+        }
+      }
+    }
+  } catch {}
+
+  return parts.join('\n\n---\n\n');
+}
+
+/**
+ * Verify TypeScript compilation across the project (`npx tsc --noEmit`).
+ */
+async function verifyWithTypeScript() {
+  try {
+    await execFileAsync('npx', ['tsc', '--noEmit'], {
+      cwd: process.cwd(),
+      timeout: 30000,
+      maxBuffer: 1024 * 1024
+    });
+    return { ok: true };
+  } catch (err) {
+    const output = [err.stdout, err.stderr, err.message].filter(Boolean).join('\n').trim();
+    return { ok: false, error: output.slice(0, 2000) };
+  }
+}
+
+/**
+ * Run a single Playwright test execution for live verification (0 retries).
+ */
+async function runSinglePlaywrightCheck(fileName) {
+  const relSpec = path.join('tests', 'spec', fileName);
+  try {
+    const { stdout, stderr } = await execFileAsync(
+      'npx',
+      ['playwright', 'test', relSpec, '--project=Desktop-Chromium', '--retries=0', '--reporter=line'],
+      {
+        cwd: process.cwd(),
+        timeout: 150000,
+        maxBuffer: 2 * 1024 * 1024
+      }
     );
-    if (!updated.includes('verifyDirectUrls')) {
-      updated = updated.replace(
-        /import\s*\{([^}]+)\}\s*from\s*['"](\.\.\/\.\.\/utils\/baseTest)['"]/,
-        (match, imports, path) => `import { ${imports.trim()}, verifyDirectUrls } from '${path}'`
-      );
-    }
+    return { ok: true, output: (stdout || '') + '\n' + (stderr || '') };
+  } catch (err) {
+    const output = [err.stdout, err.stderr, err.message].filter(Boolean).join('\n').trim();
+    return { ok: false, error: output.slice(0, 3000) };
   }
-
-  // 2. Ensure email convention dm443790@gmail.com
-  updated = updated.replace(/['"]([a-zA-Z0-9._%+-]+@(?:test\.com|example\.com|domain\.com|mail\.com))['"]/g, "'dm443790@gmail.com'");
-
-  const directUrlOpts = options.directUrlOptions || {};
-  const customUrls = (Array.isArray(directUrlOpts.urls) && directUrlOpts.urls.length > 0)
-    ? directUrlOpts.urls
-    : ['/visa-status/', '/complete-partially/'];
-  const urlsJson = JSON.stringify(customUrls);
-  const orderIdSelector = directUrlOpts.orderIdSelector || '#order_id_spn, #order_id, [data-order-id]';
-  const timeoutMs = directUrlOpts.timeoutMs || 5000;
-
-  // Check if verifyDirectUrls is already implemented in the spec
-  const alreadyHasVerifyCalls = updated.includes('await verifyDirectUrls(');
-
-  if (!alreadyHasVerifyCalls) {
-    // Inject Stage 1: Preview Stage verification before Confirm & Submit or Preview Submit
-    const previewSubmitPattern = /(await\s+page\.getByRole\(['"]button['"],\s*\{\s*name:\s*['"](?:Confirm & Submit|Submit & Preview|Preview)['"][^}]*\}\)\s*\.click\(\);)/;
-    if (previewSubmitPattern.test(updated)) {
-      const previewBlock = `
-    // =======================================================================
-    // DIRECT URL VERIFICATION: PREVIEW STAGE
-    // Verify whether direct URLs open Preview page before proceeding
-    // =======================================================================
-    await verifyDirectUrls(page, {
-        stageName: 'preview',
-        orderIdSelector: '${orderIdSelector}',
-        urls: ${urlsJson},
-        waitForCaptcha: true,
-        networkIdleTimeoutMs: ${timeoutMs},
-    });
-
-    $1`;
-      updated = updated.replace(previewSubmitPattern, previewBlock);
-    }
-
-    // Inject Stage 2: Document Upload Stage verification before Save & Continue or Upload Submit
-    const uploadSubmitPattern = /(await\s+page\.getByRole\(['"]button['"],\s*\{\s*name:\s*['"](?:Save & Continue|Submit Documents|Upload & Continue)['"][^}]*\}\)\s*\.click\(\);)/;
-    if (uploadSubmitPattern.test(updated)) {
-      const uploadBlock = `
-    // =======================================================================
-    // DIRECT URL VERIFICATION: DOCUMENT UPLOAD STAGE
-    // Verify whether direct URLs open Document Upload page before proceeding
-    // =======================================================================
-    await verifyDirectUrls(page, {
-        stageName: 'document-upload',
-        orderIdSelector: '${orderIdSelector}',
-        urls: ${urlsJson},
-        waitForCaptcha: true,
-        networkIdleTimeoutMs: ${timeoutMs},
-    });
-
-    $1`;
-      updated = updated.replace(uploadSubmitPattern, uploadBlock);
-    }
-
-    // Inject Stage 3: Payment Stage verification before payment completion
-    const paymentPattern = /(await\s+expect\(\s*page\.getByRole\(['"]heading['"],\s*\{\s*name:\s*['"](?:Pay Application Processing Fee|Payment)['"][^}]*\}\)\s*\)\.toBeVisible\([^)]*\);[\s\S]*?await\s+capturescreenshot\(page,\s*['"]payment-page['"]\);)/;
-    if (paymentPattern.test(updated)) {
-      const paymentBlock = `$1
-
-    // =======================================================================
-    // DIRECT URL VERIFICATION: PAYMENT STAGE
-    // Verify whether direct URLs open Payment page before proceeding
-    // =======================================================================
-    await verifyDirectUrls(page, {
-        stageName: 'payment',
-        orderIdSelector: '${orderIdSelector}',
-        urls: ${urlsJson},
-        waitForCaptcha: true,
-        networkIdleTimeoutMs: ${timeoutMs},
-    });`;
-      updated = updated.replace(paymentPattern, paymentBlock);
-    }
-  }
-
-  return updated;
 }
 
 /**
- * Generate a brand new Playwright test spec using the standardized architecture.
- */
-function generateNewSpec(testTitle, targetUrl, scenarioPrompt, options = {}) {
-  const directUrlOpts = options.directUrlOptions || {};
-  const customUrls = (Array.isArray(directUrlOpts.urls) && directUrlOpts.urls.length > 0)
-    ? directUrlOpts.urls
-    : ['/visa-status/', '/complete-partially/'];
-  const urlsJson = JSON.stringify(customUrls);
-  const orderIdSelector = directUrlOpts.orderIdSelector || '#order_id_spn, #order_id, [data-order-id]';
-  const timeoutMs = directUrlOpts.timeoutMs || 5000;
-  const stages = Array.isArray(directUrlOpts.stages) && directUrlOpts.stages.length > 0
-    ? directUrlOpts.stages
-    : ['document-upload', 'preview', 'payment'];
-
-  return `/**
- * ${testTitle} - E2E Automated Test
- *
- * Generated automatically by Playwright Auto Script Generator.
- * Standard Email: dm443790@gmail.com
- * Direct URL Verification: Enabled for stages: [${stages.join(', ')}]
- * Target Start URL: ${targetUrl}
- */
-
-import { test, expect, getUploadFile, capturescreenshot, verifyDirectUrls } from '../../utils/baseTest';
-import { getArrivalDate, getPassportExpiryDate } from '../../utils/date';
-import path from 'path';
-
-test('${testTitle}', async ({ page, waitForCaptcha }) => {
-
-    // =====================================
-    // SET UP CAPTCHA LISTENER BEFORE NAV
-    // =====================================
-    const captchaPromise = waitForCaptcha(page);
-
-    // =====================================
-    // NAVIGATE TO PORTAL
-    // =====================================
-    await page.goto('${targetUrl}');
-    try {
-        await page.waitForLoadState('networkidle', { timeout: 5000 });
-    } catch {
-        console.log('Network did not go idle within 5s, continuing anyway');
-    }
-
-    // =====================================
-    // GENERAL & APPLICANT DETAILS
-    // =====================================
-    await page.getByRole('textbox', { name: /Full Name|Name \*/i })
-        .fill('Testing User');
-
-    await page.getByRole('textbox', { name: /Email|Email ID/i })
-        .fill('dm443790@gmail.com');
-
-    await page.getByRole('textbox', { name: /Phone|Mobile/i })
-        .fill('9876543210');
-
-    // Future arrival date helper (avoids month rollover issues)
-    const arrival = getArrivalDate();
-    if (await page.getByLabel(/Arrival Year/i).isVisible().catch(() => false)) {
-        await page.getByLabel(/Arrival Year/i).selectOption(arrival.year);
-        await page.getByLabel(/Arrival Month/i).selectOption(arrival.month);
-    }
-
-    // Solve Captcha if present on initial form
-    const initialCaptcha = await captchaPromise;
-    if (initialCaptcha && await page.getByRole('textbox', { name: /Captcha/i }).isVisible().catch(() => false)) {
-        await page.getByRole('textbox', { name: /Captcha/i }).fill(initialCaptcha);
-    }
-
-    await page.waitForTimeout(1000);
-    await capturescreenshot(page, 'initial-registration');
-
-    // Click Continue / Next to proceed
-    await page.getByRole('button', { name: /Continue|Next|Register|Proceed/i }).first().click();
-    try {
-        await page.waitForLoadState('networkidle', { timeout: 5000 });
-    } catch {}
-
-    // =====================================
-    // PASSPORT & TRAVEL DETAILS
-    // =====================================
-    const passportExpiry = getPassportExpiryDate();
-    if (await page.getByRole('textbox', { name: /Passport Number/i }).isVisible().catch(() => false)) {
-        await page.getByRole('textbox', { name: /Passport Number/i }).fill('A12345678');
-    }
-
-    // =====================================
-    // DOCUMENT UPLOAD STAGE
-    // =====================================
-    const uploadFile = getUploadFile();
-    const fileInputs = page.locator('input[type="file"]');
-    if (await fileInputs.count() > 0) {
-        await fileInputs.first().setInputFiles(uploadFile);
-        await page.waitForTimeout(1000);
-        await capturescreenshot(page, 'doc-upload-page');
-
-        // DIRECT URL VERIFICATION: DOCUMENT UPLOAD
-        await verifyDirectUrls(page, {
-            stageName: 'document-upload',
-            orderIdSelector: '${orderIdSelector}',
-            urls: ${urlsJson},
-            waitForCaptcha: true,
-            networkIdleTimeoutMs: ${timeoutMs},
-        });
-
-        await page.getByRole('button', { name: /Save & Continue|Continue|Next/i }).first().click();
-        try {
-            await page.waitForLoadState('networkidle', { timeout: 5000 });
-        } catch {}
-    }
-
-    // =====================================
-    // PREVIEW STAGE
-    // =====================================
-    await page.waitForTimeout(1000);
-    await capturescreenshot(page, 'preview-page');
-
-    // DIRECT URL VERIFICATION: PREVIEW
-    await verifyDirectUrls(page, {
-        stageName: 'preview',
-        orderIdSelector: '${orderIdSelector}',
-        urls: ${urlsJson},
-        waitForCaptcha: true,
-        networkIdleTimeoutMs: ${timeoutMs},
-    });
-
-    await page.getByRole('button', { name: /Confirm & Submit|Submit/i }).first().click();
-    try {
-        await page.waitForLoadState('networkidle', { timeout: 5000 });
-    } catch {}
-
-    // =====================================
-    // PAYMENT STAGE
-    // =====================================
-    await page.waitForTimeout(1000);
-    await capturescreenshot(page, 'payment-page');
-
-    // DIRECT URL VERIFICATION: PAYMENT
-    await verifyDirectUrls(page, {
-        stageName: 'payment',
-        orderIdSelector: '${orderIdSelector}',
-        urls: ${urlsJson},
-        waitForCaptcha: true,
-        networkIdleTimeoutMs: ${timeoutMs},
-    });
-
-    // Verify authorized test email is displayed on the payment/review page
-    await expect(page.getByText('dm443790@gmail.com').first()).toBeVisible({ timeout: 15000 });
-});
-`;
-}
-
-/**
- * Execute script generation pipeline instantly without running live test cases.
+ * Execute AI script generation, TypeScript verification, and optional bounded Playwright verification & healing.
  */
 async function runGenerationPipeline(jobId) {
   try {
-    addLog(`🚀 Starting script synthesis for: ${activeJob.scriptName}`, 'info');
-    let generatedScript = '';
+    if (activeJob.id !== jobId || activeJob.status === 'stopped') return;
+
+    addLog(`🚀 Starting AI script synthesis for: ${activeJob.scriptName}`, 'info');
     const testTitle = activeJob.scriptName
       .replace(/\.spec\.(ts|js)$/, '')
       .replace(/[-_]/g, ' ')
       .replace(/\b\w/g, l => l.toUpperCase()) + ' Application';
 
     let existingContent = '';
+    let failureContext = '';
     if (activeJob.mode === 'update') {
       addLog(`Loading existing spec: ${activeJob.scriptName}...`, 'info');
       existingContent = loadSpecContent(activeJob.scriptName);
+      failureContext = findRecentFailureContext(activeJob.scriptName);
+      if (failureContext) {
+        addLog(`🩹 Found recent Playwright failure / DOM snapshot for ${activeJob.scriptName}; sending to AI for locator healing.`, 'info');
+      }
     }
 
-    generatedScript = await aiProviderService.generateScript({
+    let generatedScript = await aiProviderService.generateScript({
       providerId: activeJob.providerId,
       testTitle,
       targetUrl: activeJob.targetUrl,
       scenario: activeJob.scenario,
       existingCode: existingContent,
+      failureContext,
       mode: activeJob.mode,
       options: activeJob.options,
       onLog: (msg, lvl) => addLog(msg, lvl)
     });
 
-    // Save directly to tests/spec/
-    const saveRes = saveScript(activeJob.scriptName, generatedScript);
+    if (activeJob.status === 'stopped') return;
+
+    // Backup previous content in memory in case tsc check fails permanently
+    const targetPath = path.join(SPECS_DIR, path.basename(activeJob.scriptName));
+    const previousDiskContent = fs.existsSync(targetPath) ? fs.readFileSync(targetPath, 'utf8') : null;
+
+    let saveRes = saveScript(activeJob.scriptName, generatedScript);
+
+    // Run TypeScript compiler verification (with 1 AI heal retry if TS errors occur)
+    addLog(`🔍 Running TypeScript compiler check (tsc --noEmit)...`, 'info');
+    let tscCheck = await verifyWithTypeScript();
+    if (!tscCheck.ok) {
+      addLog(`⚠️ TypeScript check detected errors. Asking AI to heal type/syntax issues...`, 'warning');
+      try {
+        generatedScript = await aiProviderService.generateScript({
+          providerId: activeJob.providerId,
+          testTitle,
+          targetUrl: activeJob.targetUrl,
+          scenario: activeJob.scenario,
+          existingCode: generatedScript,
+          failureContext: `TypeScript compiler errors:\n${tscCheck.error}`,
+          mode: 'update',
+          options: activeJob.options,
+          onLog: (msg, lvl) => addLog(msg, lvl)
+        });
+        saveRes = saveScript(activeJob.scriptName, generatedScript);
+        tscCheck = await verifyWithTypeScript();
+      } catch (healErr) {
+        if (previousDiskContent !== null) {
+          fs.writeFileSync(targetPath, previousDiskContent, 'utf8');
+        }
+        throw healErr;
+      }
+
+      if (!tscCheck.ok) {
+        if (previousDiskContent !== null) {
+          fs.writeFileSync(targetPath, previousDiskContent, 'utf8');
+        }
+        throw new Error(`TypeScript compilation failed after AI heal: ${tscCheck.error}`);
+      }
+    }
+    addLog(`✅ TypeScript check passed.`, 'success');
+
+    // Optional bounded Playwright live verification & AI locator self-healing (max 2 live runs)
+    if (activeJob.options?.verifyWithPlaywright) {
+      const maxLiveAttempts = 2;
+      for (let liveAttempt = 1; liveAttempt <= maxLiveAttempts; liveAttempt++) {
+        if (activeJob.status === 'stopped') return;
+        addLog(`🧪 Live Playwright Verification Run ${liveAttempt}/${maxLiveAttempts}: ${saveRes.fileName}...`, 'info');
+        const pwResult = await runSinglePlaywrightCheck(saveRes.fileName);
+
+        if (pwResult.ok) {
+          addLog(`✅ Live Playwright verification PASSED on attempt ${liveAttempt}/${maxLiveAttempts}!`, 'success');
+          break;
+        }
+
+        addLog(`⚠️ Playwright verification failed on attempt ${liveAttempt}/${maxLiveAttempts}.`, 'warning');
+
+        if (liveAttempt < maxLiveAttempts) {
+          addLog(`🩹 Capturing failure trace & DOM snapshot for AI locator self-healing...`, 'info');
+          const latestCtx = findRecentFailureContext(saveRes.fileName);
+          const combinedFailure = `${pwResult.error}\n\n${latestCtx}`.trim();
+
+          generatedScript = await aiProviderService.generateScript({
+            providerId: activeJob.providerId,
+            testTitle,
+            targetUrl: activeJob.targetUrl,
+            scenario: activeJob.scenario,
+            existingCode: generatedScript,
+            failureContext: combinedFailure,
+            mode: 'update',
+            options: activeJob.options,
+            onLog: (msg, lvl) => addLog(msg, lvl)
+          });
+
+          saveRes = saveScript(activeJob.scriptName, generatedScript);
+        } else {
+          throw new Error(`Playwright verification still failing after ${maxLiveAttempts} attempts:\n${pwResult.error.slice(0, 800)}`);
+        }
+      }
+    }
+
     activeJob.generatedCode = generatedScript;
     activeJob.status = 'completed';
     activeJob.endTime = new Date().toLocaleTimeString();
 
-    addLog(`✅ Script successfully created & saved to tests/spec/${saveRes.fileName}`, 'success');
+    addLog(`✅ Script verified & saved to tests/spec/${saveRes.fileName}`, 'success');
     broadcastEvent('completed', { fileName: saveRes.fileName, code: generatedScript });
 
   } catch (err) {
@@ -449,7 +363,7 @@ async function runGenerationPipeline(jobId) {
   }
 }
 
-function startJob({ mode = 'create', scriptName, targetUrl, scenario = '', options = {}, providerId }) {
+async function startJob({ mode = 'create', scriptName, targetUrl, scenario = '', options = {}, providerId, wait = false }) {
   let finalScriptName = scriptName ? scriptName.trim() : 'custom-visa-application.spec.ts';
   if (!finalScriptName.endsWith('.spec.ts') && !finalScriptName.endsWith('.spec.js')) {
     finalScriptName += '.spec.ts';
@@ -482,13 +396,24 @@ function startJob({ mode = 'create', scriptName, targetUrl, scenario = '', optio
     error: null
   };
 
-  addLog(`Initiating ${mode === 'update' ? 'Update & Direct URL Verification' : 'Script Generation'}...`, 'info');
+  addLog(`Initiating AI ${mode === 'update' ? 'Fix / Heal & Update' : 'Script Generation'}...`, 'info');
   broadcastEvent('started', { id: jobId, scriptName: finalScriptName, targetUrl: finalUrl });
 
-  // Run immediately and return
-  runGenerationPipeline(jobId);
+  const pipelinePromise = runGenerationPipeline(jobId);
 
-  return { success: true, jobId, message: 'Script generated and saved.' };
+  if (wait) {
+    await pipelinePromise;
+    return {
+      success: activeJob.status === 'completed',
+      jobId,
+      status: activeJob.status,
+      error: activeJob.error,
+      scriptName: activeJob.scriptName,
+      logs: activeJob.logs
+    };
+  }
+
+  return { success: true, jobId, status: 'running', message: 'AI generation started.' };
 }
 
 function stopJob() {
@@ -510,6 +435,7 @@ module.exports = {
   getExistingSpecs,
   loadSpecContent,
   saveScript,
-  registerSseClient,
+  getPortalKnowledge,
+  findRecentFailureContext,
   sseClients
 };

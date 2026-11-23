@@ -128,6 +128,37 @@ async function updateExcelReportDisk() {
         const envStr = `${exec.device || 'Desktop'} / ${exec.browser || 'Chromium'}`;
         const dateTimeStr = exec.startTime ? new Date(exec.startTime).toLocaleString() : new Date(session.createdAt).toLocaleString();
 
+        // Format Test Script cell - if spec contains multiple test blocks, list them all clearly
+        let testScriptCell = `${formattedTitle} (${exec.testScript})`;
+        if (Array.isArray(exec.testBlocks) && exec.testBlocks.length > 1) {
+          const p = exec.passCount ?? exec.testBlocks.filter(b => b.status === 'PASS' || b.status === 'RETRY_PASS').length;
+          const f = exec.failCount ?? exec.testBlocks.filter(b => b.status === 'FAIL').length;
+          const s = exec.skipCount ?? exec.testBlocks.filter(b => b.status === 'SKIPPED').length;
+          const summaryParts = [];
+          if (p > 0) summaryParts.push(`${p} passed`);
+          if (f > 0) summaryParts.push(`${f} failed`);
+          if (s > 0) summaryParts.push(`${s} skipped`);
+          const summaryStr = summaryParts.join(', ') || `${exec.testBlocks.length} tests`;
+
+          const blockLines = exec.testBlocks.map((b, idx) => {
+            const sym = (b.status === 'PASS' || b.status === 'RETRY_PASS') ? '✓' : (b.status === 'SKIPPED' ? '↷' : '✗');
+            const dur = b.duration != null ? ` (${b.duration}s)` : '';
+            return `  ${idx + 1}. [${sym} ${b.status}] ${b.title}${dur}`;
+          }).join('\n');
+
+          testScriptCell = `${formattedTitle} (${exec.testScript})\n[${exec.testBlocks.length} Tests: ${summaryStr}]:\n${blockLines}`;
+        }
+
+        // Build map of labels from urlHistory if available
+        const urlLabels = new Map();
+        if (Array.isArray(exec.urlHistory)) {
+          for (const h of exec.urlHistory) {
+            if (h && h.url && h.label && !urlLabels.has(h.url)) {
+              urlLabels.set(h.url, h.label);
+            }
+          }
+        }
+
         // Prepare Captured URL(s)
         const capturedUrlsList = [];
         if (Array.isArray(exec.capturedUrls) && exec.capturedUrls.length > 0) {
@@ -145,13 +176,18 @@ async function updateExcelReportDisk() {
         let paymentUrlObj = '—';
         if (capturedUrlsList.length === 1) {
           const singleUrl = capturedUrlsList[0];
+          const lbl = urlLabels.get(singleUrl);
+          const displayUrl = lbl ? `[${lbl}] ${singleUrl}` : singleUrl;
           if (/^https?:\/\//i.test(singleUrl)) {
-            paymentUrlObj = { text: singleUrl, hyperlink: singleUrl, tooltip: singleUrl };
+            paymentUrlObj = { text: displayUrl, hyperlink: singleUrl, tooltip: displayUrl };
           } else {
-            paymentUrlObj = singleUrl;
+            paymentUrlObj = displayUrl;
           }
         } else if (capturedUrlsList.length > 1) {
-          paymentUrlObj = capturedUrlsList.map((u, idx) => `[Step ${idx + 1}] ${u}`).join('\n');
+          paymentUrlObj = `[${capturedUrlsList.length} URLs Captured]:\n` + capturedUrlsList.map((u, idx) => {
+            const lbl = urlLabels.get(u) || `Step ${idx + 1}`;
+            return `[${idx + 1}. ${lbl}] ${u}`;
+          }).join('\n');
         }
 
         // Prepare Screenshot hyperlink
@@ -166,10 +202,34 @@ async function updateExcelReportDisk() {
           screenshotObj = { text: 'View Image', hyperlink: targetUrl, tooltip: 'View Full Resolution Screenshot' };
         }
 
+        // Contact Us cell & screenshot link
+        let contactUsCell = '—';
+        if (exec.contactUsEnabled || (exec.contactUsStatus && exec.contactUsStatus !== 'SKIPPED' && exec.contactUsStatus !== 'DISABLED')) {
+          contactUsCell = exec.contactUsReason
+            ? `${exec.contactUsStatus}: ${exec.contactUsReason}`
+            : (exec.contactUsStatus || 'SKIPPED');
+        }
+
+        let contactUsShotObj = '—';
+        if (exec.contactUsScreenshot && exec.contactUsScreenshot !== 'N/A') {
+          let cuUrl = exec.contactUsScreenshot;
+          if (cuUrl.startsWith('/screenshots/')) cuUrl = '.' + cuUrl;
+          else if (cuUrl.startsWith('screenshots/')) cuUrl = './' + cuUrl;
+          contactUsShotObj = { text: 'View Contact Us', hyperlink: cuUrl, tooltip: 'View Contact Us Screenshot' };
+        }
+
+        const visaStatusUrlObj = exec.visaStatusUrl && exec.visaStatusUrl !== 'N/A' && /^https?:\/\//i.test(exec.visaStatusUrl)
+          ? { text: exec.visaStatusUrl, hyperlink: exec.visaStatusUrl, tooltip: exec.visaStatusUrl }
+          : (exec.visaStatusUrl && exec.visaStatusUrl !== 'N/A' ? exec.visaStatusUrl : '—');
+
+        const completePartiallyUrlObj = exec.completePartiallyUrl && exec.completePartiallyUrl !== 'N/A' && /^https?:\/\//i.test(exec.completePartiallyUrl)
+          ? { text: exec.completePartiallyUrl, hyperlink: exec.completePartiallyUrl, tooltip: exec.completePartiallyUrl }
+          : (exec.completePartiallyUrl && exec.completePartiallyUrl !== 'N/A' ? exec.completePartiallyUrl : '—');
+
         const rowValues = [
           `Run #${session.runNumber}`,
           dateTimeStr,
-          `${formattedTitle} (${exec.testScript})`,
+          testScriptCell,
           envStr,
           exec.status || 'UNKNOWN',
           `Attempt #${attempts}`,
@@ -178,6 +238,10 @@ async function updateExcelReportDisk() {
           durationStr,
           exec.error || '—',
           exec.id,
+          contactUsCell,
+          contactUsShotObj,
+          visaStatusUrlObj,
+          completePartiallyUrlObj,
         ];
 
         let targetRowNumber = existingRowMap.get(String(exec.id));
@@ -260,10 +324,14 @@ function updateUrlHistoryWorksheet(workbook, dateGroups) {
           urlCellObj = { text: targetUrl, hyperlink: targetUrl, tooltip: targetUrl };
         }
 
+        const testScriptDisplayName = (Array.isArray(exec.testBlocks) && exec.testBlocks.length > 1)
+          ? `${formattedTitle} (${exec.testScript}) [${exec.testBlocks.length} Tests]`
+          : `${formattedTitle} (${exec.testScript})`;
+
         const rowValues = [
           `Run #${session.runNumber}`,
           dateTimeStr,
-          `${formattedTitle} (${exec.testScript})`,
+          testScriptDisplayName,
           envStr,
           stepNum,
           item.label || `Step ${stepNum}`,
@@ -342,6 +410,10 @@ function setupWorksheetHeaders(worksheet) {
     { header: 'Duration', key: 'duration', width: 12 },
     { header: 'Error Details', key: 'error', width: 45 },
     { header: 'Exec ID', key: 'execId', width: 36 },
+    { header: 'Contact Us', key: 'contactUs', width: 26 },
+    { header: 'Contact Us Screenshot', key: 'contactUsScreenshot', width: 22 },
+    { header: 'Visa Status URL', key: 'visaStatusUrl', width: 42 },
+    { header: 'Complete Partially URL', key: 'completePartiallyUrl', width: 42 },
   ];
 
   // Hide Exec ID column (Column 11)
@@ -378,7 +450,14 @@ function formatDataRow(row, status) {
       bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
     };
 
-    // Multi-line captured URLs wrapText
+    // Multi-line Test Script wrapText (Col 3)
+    if (colNumber === 3 && typeof cell.value === 'string' && cell.value.includes('\n')) {
+      cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+      const lineCount = cell.value.split('\n').length;
+      row.height = Math.max(row.height || 22, lineCount * 18);
+    }
+
+    // Multi-line captured URLs wrapText (Col 7)
     if (colNumber === 7 && typeof cell.value === 'string' && cell.value.includes('\n')) {
       cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
       const lineCount = cell.value.split('\n').length;
@@ -403,8 +482,8 @@ function formatDataRow(row, status) {
       }
     }
 
-    // Style Hyperlinks (Col 7 Payment URL, Col 8 Screenshot)
-    if ((colNumber === 7 || colNumber === 8) && typeof cell.value === 'object' && cell.value !== null && cell.value.hyperlink) {
+    // Style Hyperlinks (Col 7 Payment URL, Col 8 Screenshot, Col 13 Contact Us Shot, Col 14-15 URLs)
+    if ((colNumber === 7 || colNumber === 8 || colNumber === 13 || colNumber === 14 || colNumber === 15) && typeof cell.value === 'object' && cell.value !== null && cell.value.hyperlink) {
       cell.font = { name: 'Arial', size: 9.5, color: { argb: 'FF0284C7' }, underline: true };
     }
   });

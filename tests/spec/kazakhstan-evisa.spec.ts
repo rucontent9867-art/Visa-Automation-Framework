@@ -266,3 +266,16 @@ test('Kazakhstan Visa Application', async ({ page, waitForCaptcha }) => {
     );
 
 });
+
+// =====================================
+// SECTION: Contact Us
+// =====================================
+test.describe('Kazakhstan Evisa contact form', () => {
+    test.describe.configure({ retries: 0 });
+
+    test('sends one inquiry and displays confirmation', async ({ page }) => {
+        const { submitContactUsForm } = await import('../../utils/contactUs');
+        const result = await submitContactUsForm(page, 'kazakhstan-evisa');
+        expect(result.status, result.reason || 'Kazakhstan Evisa Contact Us submission failed').toBe('PASS');
+    });
+});
