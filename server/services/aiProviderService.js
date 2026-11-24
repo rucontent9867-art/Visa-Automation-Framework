@@ -28,9 +28,9 @@ const DEFAULT_PROVIDERS = [
     id: 'google-gemini',
     name: 'Google Gemini',
     vendor: 'gemini',
-    model: 'gemini-4-hydrogen',
+    model: 'gemini-3.8-flash',
     settings: {
-      'models/gemini-4-hydrogen': {
+      'models/gemini-3.8-flash': {
         reasoningEffort: 'medium'
       }
     },
@@ -118,8 +118,8 @@ function readAiConfig() {
     providers = providers
       .filter(p => p && p.vendor !== 'builtin' && p.id !== 'builtin-sdet')
       .map(p => {
-        if (p.vendor === 'gemini' && (!p.model || /^(gemini-1\.|gemini-2\.)/i.test(p.model))) {
-          return { ...p, model: 'gemini-4-hydrogen' };
+        if (p.vendor === 'gemini' && (!p.model || /^(gemini-1\.|gemini-2\.|gemini-4\.)/i.test(p.model))) {
+          return { ...p, model: 'gemini-3.8-flash' };
         }
         return p;
       });
@@ -504,7 +504,7 @@ async function invokeAiProvider(provider, promptContent) {
     if (!apiKey) {
       throw new Error('Missing GEMINI_API_KEY in server environment. Configure GEMINI_API_KEY or select a configured online AI endpoint.');
     }
-    const modelName = provider.model || 'gemini-4-hydrogen';
+    const modelName = provider.model || 'gemini-3.8-flash';
     const ai = createGeminiClient(apiKey);
     const resp = await ai.models.generateContent({
       model: modelName,
@@ -667,7 +667,7 @@ async function transcribeAudioWithGemini(audioBase64, mimeType = 'audio/mp3') {
   const ai = createGeminiClient(apiKey);
   const { Type } = require('@google/genai');
 
-  const modelsToTry = ['gemini-3.5-transcribe', 'gemini-4-hydrogen'];
+  const modelsToTry = ['gemini-3.8-flash', 'gemini-3.1-pro-preview'];
   let lastError = null;
 
   for (const model of modelsToTry) {
@@ -731,7 +731,7 @@ If none match, return an empty array.`;
     },
   };
 
-  const modelsToTry = ['gemini-3.1-flash-lite', 'gemini-4-hydrogen', 'gemini-4-neon'];
+  const modelsToTry = ['gemini-3.8-flash', 'gemini-3.1-pro-preview'];
   let lastError = null;
   for (const model of modelsToTry) {
     for (let attempt = 1; attempt <= 2; attempt++) {

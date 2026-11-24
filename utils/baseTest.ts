@@ -287,7 +287,8 @@ test.afterEach(async ({ page }, testInfo: TestInfo) => {
 
         // Automatically capture screenshot of the page whose URL was captured
         try {
-          const cleanName = `${testKey}-${device}-${browser}-captured-url.png`
+          const sanitizedTestName = testName.toLowerCase().replace(/[^a-z0-9\-_.]/g, '-');
+          const cleanName = `${testKey}-${sanitizedTestName}-${device}-${browser}-captured-url.png`
             .toLowerCase()
             .replace(/[^a-z0-9\-_.]/g, '-');
 
@@ -325,7 +326,8 @@ test.afterEach(async ({ page }, testInfo: TestInfo) => {
   } else {
     // ─── GUARANTEED FAILURE SCREENSHOT CAPTURE (Locator errors, timeouts, network, assertions, etc.) ───
     try {
-      const cleanFailureName = `${testKey}-${device}-${browser}-failed.png`
+      const sanitizedTestName = testName.toLowerCase().replace(/[^a-z0-9\-_.]/g, '-');
+      const cleanFailureName = `${testKey}-${sanitizedTestName}-${device}-${browser}-failed.png`
         .toLowerCase()
         .replace(/[^a-z0-9\-_.]/g, '-');
 

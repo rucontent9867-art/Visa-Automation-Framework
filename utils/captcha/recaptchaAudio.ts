@@ -121,10 +121,15 @@ async function tryAudioSolve(
     }
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      // Check if Google rate-limited audio ("Try again later")
       const dosVisible = await bf.locator('.rc-doscaptcha-header-text').isVisible({ timeout: 800 }).catch(() => false);
       if (dosVisible) {
-        console.warn('[recaptcha] Audio challenge rate-limited ("Try again later").');
+        console.warn('[recaptcha] Audio challenge rate-limited ("Try again later"). Attempting reload...');
+        const reloadBtn = bf.locator('#recaptcha-reload-button');
+        if (await reloadBtn.isVisible({ timeout: 1_000 }).catch(() => false)) {
+          await reloadBtn.click();
+          await page.waitForTimeout(1_500);
+          continue;
+        }
         return { solved: false, rateLimited: true };
       }
 

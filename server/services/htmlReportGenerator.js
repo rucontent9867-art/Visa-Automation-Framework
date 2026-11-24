@@ -921,6 +921,13 @@ function generateReportHtml(data) {
       document.body.style.overflow = '';
     }
 
+    window.openErrorModal = openErrorModal;
+    window.openUrlsModal = openUrlsModal;
+    window.openTestBlocksModal = openTestBlocksModal;
+    window.closeErrorModal = closeErrorModal;
+    window.closeUrlsModal = closeUrlsModal;
+    window.closeTestBlocksModal = closeTestBlocksModal;
+
     window.copySingleUrl = function(urlText, btn) {
       if (!urlText) return;
       navigator.clipboard.writeText(urlText).then(function() {

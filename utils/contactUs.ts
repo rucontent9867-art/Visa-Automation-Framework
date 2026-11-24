@@ -968,7 +968,10 @@ async function fillAndSubmit(page: Page, site: ContactUsSiteConfig, isGridRetry 
       if (visibleChallenge) {
         console.log(`[contactUs] ${site.name} presented reCAPTCHA challenge — invoking solver...`);
         const wasLimitedBefore = isAudioRateLimited();
-        const solved = await solveRecaptchaChallenge(page, { dialogTimeout: 4_000, maxAttempts: 3 });
+        const solved = await Promise.race([
+          solveRecaptchaChallenge(page, { dialogTimeout: 3_000, maxAttempts: 2 }),
+          new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 15_000)),
+        ]);
         if (!solved) {
           if (!wasLimitedBefore && isAudioRateLimited() && !isGridRetry) {
             console.log(`[contactUs] ${site.name}: audio challenge rate-limited; retrying once with direct visual grid solver...`);
@@ -1165,7 +1168,10 @@ async function fillAndSubmitGenericContactForm(page: Page, specKey: string): Pro
       .catch(() => false);
 
     if (visibleChallenge) {
-      const solved = await solveRecaptchaChallenge(page, { dialogTimeout: 4_000, maxAttempts: 3 });
+      const solved = await Promise.race([
+        solveRecaptchaChallenge(page, { dialogTimeout: 3_000, maxAttempts: 2 }),
+        new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 15_000)),
+      ]);
       if (!solved) {
         const captchaShot = await captureScreenshot(page, `contact-us-${specKey}-captcha`).catch(() => null);
         return {
